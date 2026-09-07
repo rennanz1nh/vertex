@@ -1,3 +1,5 @@
+SET search_path TO vertex, extensions;
+
 -- SEO + marketing integrations managed from Admin > Settings.
 --
 -- Three pieces:
@@ -9,11 +11,11 @@
 -- ---------------------------------------------------------------------------
 -- site_settings (single row)
 -- ---------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.site_settings (
+CREATE TABLE IF NOT EXISTS vertex.site_settings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   -- General / SEO defaults
-  site_url TEXT,                       -- canonical base, e.g. https://cosmeticmkt.com (fallback in code if null)
-  site_name TEXT NOT NULL DEFAULT 'Cosmetic Marketplace',
+  site_url TEXT,                       -- canonical base, e.g. https://vertex-rental-cars.vercel.app (fallback in code if null)
+  site_name TEXT NOT NULL DEFAULT 'Vertex Rental Cars',
   default_title TEXT,                  -- default <title> when a page/product has none
   default_description TEXT,            -- default meta description
   default_og_image TEXT,               -- default social share image (absolute URL)
@@ -40,30 +42,30 @@ CREATE TABLE IF NOT EXISTS public.site_settings (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-ALTER TABLE public.site_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE vertex.site_settings ENABLE ROW LEVEL SECURITY;
 
 -- Public SELECT: the storefront (anon key, server-rendered) reads these to inject
 -- tags and build metadata. No secrets live here — only public tag IDs and SEO text.
 CREATE POLICY "Anyone can view site settings"
-  ON public.site_settings FOR SELECT USING (true);
+  ON vertex.site_settings FOR SELECT USING (true);
 
 CREATE POLICY "Admin and operador can insert site settings"
-  ON public.site_settings FOR INSERT
-  WITH CHECK (auth.uid() IS NOT NULL AND public.get_current_user_role() IN ('admin', 'operador'));
+  ON vertex.site_settings FOR INSERT
+  WITH CHECK (auth.uid() IS NOT NULL AND vertex.get_current_user_role() IN ('admin', 'operador'));
 
 CREATE POLICY "Admin and operador can update site settings"
-  ON public.site_settings FOR UPDATE
-  USING (auth.uid() IS NOT NULL AND public.get_current_user_role() IN ('admin', 'operador'));
+  ON vertex.site_settings FOR UPDATE
+  USING (auth.uid() IS NOT NULL AND vertex.get_current_user_role() IN ('admin', 'operador'));
 
 -- Seed the single row
-INSERT INTO public.site_settings (site_name)
-SELECT 'Cosmetic Marketplace'
-WHERE NOT EXISTS (SELECT 1 FROM public.site_settings);
+INSERT INTO vertex.site_settings (site_name)
+SELECT 'Vertex Rental Cars'
+WHERE NOT EXISTS (SELECT 1 FROM vertex.site_settings);
 
 -- ---------------------------------------------------------------------------
 -- page_seo (per-page overrides)
 -- ---------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.page_seo (
+CREATE TABLE IF NOT EXISTS vertex.page_seo (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   page_key TEXT NOT NULL UNIQUE,       -- home | products | women | men | women-skin | ... | contact-us | sell-with-us
   title TEXT,
@@ -73,28 +75,28 @@ CREATE TABLE IF NOT EXISTS public.page_seo (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-ALTER TABLE public.page_seo ENABLE ROW LEVEL SECURITY;
+ALTER TABLE vertex.page_seo ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Anyone can view page seo"
-  ON public.page_seo FOR SELECT USING (true);
+  ON vertex.page_seo FOR SELECT USING (true);
 
 CREATE POLICY "Admin and operador can insert page seo"
-  ON public.page_seo FOR INSERT
-  WITH CHECK (auth.uid() IS NOT NULL AND public.get_current_user_role() IN ('admin', 'operador'));
+  ON vertex.page_seo FOR INSERT
+  WITH CHECK (auth.uid() IS NOT NULL AND vertex.get_current_user_role() IN ('admin', 'operador'));
 
 CREATE POLICY "Admin and operador can update page seo"
-  ON public.page_seo FOR UPDATE
-  USING (auth.uid() IS NOT NULL AND public.get_current_user_role() IN ('admin', 'operador'));
+  ON vertex.page_seo FOR UPDATE
+  USING (auth.uid() IS NOT NULL AND vertex.get_current_user_role() IN ('admin', 'operador'));
 
 CREATE POLICY "Admin can delete page seo"
-  ON public.page_seo FOR DELETE
-  USING (auth.uid() IS NOT NULL AND public.get_current_user_role() = 'admin');
+  ON vertex.page_seo FOR DELETE
+  USING (auth.uid() IS NOT NULL AND vertex.get_current_user_role() = 'admin');
 
 -- ---------------------------------------------------------------------------
 -- product_seo (per-product overrides)
 -- ---------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS public.product_seo (
-  product_id UUID PRIMARY KEY REFERENCES public.products(id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS vertex.product_seo (
+  product_id UUID PRIMARY KEY REFERENCES vertex.products(id) ON DELETE CASCADE,
   title TEXT,
   description TEXT,
   og_image TEXT,
@@ -102,26 +104,26 @@ CREATE TABLE IF NOT EXISTS public.product_seo (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-ALTER TABLE public.product_seo ENABLE ROW LEVEL SECURITY;
+ALTER TABLE vertex.product_seo ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Anyone can view product seo"
-  ON public.product_seo FOR SELECT USING (true);
+  ON vertex.product_seo FOR SELECT USING (true);
 
 CREATE POLICY "Admin and operador can insert product seo"
-  ON public.product_seo FOR INSERT
-  WITH CHECK (auth.uid() IS NOT NULL AND public.get_current_user_role() IN ('admin', 'operador'));
+  ON vertex.product_seo FOR INSERT
+  WITH CHECK (auth.uid() IS NOT NULL AND vertex.get_current_user_role() IN ('admin', 'operador'));
 
 CREATE POLICY "Admin and operador can update product seo"
-  ON public.product_seo FOR UPDATE
-  USING (auth.uid() IS NOT NULL AND public.get_current_user_role() IN ('admin', 'operador'));
+  ON vertex.product_seo FOR UPDATE
+  USING (auth.uid() IS NOT NULL AND vertex.get_current_user_role() IN ('admin', 'operador'));
 
 CREATE POLICY "Admin can delete product seo"
-  ON public.product_seo FOR DELETE
-  USING (auth.uid() IS NOT NULL AND public.get_current_user_role() = 'admin');
+  ON vertex.product_seo FOR DELETE
+  USING (auth.uid() IS NOT NULL AND vertex.get_current_user_role() = 'admin');
 
 -- Expose product_seo columns through the public store view for convenient reads
-DROP VIEW IF EXISTS public.store_products;
-CREATE VIEW public.store_products AS
+DROP VIEW IF EXISTS vertex.store_products;
+CREATE VIEW vertex.store_products AS
 SELECT
   p.id,
   p."Produto Nome",
@@ -141,7 +143,7 @@ SELECT
   p.store_categories,
   p.ribbon_text,
   p.ribbon_color
-FROM public.products p
+FROM vertex.products p
 WHERE p.store_visible = true;
 
-GRANT SELECT ON public.store_products TO anon;
+GRANT SELECT ON vertex.store_products TO anon;

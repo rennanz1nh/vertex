@@ -1,3 +1,5 @@
+SET search_path TO vertex, extensions;
+
 -- The old rule deducted stock when an order's STATUS transitioned into 'Pago'/'Enviado'.
 -- That trigger referenced `estoque_atual`, a column that no longer exists (products was
 -- rebuilt with "Quantidade no Estoque" as text) — it has been silently broken since that
@@ -14,14 +16,14 @@ drop function if exists handle_order_status_change();
 --
 -- "Quantidade no Estoque" is free-text (spreadsheet import artifact — seen holding "Teste",
 -- blanks, etc.), so parse_estoque() strips anything non-numeric before doing arithmetic.
-create or replace function public.parse_estoque(val text) returns numeric
+create or replace function vertex.parse_estoque(val text) returns numeric
 language sql immutable as $$
   select coalesce(nullif(regexp_replace(coalesce(val, ''), '[^0-9]', '', 'g'), ''), '0')::numeric
 $$;
 
 -- products has no updated_at column (unlike orders), so the trigger only touches the stock
 -- column itself.
-create or replace function public.handle_order_item_stock_change() returns trigger
+create or replace function vertex.handle_order_item_stock_change() returns trigger
 language plpgsql as $$
 begin
   if tg_op = 'INSERT' then
@@ -55,4 +57,4 @@ $$;
 
 create trigger order_items_stock_change_trigger
 after insert or update or delete on order_items
-for each row execute function public.handle_order_item_stock_change();
+for each row execute function vertex.handle_order_item_stock_change();

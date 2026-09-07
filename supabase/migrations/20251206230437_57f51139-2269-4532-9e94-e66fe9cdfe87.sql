@@ -1,8 +1,10 @@
-CREATE OR REPLACE FUNCTION public.ensure_profile()
+SET search_path TO vertex, extensions;
+
+CREATE OR REPLACE FUNCTION vertex.ensure_profile()
 RETURNS profiles
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = vertex
 AS $$
 DECLARE
   user_profile profiles;

@@ -1,7 +1,9 @@
+SET search_path TO vertex, extensions;
+
 -- Settings + last-run status for the daily Amazon price automation (single-row table).
 -- Mirrors ebay_price_automation (base table + active_weekdays, combined here since this
 -- table is new rather than an evolution of an existing eBay-era table).
-CREATE TABLE IF NOT EXISTS public.amazon_price_automation (
+CREATE TABLE IF NOT EXISTS vertex.amazon_price_automation (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   enabled BOOLEAN NOT NULL DEFAULT false,
   run_time TEXT NOT NULL DEFAULT '09:00', -- HH:MM, America/Sao_Paulo (informational — see cron note in route)
@@ -16,29 +18,29 @@ CREATE TABLE IF NOT EXISTS public.amazon_price_automation (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-ALTER TABLE public.amazon_price_automation ENABLE ROW LEVEL SECURITY;
+ALTER TABLE vertex.amazon_price_automation ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Authenticated users can read amazon automation settings"
-  ON public.amazon_price_automation
+  ON vertex.amazon_price_automation
   FOR SELECT
   TO authenticated
   USING (true);
 
 CREATE POLICY "Authenticated users can update amazon automation settings"
-  ON public.amazon_price_automation
+  ON vertex.amazon_price_automation
   FOR UPDATE
   TO authenticated
   USING (true)
   WITH CHECK (true);
 
 CREATE POLICY "Service role manages amazon automation settings"
-  ON public.amazon_price_automation
+  ON vertex.amazon_price_automation
   FOR ALL
   TO service_role
   USING (true)
   WITH CHECK (true);
 
 -- Seed the single settings row
-INSERT INTO public.amazon_price_automation (enabled, run_time, price_adjustment)
+INSERT INTO vertex.amazon_price_automation (enabled, run_time, price_adjustment)
 SELECT false, '09:00', -0.01
-WHERE NOT EXISTS (SELECT 1 FROM public.amazon_price_automation);
+WHERE NOT EXISTS (SELECT 1 FROM vertex.amazon_price_automation);

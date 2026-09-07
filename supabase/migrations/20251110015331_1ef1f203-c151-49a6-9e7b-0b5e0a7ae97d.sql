@@ -1,3 +1,5 @@
+SET search_path TO vertex, extensions;
+
 -- First, update any existing orders to have a valid canal value
 UPDATE orders SET canal = 'Online' WHERE canal IS NULL OR canal NOT IN ('Online', 'WhatsApp', 'Presencial');
 
@@ -14,7 +16,7 @@ CREATE TYPE sales_channel AS ENUM (
   'eBay',
   'Etsy',
   'TikTok',
-  'Cosmetic Marketplace',
+  'Vertex Rental Cars',
   'Credit Card',
   'Zelle',
   'Online',

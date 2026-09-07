@@ -217,10 +217,10 @@ export default function ProductModal({ product, open, onClose, onChanged }: Prop
     const ext = isVideo ? (file.name.split(".").pop() || "mp4") : "jpg";
     const path = `${id || "new"}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
     const { error } = await supabase.storage
-      .from("product-images")
+      .from("vertex-product-images")
       .upload(path, blob, { upsert: true, contentType: isVideo ? file.type : "image/jpeg" });
     if (error) throw error;
-    return supabase.storage.from("product-images").getPublicUrl(path).data.publicUrl;
+    return supabase.storage.from("vertex-product-images").getPublicUrl(path).data.publicUrl;
   }
 
   // Primary/cover image — applied to the form, persisted on Save.

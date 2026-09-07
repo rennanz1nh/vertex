@@ -6,8 +6,7 @@ import { notifyPriceAutomationSuccess, notifyPriceAutomationError } from "@/lib/
 function getSupabase() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+    process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, { db: { schema: (process.env.NEXT_PUBLIC_SUPABASE_SCHEMA || "public") as "public" } });
 }
 
 /** Today's date (YYYY-MM-DD) in America/Sao_Paulo, to compare against last_run_at. */

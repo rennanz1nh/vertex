@@ -1,1 +1,3 @@
-ALTER TABLE public.orders ADD COLUMN carrier TEXT;
+SET search_path TO vertex, extensions;
+
+ALTER TABLE vertex.orders ADD COLUMN carrier TEXT;

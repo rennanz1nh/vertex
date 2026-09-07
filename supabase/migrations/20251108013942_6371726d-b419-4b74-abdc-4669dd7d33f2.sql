@@ -1,3 +1,5 @@
+SET search_path TO vertex, extensions;
+
 -- Add new values to the sales_channel enum
 ALTER TYPE sales_channel ADD VALUE IF NOT EXISTS 'Online';
 ALTER TYPE sales_channel ADD VALUE IF NOT EXISTS 'Loja';

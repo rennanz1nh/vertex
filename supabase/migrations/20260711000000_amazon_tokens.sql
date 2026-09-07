@@ -1,8 +1,10 @@
+SET search_path TO vertex, extensions;
+
 -- Table to store Amazon SP-API LWA tokens (one row per environment).
 -- Mirrors ebay_tokens. Amazon's app is self-authorized (Fase 3 of the integration plan),
 -- so the refresh_token is generated once in Seller Central and pasted in directly —
 -- there is no OAuth redirect callback like the eBay flow.
-CREATE TABLE IF NOT EXISTS public.amazon_tokens (
+CREATE TABLE IF NOT EXISTS vertex.amazon_tokens (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   environment TEXT NOT NULL DEFAULT 'production' CHECK (environment IN ('sandbox', 'production')),
   access_token TEXT,
@@ -15,18 +17,18 @@ CREATE TABLE IF NOT EXISTS public.amazon_tokens (
   CONSTRAINT amazon_tokens_environment_unique UNIQUE (environment)
 );
 
-ALTER TABLE public.amazon_tokens ENABLE ROW LEVEL SECURITY;
+ALTER TABLE vertex.amazon_tokens ENABLE ROW LEVEL SECURITY;
 
 -- Authenticated users can check connection status (read-only)
 CREATE POLICY "Authenticated users can read amazon tokens"
-  ON public.amazon_tokens
+  ON vertex.amazon_tokens
   FOR SELECT
   TO authenticated
   USING (true);
 
 -- Only service role (edge functions / server routes with the service key) can write tokens
 CREATE POLICY "Service role manages amazon tokens"
-  ON public.amazon_tokens
+  ON vertex.amazon_tokens
   FOR ALL
   TO service_role
   USING (true)

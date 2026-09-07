@@ -1,3 +1,5 @@
+SET search_path TO vertex, extensions;
+
 -- Push notification on every new sale, regardless of which channel wrote the row
 -- (eBay/Amazon/TikTok Shop syncs, Stripe checkout webhook, manual order in the admin).
 -- Implemented as a DB trigger (instead of patching every insert call site, which live in
@@ -7,11 +9,11 @@
 -- used by triggers that run inside Next.js.
 CREATE EXTENSION IF NOT EXISTS pg_net;
 
-INSERT INTO public.push_notifications (trigger_key, enabled, title, message, tags) VALUES
+INSERT INTO vertex.push_notifications (trigger_key, enabled, title, message, tags) VALUES
 ('new_order', true, 'Nova venda: {canal}', 'Pedido de {total} recebido pelo {canal}.', 'moneybag,tada')
 ON CONFLICT (trigger_key) DO NOTHING;
 
-CREATE OR REPLACE FUNCTION public.notify_new_order()
+CREATE OR REPLACE FUNCTION vertex.notify_new_order()
 RETURNS TRIGGER AS $$
 DECLARE
   v_master RECORD;
@@ -22,12 +24,12 @@ DECLARE
   v_message TEXT;
   v_topic TEXT;
 BEGIN
-  SELECT enabled, ntfy_topic INTO v_master FROM public.notification_settings LIMIT 1;
+  SELECT enabled, ntfy_topic INTO v_master FROM vertex.notification_settings LIMIT 1;
   IF v_master IS NULL OR v_master.enabled IS NOT TRUE OR coalesce(v_master.ntfy_topic, '') = '' THEN
     RETURN NEW;
   END IF;
 
-  SELECT enabled, title, message, tags INTO v_tpl FROM public.push_notifications WHERE trigger_key = 'new_order';
+  SELECT enabled, title, message, tags INTO v_tpl FROM vertex.push_notifications WHERE trigger_key = 'new_order';
   IF v_tpl IS NULL OR v_tpl.enabled IS NOT TRUE THEN
     RETURN NEW;
   END IF;
@@ -40,7 +42,7 @@ BEGIN
   -- with a pasted-in protocol/domain still resolves to the right ntfy.sh topic here.
   v_topic := regexp_replace(regexp_replace(regexp_replace(v_master.ntfy_topic, '^https?://', '', 'i'), '^ntfy\.sh/', '', 'i'), '^/+|/+$', '', 'g');
 
-  SELECT site_url INTO v_site_url FROM public.site_settings LIMIT 1;
+  SELECT site_url INTO v_site_url FROM vertex.site_settings LIMIT 1;
 
   PERFORM net.http_post(
     url := 'https://ntfy.sh/',
@@ -60,10 +62,10 @@ EXCEPTION WHEN OTHERS THEN
   -- A failed/misconfigured notification must never fail the order insert itself.
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = vertex;
 
-DROP TRIGGER IF EXISTS orders_notify_new_order ON public.orders;
+DROP TRIGGER IF EXISTS orders_notify_new_order ON vertex.orders;
 CREATE TRIGGER orders_notify_new_order
-  AFTER INSERT ON public.orders
+  AFTER INSERT ON vertex.orders
   FOR EACH ROW
-  EXECUTE FUNCTION public.notify_new_order();
+  EXECUTE FUNCTION vertex.notify_new_order();

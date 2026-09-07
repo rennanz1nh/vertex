@@ -1,3 +1,5 @@
+SET search_path TO vertex, extensions;
+
 -- Update user role to admin
 UPDATE profiles 
 SET role = 'admin'::app_role 

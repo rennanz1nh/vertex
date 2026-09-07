@@ -73,10 +73,10 @@ export default function BannerModal({ banner, open, onClose, onChanged, defaultP
       const ext = isVideo ? (file.name.split(".").pop() || "mp4") : "jpg";
       const path = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
       const { error } = await supabase.storage
-        .from("banner-media")
+        .from("vertex-banner-media")
         .upload(path, blob, { upsert: true, contentType: isVideo ? file.type : "image/jpeg" });
       if (error) throw error;
-      const { data } = supabase.storage.from("banner-media").getPublicUrl(path);
+      const { data } = supabase.storage.from("vertex-banner-media").getPublicUrl(path);
       set("media_url", data.publicUrl);
       set("media_type", isVideo ? "video" : "image");
     } catch (e) {

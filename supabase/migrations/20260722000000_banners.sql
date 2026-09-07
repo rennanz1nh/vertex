@@ -1,7 +1,9 @@
+SET search_path TO vertex, extensions;
+
 -- Admin-managed site banners (Settings > Banners): hero banners on the home
 -- page / category pages, and site-wide or per-page popups, each optionally
 -- with a link, an overlay text, and a corner "fita" ribbon.
-CREATE TABLE IF NOT EXISTS public.banners (
+CREATE TABLE IF NOT EXISTS vertex.banners (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
   page TEXT NOT NULL, -- 'home' | category slug (women, men, ...) | 'contact-us' | 'sell-with-us' | '*' (all pages, popup only)
@@ -19,62 +21,66 @@ CREATE TABLE IF NOT EXISTS public.banners (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS banners_page_placement_idx ON public.banners (page, placement) WHERE active;
+CREATE INDEX IF NOT EXISTS banners_page_placement_idx ON vertex.banners (page, placement) WHERE active;
 
-ALTER TABLE public.banners ENABLE ROW LEVEL SECURITY;
+ALTER TABLE vertex.banners ENABLE ROW LEVEL SECURITY;
 
 -- Storefront reads banners directly with the anon key (no cost/margin data here,
 -- same as store_products) — the store queries filter to active rows themselves.
 CREATE POLICY "Anyone can view banners"
-  ON public.banners
+  ON vertex.banners
   FOR SELECT
   USING (true);
 
 CREATE POLICY "Admin and operador can insert banners"
-  ON public.banners
+  ON vertex.banners
   FOR INSERT
   WITH CHECK (
     auth.uid() IS NOT NULL AND
-    public.get_current_user_role() IN ('admin', 'operador')
+    vertex.get_current_user_role() IN ('admin', 'operador')
   );
 
 CREATE POLICY "Admin and operador can update banners"
-  ON public.banners
+  ON vertex.banners
   FOR UPDATE
   USING (
     auth.uid() IS NOT NULL AND
-    public.get_current_user_role() IN ('admin', 'operador')
+    vertex.get_current_user_role() IN ('admin', 'operador')
   );
 
 CREATE POLICY "Only admin can delete banners"
-  ON public.banners
+  ON vertex.banners
   FOR DELETE
   USING (
     auth.uid() IS NOT NULL AND
-    public.get_current_user_role() = 'admin'
+    vertex.get_current_user_role() = 'admin'
   );
 
 -- Public storage bucket for banner images/videos uploaded in the admin panel.
 INSERT INTO storage.buckets (id, name, public)
-VALUES ('banner-media', 'banner-media', true)
+VALUES ('vertex-banner-media', 'vertex-banner-media', true)
 ON CONFLICT (id) DO NOTHING;
 
-CREATE POLICY "Banner media is publicly accessible"
+DROP POLICY IF EXISTS "Vertex - Banner media is publicly accessible" ON storage.objects;
+CREATE POLICY "Vertex - Banner media is publicly accessible"
 ON storage.objects
 FOR SELECT
-USING (bucket_id = 'banner-media');
+USING (bucket_id = 'vertex-banner-media');
 
-CREATE POLICY "Authenticated users can upload banner media"
+DROP POLICY IF EXISTS "Vertex - Authenticated users can upload banner media" ON storage.objects;
+CREATE POLICY "Vertex - Authenticated users can upload banner media"
 ON storage.objects
 FOR INSERT
-WITH CHECK (bucket_id = 'banner-media' AND auth.uid() IS NOT NULL);
+WITH CHECK (bucket_id = 'vertex-banner-media' AND auth.uid() IS NOT NULL);
 
-CREATE POLICY "Authenticated users can update banner media"
+DROP POLICY IF EXISTS "Vertex - Authenticated users can update banner media" ON storage.objects;
+CREATE POLICY "Vertex - Authenticated users can update banner media"
 ON storage.objects
 FOR UPDATE
-USING (bucket_id = 'banner-media' AND auth.uid() IS NOT NULL);
+USING (bucket_id = 'vertex-banner-media' AND auth.uid() IS NOT NULL);
 
-CREATE POLICY "Authenticated users can delete banner media"
+DROP POLICY IF EXISTS "Vertex - Authenticated users can delete banner media" ON storage.objects;
+CREATE POLICY "Vertex - Authenticated users can delete banner media"
 ON storage.objects
 FOR DELETE
-USING (bucket_id = 'banner-media' AND auth.uid() IS NOT NULL);
+USING (bucket_id = 'vertex-banner-media' AND auth.uid() IS NOT NULL);

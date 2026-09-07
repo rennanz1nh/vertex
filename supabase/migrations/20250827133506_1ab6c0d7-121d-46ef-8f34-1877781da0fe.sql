@@ -1,12 +1,14 @@
+SET search_path TO vertex, extensions;
+
 -- Fix search path for functions
-ALTER FUNCTION public.get_current_user_role() SET search_path = public;
+ALTER FUNCTION vertex.get_current_user_role() SET search_path = vertex;
 
 -- Create computed columns functions for products
-CREATE OR REPLACE FUNCTION public.calculate_margin_salao(p_custo DECIMAL, p_frete DECIMAL, p_imposto DECIMAL, p_preco DECIMAL)
+CREATE OR REPLACE FUNCTION vertex.calculate_margin_salao(p_custo DECIMAL, p_frete DECIMAL, p_imposto DECIMAL, p_preco DECIMAL)
 RETURNS DECIMAL
 LANGUAGE SQL
 IMMUTABLE
-SET search_path = public
+SET search_path = vertex
 AS $$
   SELECT CASE 
     WHEN p_preco > 0 THEN 
@@ -15,11 +17,11 @@ AS $$
   END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.calculate_margin_revendedor(p_custo DECIMAL, p_frete DECIMAL, p_imposto DECIMAL, p_preco DECIMAL)
+CREATE OR REPLACE FUNCTION vertex.calculate_margin_revendedor(p_custo DECIMAL, p_frete DECIMAL, p_imposto DECIMAL, p_preco DECIMAL)
 RETURNS DECIMAL
 LANGUAGE SQL
 IMMUTABLE
-SET search_path = public
+SET search_path = vertex
 AS $$
   SELECT CASE 
     WHEN p_preco > 0 THEN 
@@ -28,11 +30,11 @@ AS $$
   END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.calculate_margin_online(p_custo DECIMAL, p_frete DECIMAL, p_imposto DECIMAL, p_preco DECIMAL)
+CREATE OR REPLACE FUNCTION vertex.calculate_margin_online(p_custo DECIMAL, p_frete DECIMAL, p_imposto DECIMAL, p_preco DECIMAL)
 RETURNS DECIMAL
 LANGUAGE SQL
 IMMUTABLE
-SET search_path = public
+SET search_path = vertex
 AS $$
   SELECT CASE 
     WHEN p_preco > 0 THEN 
@@ -42,11 +44,11 @@ AS $$
 $$;
 
 -- Create function to calculate validity status
-CREATE OR REPLACE FUNCTION public.calculate_validity_status(p_data_validade DATE)
+CREATE OR REPLACE FUNCTION vertex.calculate_validity_status(p_data_validade DATE)
 RETURNS validity_status
 LANGUAGE SQL
 IMMUTABLE
-SET search_path = public
+SET search_path = vertex
 AS $$
   SELECT CASE 
     WHEN p_data_validade IS NULL THEN 'Válido'::validity_status
@@ -57,11 +59,11 @@ AS $$
 $$;
 
 -- Function to automatically calculate order totals
-CREATE OR REPLACE FUNCTION public.calculate_order_totals(p_order_id UUID)
+CREATE OR REPLACE FUNCTION vertex.calculate_order_totals(p_order_id UUID)
 RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = vertex
 AS $$
 DECLARE
   v_subtotal DECIMAL(10,2);
@@ -103,11 +105,11 @@ END;
 $$;
 
 -- Function to update stock when order status changes
-CREATE OR REPLACE FUNCTION public.handle_order_status_change()
+CREATE OR REPLACE FUNCTION vertex.handle_order_status_change()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = vertex
 AS $$
 BEGIN
   -- If status changed to 'Pago' or 'Enviado', decrease stock
@@ -135,21 +137,21 @@ $$;
 CREATE TRIGGER order_status_change_trigger
   AFTER UPDATE OF status ON orders
   FOR EACH ROW
-  EXECUTE FUNCTION public.handle_order_status_change();
+  EXECUTE FUNCTION vertex.handle_order_status_change();
 
 -- Create trigger to update order totals when items change
-CREATE OR REPLACE FUNCTION public.trigger_order_totals_update()
+CREATE OR REPLACE FUNCTION vertex.trigger_order_totals_update()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = vertex
 AS $$
 BEGIN
   IF TG_OP = 'DELETE' THEN
-    PERFORM public.calculate_order_totals(OLD.order_id);
+    PERFORM vertex.calculate_order_totals(OLD.order_id);
     RETURN OLD;
   ELSE
-    PERFORM public.calculate_order_totals(NEW.order_id);
+    PERFORM vertex.calculate_order_totals(NEW.order_id);
     RETURN NEW;
   END IF;
 END;
@@ -158,4 +160,4 @@ $$;
 CREATE TRIGGER order_items_change_trigger
   AFTER INSERT OR UPDATE OR DELETE ON order_items
   FOR EACH ROW
-  EXECUTE FUNCTION public.trigger_order_totals_update();
+  EXECUTE FUNCTION vertex.trigger_order_totals_update();

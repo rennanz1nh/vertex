@@ -1,3 +1,5 @@
+SET search_path TO vertex, extensions;
+
 -- product_id must become nullable: an eBay line item can arrive with no SKU set on the
 -- listing, so there is no product to link yet. Previously this made the whole batch
 -- insert for that order fail silently (NOT NULL violation), leaving affected eBay orders

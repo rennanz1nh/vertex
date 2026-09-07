@@ -1,3 +1,5 @@
+SET search_path TO vertex, extensions;
+
 -- Cancelling an order manually (the "Cancelar Pedido" button) currently leaves stock
 -- untouched: the save path deletes and reinserts order_items with the same quantities,
 -- which nets to zero against the order_items_stock_change_trigger (see
@@ -6,12 +8,12 @@
 -- a Stripe-refund cancellation (src/app/api/stripe/webhook/route.ts) does not call this
 -- function, since a refund doesn't necessarily mean the goods came back.
 
-alter table public.orders
+alter table vertex.orders
   add column if not exists estoque_devolvido boolean not null default false;
 
 -- Restores stock for every line on the order and marks it so, guarded against being run
 -- twice for the same order (double-restoring would overstate inventory).
-create or replace function public.restore_stock_for_cancelled_order(p_order_id uuid)
+create or replace function vertex.restore_stock_for_cancelled_order(p_order_id uuid)
 returns void
 language plpgsql as $$
 declare

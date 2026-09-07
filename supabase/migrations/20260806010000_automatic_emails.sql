@@ -1,3 +1,5 @@
+SET search_path TO vertex, extensions;
+
 -- Automatic transactional emails (Settings → E-mails Automáticos). Sent through Brevo's
 -- transactional email API (src/lib/brevo.ts's sendTransactionalEmail) — same account
 -- already connected for the Email Marketing section, just a different Brevo endpoint.
@@ -10,7 +12,7 @@ CREATE TYPE email_trigger_key AS ENUM (
   'abandoned_cart'
 );
 
-CREATE TABLE IF NOT EXISTS public.automatic_emails (
+CREATE TABLE IF NOT EXISTS vertex.automatic_emails (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   trigger_key email_trigger_key NOT NULL UNIQUE,
   enabled BOOLEAN NOT NULL DEFAULT true,
@@ -25,22 +27,22 @@ CREATE TABLE IF NOT EXISTS public.automatic_emails (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-ALTER TABLE public.automatic_emails ENABLE ROW LEVEL SECURITY;
+ALTER TABLE vertex.automatic_emails ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Authenticated users can view automatic emails"
-  ON public.automatic_emails
+  ON vertex.automatic_emails
   FOR SELECT
   TO authenticated
   USING (true);
 
 CREATE POLICY "Admin and operador can manage automatic emails"
-  ON public.automatic_emails
+  ON vertex.automatic_emails
   FOR ALL
   TO authenticated
   USING (get_current_user_role() = ANY (ARRAY['admin'::app_role, 'operador'::app_role]))
   WITH CHECK (get_current_user_role() = ANY (ARRAY['admin'::app_role, 'operador'::app_role]));
 
-INSERT INTO public.automatic_emails (trigger_key, enabled, subject, html_content, delay_hours) VALUES
+INSERT INTO vertex.automatic_emails (trigger_key, enabled, subject, html_content, delay_hours) VALUES
 (
   'order_confirmation',
   true,
@@ -54,7 +56,7 @@ INSERT INTO public.automatic_emails (trigger_key, enabled, subject, html_content
   </div>
   <p>{items_list}</p>
   <p>We''ll email you again as soon as it ships.</p>
-  <p style="color:#6b7280;font-size:13px;margin-top:32px">Cosmetic Marketplace</p>
+  <p style="color:#6b7280;font-size:13px;margin-top:32px">Vertex Rental Cars</p>
 </div>',
   null
 ),
@@ -69,7 +71,7 @@ INSERT INTO public.automatic_emails (trigger_key, enabled, subject, html_content
     <p style="margin:0"><strong>Tracking number:</strong> {tracking_number}</p>
   </div>
   <p><a href="{tracking_url}" style="background:#db3614;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block">Track your package</a></p>
-  <p style="color:#6b7280;font-size:13px;margin-top:32px">Cosmetic Marketplace</p>
+  <p style="color:#6b7280;font-size:13px;margin-top:32px">Vertex Rental Cars</p>
 </div>',
   null
 ),
@@ -81,7 +83,7 @@ INSERT INTO public.automatic_emails (trigger_key, enabled, subject, html_content
   <h1 style="color:#111827;font-size:20px">Delivered! We hope you love it, {customer_name}.</h1>
   <p>Your order <strong>#{order_number}</strong> was delivered. If anything looks off, just reply to this email and we''ll sort it out.</p>
   <p>Enjoying your products? A quick review helps us a lot!</p>
-  <p style="color:#6b7280;font-size:13px;margin-top:32px">Cosmetic Marketplace</p>
+  <p style="color:#6b7280;font-size:13px;margin-top:32px">Vertex Rental Cars</p>
 </div>',
   null
 ),
@@ -94,7 +96,7 @@ INSERT INTO public.automatic_emails (trigger_key, enabled, subject, html_content
   <p>Hi {customer_name}, your order <strong>#{order_number}</strong> has been cancelled.</p>
   <p>If a payment was made, any refund will be processed back to your original payment method within a few business days.</p>
   <p>Questions? Just reply to this email.</p>
-  <p style="color:#6b7280;font-size:13px;margin-top:32px">Cosmetic Marketplace</p>
+  <p style="color:#6b7280;font-size:13px;margin-top:32px">Vertex Rental Cars</p>
 </div>',
   null
 ),
@@ -103,13 +105,13 @@ INSERT INTO public.automatic_emails (trigger_key, enabled, subject, html_content
   true,
   'Welcome! Here''s 10% off your first order',
   '<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;color:#1f2937">
-  <h1 style="color:#111827;font-size:20px">Welcome to Cosmetic Marketplace!</h1>
+  <h1 style="color:#111827;font-size:20px">Welcome to Vertex Rental Cars!</h1>
   <p>Thanks for joining our list — expect news, restocks and offers straight to your inbox.</p>
   <div style="background:#f9fafb;border-radius:8px;padding:16px;margin:20px 0;text-align:center">
     <p style="margin:0 0 4px;font-size:13px;color:#6b7280">Use this code on your first order</p>
     <p style="margin:0;font-size:22px;font-weight:bold;letter-spacing:2px">WELCOME10</p>
   </div>
-  <p style="color:#6b7280;font-size:13px;margin-top:32px">Cosmetic Marketplace</p>
+  <p style="color:#6b7280;font-size:13px;margin-top:32px">Vertex Rental Cars</p>
 </div>',
   null
 ),
@@ -122,7 +124,7 @@ INSERT INTO public.automatic_emails (trigger_key, enabled, subject, html_content
   <p>You left some items in your cart. They''re still available, but we can''t hold them forever!</p>
   <p>{items_list}</p>
   <p><a href="{store_url}" style="background:#db3614;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block">Complete your purchase</a></p>
-  <p style="color:#6b7280;font-size:13px;margin-top:32px">Cosmetic Marketplace</p>
+  <p style="color:#6b7280;font-size:13px;margin-top:32px">Vertex Rental Cars</p>
 </div>',
   4
 )

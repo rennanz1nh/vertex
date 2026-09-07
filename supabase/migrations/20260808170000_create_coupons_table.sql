@@ -1,4 +1,6 @@
-CREATE TABLE IF NOT EXISTS public.coupons (
+SET search_path TO vertex, extensions;
+
+CREATE TABLE IF NOT EXISTS vertex.coupons (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   code TEXT NOT NULL UNIQUE,
   description TEXT,
@@ -14,21 +16,21 @@ CREATE TABLE IF NOT EXISTS public.coupons (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-ALTER TABLE public.coupons ENABLE ROW LEVEL SECURITY;
+ALTER TABLE vertex.coupons ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Authenticated users can view coupons"
-  ON public.coupons
+  ON vertex.coupons
   FOR SELECT
   TO authenticated
   USING (true);
 
 CREATE POLICY "Admin and operador can manage coupons"
-  ON public.coupons
+  ON vertex.coupons
   FOR ALL
   TO authenticated
   USING (get_current_user_role() = ANY (ARRAY['admin'::app_role, 'operador'::app_role]))
   WITH CHECK (get_current_user_role() = ANY (ARRAY['admin'::app_role, 'operador'::app_role]));
 
-INSERT INTO public.coupons (code, description, discount_type, discount_value, active) VALUES
+INSERT INTO vertex.coupons (code, description, discount_type, discount_value, active) VALUES
 ('WELCOME10', 'Welcome discount — sent in the newsletter and order confirmation emails', 'percent', 10, true)
 ON CONFLICT (code) DO NOTHING;

@@ -12,7 +12,7 @@ export async function requireAdmin(request: NextRequest): Promise<{ ok: boolean;
   const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
   if (!token) return { ok: false, status: 401 };
 
-  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, { db: { schema: (process.env.NEXT_PUBLIC_SUPABASE_SCHEMA || "public") as "public" } });
   const { data, error } = await supabase.auth.getUser(token);
   if (error || !data.user) return { ok: false, status: 401 };
   return { ok: true, status: 200, userId: data.user.id };

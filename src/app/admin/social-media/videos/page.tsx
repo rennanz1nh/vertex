@@ -159,7 +159,7 @@ export default function SocialMediaVideosPage() {
       setUploadStage("Enviando vídeo...");
       const ext = file.name.split(".").pop() || "mp4";
       const videoPath = `processing/${sha256Hash}/original.${ext}`;
-      const { error: uploadError } = await supabase.storage.from("social-media").upload(videoPath, file, {
+      const { error: uploadError } = await supabase.storage.from("vertex-social-media").upload(videoPath, file, {
         upsert: true,
         contentType: file.type,
       });
@@ -171,7 +171,7 @@ export default function SocialMediaVideosPage() {
         const thumbnailBlob = await captureVideoThumbnail(file);
         thumbnailPath = `processing/${sha256Hash}/thumbnail.jpg`;
         const { error: thumbError } = await supabase.storage
-          .from("social-media")
+          .from("vertex-social-media")
           .upload(thumbnailPath, thumbnailBlob, { upsert: true, contentType: "image/jpeg" });
         if (thumbError) thumbnailPath = null;
       } catch {

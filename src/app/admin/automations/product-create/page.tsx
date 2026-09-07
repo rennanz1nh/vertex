@@ -133,9 +133,9 @@ export default function ProductCreatePage() {
       for (const file of Array.from(files)) {
         const blob = await compressImage(file);
         const path = `product-create/${current.id || "new"}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.jpg`;
-        const { error } = await supabase.storage.from("product-images").upload(path, blob, { upsert: true, contentType: "image/jpeg" });
+        const { error } = await supabase.storage.from("vertex-product-images").upload(path, blob, { upsert: true, contentType: "image/jpeg" });
         if (error) throw error;
-        uploaded.push(supabase.storage.from("product-images").getPublicUrl(path).data.publicUrl);
+        uploaded.push(supabase.storage.from("vertex-product-images").getPublicUrl(path).data.publicUrl);
       }
       setCurrent((c) => ({ ...c, images: [...c.images, ...uploaded] }));
     } catch (e) {

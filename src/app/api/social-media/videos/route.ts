@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 
 /**
  * Registers a video the client already uploaded straight to Supabase Storage
- * (bucket "social-media", same direct-upload pattern as product images —
+ * (bucket "vertex-social-media", same direct-upload pattern as product images —
  * see src/components/admin/ProductModal.tsx — a video is too large to
  * proxy through a Vercel function body). The client also computes the
  * SHA-256 hash and, for a video file, duration/width/height via the

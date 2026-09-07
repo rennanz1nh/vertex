@@ -1,5 +1,7 @@
+SET search_path TO vertex, extensions;
+
 -- Settings + last-run status for the daily eBay price automation (single-row table)
-CREATE TABLE IF NOT EXISTS public.ebay_price_automation (
+CREATE TABLE IF NOT EXISTS vertex.ebay_price_automation (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   enabled BOOLEAN NOT NULL DEFAULT false,
   run_time TEXT NOT NULL DEFAULT '09:00', -- HH:MM, America/Sao_Paulo (informational — see cron note below)
@@ -13,17 +15,17 @@ CREATE TABLE IF NOT EXISTS public.ebay_price_automation (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-ALTER TABLE public.ebay_price_automation ENABLE ROW LEVEL SECURITY;
+ALTER TABLE vertex.ebay_price_automation ENABLE ROW LEVEL SECURITY;
 
 -- Authenticated users (admin panel) can read + update settings
 CREATE POLICY "Authenticated users can read automation settings"
-  ON public.ebay_price_automation
+  ON vertex.ebay_price_automation
   FOR SELECT
   TO authenticated
   USING (true);
 
 CREATE POLICY "Authenticated users can update automation settings"
-  ON public.ebay_price_automation
+  ON vertex.ebay_price_automation
   FOR UPDATE
   TO authenticated
   USING (true)
@@ -31,13 +33,13 @@ CREATE POLICY "Authenticated users can update automation settings"
 
 -- Service role (cron route, using the service key) manages everything, including the initial insert
 CREATE POLICY "Service role manages automation settings"
-  ON public.ebay_price_automation
+  ON vertex.ebay_price_automation
   FOR ALL
   TO service_role
   USING (true)
   WITH CHECK (true);
 
 -- Seed the single settings row
-INSERT INTO public.ebay_price_automation (enabled, run_time, price_adjustment)
+INSERT INTO vertex.ebay_price_automation (enabled, run_time, price_adjustment)
 SELECT false, '09:00', -0.01
-WHERE NOT EXISTS (SELECT 1 FROM public.ebay_price_automation);
+WHERE NOT EXISTS (SELECT 1 FROM vertex.ebay_price_automation);

@@ -4,7 +4,7 @@ import { findVideoByHash, registerVideo } from "./video-service";
 import { probeVideoFile, extractThumbnailFile, sha256OfBuffer, withTempVideoFile, type ProbedVideoInfo } from "./video-processing-server";
 import type { VideoRecord } from "./types";
 
-const BUCKET = "social-media";
+const BUCKET = "vertex-social-media";
 const INBOX_PREFIX = "inbox";
 
 /** Objects currently sitting in the inbox/ prefix — what the Phase 13 watcher cron polls instead of a real filesystem watch, since this stack has no always-on process. */

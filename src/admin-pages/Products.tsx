@@ -157,10 +157,10 @@ export default function Products() {
       const fileName = `${productId}-${Date.now()}.${fileExt}`;
       const filePath = `${fileName}`;
 
-      const { error: uploadError } = await supabase.storage.from('product-images').upload(filePath, file, { upsert: true });
+      const { error: uploadError } = await supabase.storage.from('vertex-product-images').upload(filePath, file, { upsert: true });
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(filePath);
+      const { data: { publicUrl } } = supabase.storage.from('vertex-product-images').getPublicUrl(filePath);
 
       const { error: updateError } = await supabase.from('products').update({ image_url: publicUrl }).eq('id', productId);
       if (updateError) throw updateError;

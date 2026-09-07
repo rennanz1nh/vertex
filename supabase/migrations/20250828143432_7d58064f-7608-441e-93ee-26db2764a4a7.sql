@@ -1,9 +1,11 @@
+SET search_path TO vertex, extensions;
+
 -- Create a function to ensure profile exists and create it if it doesn't
-CREATE OR REPLACE FUNCTION public.ensure_profile()
+CREATE OR REPLACE FUNCTION vertex.ensure_profile()
 RETURNS profiles
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path TO 'public'
+SET search_path TO 'vertex'
 AS $$
 DECLARE
   user_profile profiles;
@@ -25,17 +27,17 @@ END;
 $$;
 
 -- Grant execute permission to authenticated users
-GRANT EXECUTE ON FUNCTION public.ensure_profile() TO authenticated;
+GRANT EXECUTE ON FUNCTION vertex.ensure_profile() TO authenticated;
 
 -- Update the handle_new_user function to use 'leitura' as default role
-CREATE OR REPLACE FUNCTION public.handle_new_user()
+CREATE OR REPLACE FUNCTION vertex.handle_new_user()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path TO 'public'
+SET search_path TO 'vertex'
 AS $$
 BEGIN
-  INSERT INTO public.profiles (user_id, display_name, role)
+  INSERT INTO vertex.profiles (user_id, display_name, role)
   VALUES (NEW.id, NEW.raw_user_meta_data ->> 'display_name', 'leitura');
   RETURN NEW;
 END;

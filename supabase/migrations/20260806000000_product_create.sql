@@ -1,7 +1,9 @@
+SET search_path TO vertex, extensions;
+
 -- Product Create (Automações): a drafting lab for products with missing photos/info —
 -- separate from the real `products` catalog so drafts can be iterated on freely before
 -- anything is actually published to a store.
-CREATE TABLE IF NOT EXISTS public.product_drafts (
+CREATE TABLE IF NOT EXISTS vertex.product_drafts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT,
   brand TEXT,
@@ -16,16 +18,16 @@ CREATE TABLE IF NOT EXISTS public.product_drafts (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-ALTER TABLE public.product_drafts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE vertex.product_drafts ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Authenticated users can view product drafts"
-  ON public.product_drafts
+  ON vertex.product_drafts
   FOR SELECT
   TO authenticated
   USING (true);
 
 CREATE POLICY "Admin and operador can manage product drafts"
-  ON public.product_drafts
+  ON vertex.product_drafts
   FOR ALL
   TO authenticated
   USING (get_current_user_role() = ANY (ARRAY['admin'::app_role, 'operador'::app_role]))

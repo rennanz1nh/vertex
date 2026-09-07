@@ -1,43 +1,49 @@
--- Fix 1: Prevent role self-escalation on profiles table
-DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
+SET search_path TO vertex, extensions;
 
-CREATE POLICY "Users can update their own profile" ON public.profiles
+-- Fix 1: Prevent role self-escalation on profiles table
+DROP POLICY IF EXISTS "Users can update their own profile" ON vertex.profiles;
+
+CREATE POLICY "Users can update their own profile" ON vertex.profiles
   FOR UPDATE
   USING (auth.uid() = user_id)
   WITH CHECK (
     auth.uid() = user_id
-    AND role = (SELECT p.role FROM public.profiles p WHERE p.user_id = auth.uid())
+    AND role = (SELECT p.role FROM vertex.profiles p WHERE p.user_id = auth.uid())
   );
 
 -- Fix 2: Add storage policies for "Bucket Storage" bucket
-CREATE POLICY "Admin and operador can view bucket storage files"
+DROP POLICY IF EXISTS "Vertex - Admin and operador can view bucket storage files" ON storage.objects;
+CREATE POLICY "Vertex - Admin and operador can view bucket storage files"
 ON storage.objects FOR SELECT
 USING (
-  bucket_id = 'Bucket Storage'
+  bucket_id = 'Vertex Bucket Storage'
   AND auth.uid() IS NOT NULL
-  AND public.get_current_user_role() IN ('admin', 'operador')
+  AND vertex.get_current_user_role() IN ('admin', 'operador')
 );
 
-CREATE POLICY "Admin and operador can upload to bucket storage"
+DROP POLICY IF EXISTS "Vertex - Admin and operador can upload to bucket storage" ON storage.objects;
+CREATE POLICY "Vertex - Admin and operador can upload to bucket storage"
 ON storage.objects FOR INSERT
 WITH CHECK (
-  bucket_id = 'Bucket Storage'
+  bucket_id = 'Vertex Bucket Storage'
   AND auth.uid() IS NOT NULL
-  AND public.get_current_user_role() IN ('admin', 'operador')
+  AND vertex.get_current_user_role() IN ('admin', 'operador')
 );
 
-CREATE POLICY "Admin and operador can update bucket storage files"
+DROP POLICY IF EXISTS "Vertex - Admin and operador can update bucket storage files" ON storage.objects;
+CREATE POLICY "Vertex - Admin and operador can update bucket storage files"
 ON storage.objects FOR UPDATE
 USING (
-  bucket_id = 'Bucket Storage'
+  bucket_id = 'Vertex Bucket Storage'
   AND auth.uid() IS NOT NULL
-  AND public.get_current_user_role() IN ('admin', 'operador')
+  AND vertex.get_current_user_role() IN ('admin', 'operador')
 );
 
-CREATE POLICY "Only admin can delete bucket storage files"
+DROP POLICY IF EXISTS "Vertex - Only admin can delete bucket storage files" ON storage.objects;
+CREATE POLICY "Vertex - Only admin can delete bucket storage files"
 ON storage.objects FOR DELETE
 USING (
-  bucket_id = 'Bucket Storage'
+  bucket_id = 'Vertex Bucket Storage'
   AND auth.uid() IS NOT NULL
-  AND public.get_current_user_role() = 'admin'
+  AND vertex.get_current_user_role() = 'admin'
 );

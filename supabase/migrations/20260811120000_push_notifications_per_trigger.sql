@@ -1,3 +1,5 @@
+SET search_path TO vertex, extensions;
+
 -- Per-trigger control for push notifications (Settings → Notificações), mirroring the
 -- automatic_emails table: each notification the system can send to the phone (via
 -- ntfy.sh) now has its own enabled flag + editable title/message template, instead of
@@ -16,7 +18,7 @@ CREATE TYPE push_trigger_key AS ENUM (
   'checkout_started'
 );
 
-CREATE TABLE IF NOT EXISTS public.push_notifications (
+CREATE TABLE IF NOT EXISTS vertex.push_notifications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   trigger_key push_trigger_key NOT NULL UNIQUE,
   enabled BOOLEAN NOT NULL DEFAULT true,
@@ -27,22 +29,22 @@ CREATE TABLE IF NOT EXISTS public.push_notifications (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-ALTER TABLE public.push_notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE vertex.push_notifications ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Authenticated users can view push notifications"
-  ON public.push_notifications
+  ON vertex.push_notifications
   FOR SELECT
   TO authenticated
   USING (true);
 
 CREATE POLICY "Admin and operador can manage push notifications"
-  ON public.push_notifications
+  ON vertex.push_notifications
   FOR ALL
   TO authenticated
   USING (get_current_user_role() = ANY (ARRAY['admin'::app_role, 'operador'::app_role]))
   WITH CHECK (get_current_user_role() = ANY (ARRAY['admin'::app_role, 'operador'::app_role]));
 
-INSERT INTO public.push_notifications (trigger_key, enabled, title, message, tags) VALUES
+INSERT INTO vertex.push_notifications (trigger_key, enabled, title, message, tags) VALUES
 ('ebay_price_success', true, 'eBay: preços atualizados', 'Execução {trigger} ({mode}): {updated}/{total} listing(s) atualizado(s).', 'moneybag,white_check_mark'),
 ('ebay_price_error', true, 'eBay: falha na automação de preço', 'Execução {trigger} ({mode}) falhou: {error}', 'warning'),
 ('amazon_price_success', true, 'Amazon: preços atualizados', 'Execução {trigger} ({mode}): {updated}/{total} listing(s) atualizado(s).', 'moneybag,white_check_mark'),
@@ -59,7 +61,7 @@ ON CONFLICT (trigger_key) DO NOTHING;
 -- The old generic title/message pair and the ad-hoc notify_visits flag are superseded
 -- by the per-trigger rows above; notification_settings now only holds the master
 -- on/off switch and the shared ntfy topic.
-ALTER TABLE public.notification_settings
+ALTER TABLE vertex.notification_settings
   DROP COLUMN IF EXISTS success_title,
   DROP COLUMN IF EXISTS success_message,
   DROP COLUMN IF EXISTS error_title,

@@ -1,13 +1,15 @@
+SET search_path TO vertex, extensions;
+
 -- Create enum types first
-CREATE TYPE public.app_role AS ENUM ('admin', 'operador', 'leitura');
-CREATE TYPE public.product_brand AS ENUM ('Sorali', 'Just Sofistic', 'Argilo Detox', 'Daily Therapy');
-CREATE TYPE public.client_type AS ENUM ('Salão/Cabeleireira', 'Revendedor', 'Online/Marketplace', 'Cliente Final');
-CREATE TYPE public.sales_channel AS ENUM ('eBay', 'Amazon', 'Etsy', 'Direto/Outros');
-CREATE TYPE public.order_status AS ENUM ('Orçado', 'Pago', 'Enviado', 'Entregue', 'Cancelado');
-CREATE TYPE public.validity_status AS ENUM ('Válido', 'Vencendo em 60 dias', 'Vencido');
+CREATE TYPE vertex.app_role AS ENUM ('admin', 'operador', 'leitura');
+CREATE TYPE vertex.product_brand AS ENUM ('Sorali', 'Just Sofistic', 'Argilo Detox', 'Daily Therapy');
+CREATE TYPE vertex.client_type AS ENUM ('Salão/Cabeleireira', 'Revendedor', 'Online/Marketplace', 'Cliente Final');
+CREATE TYPE vertex.sales_channel AS ENUM ('eBay', 'Amazon', 'Etsy', 'Direto/Outros');
+CREATE TYPE vertex.order_status AS ENUM ('Orçado', 'Pago', 'Enviado', 'Entregue', 'Cancelado');
+CREATE TYPE vertex.validity_status AS ENUM ('Válido', 'Vencendo em 60 dias', 'Vencido');
 
 -- Create profiles table for user management
-CREATE TABLE public.profiles (
+CREATE TABLE vertex.profiles (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
   display_name TEXT,
@@ -17,10 +19,10 @@ CREATE TABLE public.profiles (
 );
 
 -- Enable RLS for profiles
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE vertex.profiles ENABLE ROW LEVEL SECURITY;
 
 -- Create products table
-CREATE TABLE public.products (
+CREATE TABLE vertex.products (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   sku TEXT NOT NULL UNIQUE,
   upc TEXT,
@@ -47,10 +49,10 @@ CREATE TABLE public.products (
 );
 
 -- Enable RLS for products
-ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE vertex.products ENABLE ROW LEVEL SECURITY;
 
 -- Create clients table
-CREATE TABLE public.clients (
+CREATE TABLE vertex.clients (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   tipo client_type NOT NULL,
   nome_razao TEXT NOT NULL,
@@ -69,14 +71,14 @@ CREATE TABLE public.clients (
 );
 
 -- Enable RLS for clients
-ALTER TABLE public.clients ENABLE ROW LEVEL SECURITY;
+ALTER TABLE vertex.clients ENABLE ROW LEVEL SECURITY;
 
 -- Create orders table
-CREATE TABLE public.orders (
+CREATE TABLE vertex.orders (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   data_pedido DATE NOT NULL DEFAULT CURRENT_DATE,
   canal sales_channel NOT NULL,
-  client_id UUID REFERENCES public.clients(id),
+  client_id UUID REFERENCES vertex.clients(id),
   status order_status NOT NULL DEFAULT 'Orçado',
   subtotal DECIMAL(10,2) NOT NULL DEFAULT 0,
   impostos DECIMAL(10,2) NOT NULL DEFAULT 0,
@@ -90,13 +92,13 @@ CREATE TABLE public.orders (
 );
 
 -- Enable RLS for orders
-ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE vertex.orders ENABLE ROW LEVEL SECURITY;
 
 -- Create order items table
-CREATE TABLE public.order_items (
+CREATE TABLE vertex.order_items (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  order_id UUID NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
-  product_id UUID NOT NULL REFERENCES public.products(id),
+  order_id UUID NOT NULL REFERENCES vertex.orders(id) ON DELETE CASCADE,
+  product_id UUID NOT NULL REFERENCES vertex.products(id),
   quantidade INTEGER NOT NULL,
   preco_unitario DECIMAL(10,2) NOT NULL,
   custo_unitario DECIMAL(10,2) NOT NULL DEFAULT 0,
@@ -106,10 +108,10 @@ CREATE TABLE public.order_items (
 );
 
 -- Enable RLS for order items
-ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE vertex.order_items ENABLE ROW LEVEL SECURITY;
 
 -- Create investments table
-CREATE TABLE public.investments (
+CREATE TABLE vertex.investments (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   categoria TEXT NOT NULL,
   descricao TEXT NOT NULL,
@@ -121,12 +123,12 @@ CREATE TABLE public.investments (
 );
 
 -- Enable RLS for investments
-ALTER TABLE public.investments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE vertex.investments ENABLE ROW LEVEL SECURITY;
 
 -- Create expired products table
-CREATE TABLE public.expired_products (
+CREATE TABLE vertex.expired_products (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  product_id UUID NOT NULL REFERENCES public.products(id),
+  product_id UUID NOT NULL REFERENCES vertex.products(id),
   quantidade INTEGER NOT NULL,
   data_identificacao DATE NOT NULL DEFAULT CURRENT_DATE,
   destino TEXT,
@@ -135,10 +137,10 @@ CREATE TABLE public.expired_products (
 );
 
 -- Enable RLS for expired products
-ALTER TABLE public.expired_products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE vertex.expired_products ENABLE ROW LEVEL SECURITY;
 
 -- Create audit logs table
-CREATE TABLE public.audit_logs (
+CREATE TABLE vertex.audit_logs (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   table_name TEXT NOT NULL,
   record_id UUID NOT NULL,
@@ -150,4 +152,4 @@ CREATE TABLE public.audit_logs (
 );
 
 -- Enable RLS for audit logs
-ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE vertex.audit_logs ENABLE ROW LEVEL SECURITY;

@@ -54,9 +54,9 @@ export default function HtmlCreatePage() {
     try {
       const blob = await compressImage(file);
       const path = `product-create/html/${Date.now()}-${Math.random().toString(36).slice(2, 7)}.jpg`;
-      const { error } = await supabase.storage.from("product-images").upload(path, blob, { upsert: true, contentType: "image/jpeg" });
+      const { error } = await supabase.storage.from("vertex-product-images").upload(path, blob, { upsert: true, contentType: "image/jpeg" });
       if (error) throw error;
-      const url = supabase.storage.from("product-images").getPublicUrl(path).data.publicUrl;
+      const url = supabase.storage.from("vertex-product-images").getPublicUrl(path).data.publicUrl;
       onDone(url);
     } catch (e) {
       toast({ title: "Erro ao enviar imagem", description: e instanceof Error ? e.message : String(e), variant: "destructive" });

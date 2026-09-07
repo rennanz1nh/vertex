@@ -1,3 +1,5 @@
+SET search_path TO vertex, extensions;
+
 -- One-shot backfill: align old orders with the new rule that `total` excludes tax (tax is
 -- informational only now — see src/lib/order-calc.ts). Previously the app and the eBay sync
 -- stored total = produtos + frete − desconto + impostos; the tax portion is removed here so

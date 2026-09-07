@@ -6,8 +6,7 @@ function getSupabase() {
     // Service role key allows writes past RLS; falls back to anon for read-only status checks
     process.env.SUPABASE_SERVICE_ROLE_KEY ??
       process.env.SUPABASE_ACCESS_TOKEN ??
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, { db: { schema: (process.env.NEXT_PUBLIC_SUPABASE_SCHEMA || "public") as "public" } });
 }
 
 export async function getEbayAccessToken(): Promise<string> {

@@ -242,10 +242,10 @@ export default function ListingAnalyserPage() {
         const blob = await compressImage(file);
         const path = `${selectedItemId ?? "ref"}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.jpg`;
         const { error } = await supabase.storage
-          .from("listing-images")
+          .from("vertex-listing-images")
           .upload(path, blob, { upsert: true, contentType: "image/jpeg" });
         if (error) throw error;
-        const { data } = supabase.storage.from("listing-images").getPublicUrl(path);
+        const { data } = supabase.storage.from("vertex-listing-images").getPublicUrl(path);
         setUploadedImages((prev) => [...prev, data.publicUrl]);
       }
     } catch (err: unknown) {

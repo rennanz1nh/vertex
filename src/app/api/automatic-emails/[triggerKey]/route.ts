@@ -5,8 +5,7 @@ import { requireAdmin } from "@/lib/admin-auth";
 function getSupabase() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+    process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, { db: { schema: (process.env.NEXT_PUBLIC_SUPABASE_SCHEMA || "public") as "public" } });
 }
 
 const EDITABLE_FIELDS = ["enabled", "subject", "html_content", "sender_name", "sender_email", "delay_hours"] as const;

@@ -1,9 +1,11 @@
+SET search_path TO vertex, extensions;
+
 -- Fix calculate_order_totals function to remove non-existent subtotal column
-CREATE OR REPLACE FUNCTION public.calculate_order_totals(p_order_id uuid)
+CREATE OR REPLACE FUNCTION vertex.calculate_order_totals(p_order_id uuid)
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path TO 'public'
+SET search_path TO 'vertex'
 AS $function$
 DECLARE
   v_impostos DECIMAL(10,2);

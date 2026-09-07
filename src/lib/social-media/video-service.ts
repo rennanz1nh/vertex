@@ -5,7 +5,7 @@ import type { ActionActor, VideoRecord, VideoStatus } from "./types";
 const VIDEO_COLUMNS =
   "id, filename, storage_bucket, storage_path, thumbnail_path, sha256_hash, duration_seconds, width, height, file_size, format, source, status, uploaded_by, created_at, updated_at";
 
-/** Purely organizational — mirrors the spec's inbox/processing/approved/published/failed/archive folders as key prefixes within the one 'social-media' bucket. Never load-bearing: social_videos.status is the actual source of truth every query filters on. */
+/** Purely organizational — mirrors the spec's inbox/processing/approved/published/failed/archive folders as key prefixes within the one 'vertex-social-media' bucket. Never load-bearing: social_videos.status is the actual source of truth every query filters on. */
 export function statusToStoragePrefix(status: VideoStatus): string {
   switch (status) {
     case "NEW":
@@ -74,7 +74,7 @@ export async function registerVideo(params: RegisterVideoParams): Promise<{ vide
     .from("social_videos")
     .insert({
       filename: params.filename,
-      storage_bucket: "social-media",
+      storage_bucket: "vertex-social-media",
       storage_path: params.storagePath,
       thumbnail_path: params.thumbnailPath ?? null,
       sha256_hash: params.sha256Hash,
@@ -127,7 +127,7 @@ export async function moveVideo(id: string, newStatus: VideoStatus, actor: Actio
   if (fromPrefix !== toPrefix) {
     const fromPath = current.storage_path;
     const toPath = fromPath.replace(`${fromPrefix}/`, `${toPrefix}/`);
-    const { error: moveError } = await supabaseAdmin.storage.from("social-media").move(fromPath, toPath);
+    const { error: moveError } = await supabaseAdmin.storage.from("vertex-social-media").move(fromPath, toPath);
     if (!moveError) {
       await supabaseAdmin.from("social_videos").update({ storage_path: toPath }).eq("id", id);
     } else {
@@ -170,7 +170,7 @@ export async function deleteVideo(id: string, actor: ActionActor): Promise<Delet
 
   const objectsToRemove = [video.storage_path, video.thumbnail_path].filter((p): p is string => !!p);
   if (objectsToRemove.length > 0) {
-    const { error: removeError } = await supabaseAdmin.storage.from("social-media").remove(objectsToRemove);
+    const { error: removeError } = await supabaseAdmin.storage.from("vertex-social-media").remove(objectsToRemove);
     if (removeError) {
       console.error("Failed to remove video storage objects after DB delete", { id, error: removeError.message });
     }

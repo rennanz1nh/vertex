@@ -1,3 +1,5 @@
+SET search_path TO vertex, extensions;
+
 -- Bug: calculate_order_totals sobrescrevia orders.impostos com a soma de
 -- order_items.imposto_unitario (sempre 0, pois o formulário guarda o tax no PEDIDO, não por
 -- item). Como o trigger dispara ao inserir os itens logo após salvar o pedido, o tax digitado
@@ -6,11 +8,11 @@
 --
 -- Correção: a função passa a PRESERVAR orders.impostos (valor manual) e calcula
 -- total = subtotal + frete - descontos (sem imposto).
-CREATE OR REPLACE FUNCTION public.calculate_order_totals(p_order_id uuid)
+CREATE OR REPLACE FUNCTION vertex.calculate_order_totals(p_order_id uuid)
  RETURNS void
  LANGUAGE plpgsql
  SECURITY DEFINER
- SET search_path TO 'public'
+ SET search_path TO 'vertex'
 AS $function$
 DECLARE
   v_impostos DECIMAL(10,2);
