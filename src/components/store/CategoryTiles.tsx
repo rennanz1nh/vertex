@@ -2,10 +2,10 @@
 import Image from "next/image";
 
 const categories = [
-  { label: "Skin", href: "/products?category=womens-skin", image: "/images/category-skin.jpg" },
-  { label: "Hair", href: "/products?category=womens-hair", image: "/images/category-hair.jpg" },
-  { label: "Body", href: "/products?category=womens-body", image: "/images/category-body.jpg" },
-  { label: "Men", href: "/products?category=men", image: "/images/category-men.jpg" },
+  { label: "Compact", href: "/products?category=compact", image: "/images/category-compact.jpg" },
+  { label: "Big Van", href: "/products?category=big-van", image: "/images/category-big-van.jpg" },
+  { label: "Luxe", href: "/products?category=luxe", image: "/images/category-luxe.jpg" },
+  { label: "Sport", href: "/products?category=sport", image: "/images/category-sport.jpg" },
 ];
 
 export default function CategoryTiles() {
