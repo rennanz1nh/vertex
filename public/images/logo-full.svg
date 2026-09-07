@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 120" fill="none">
+  <!-- Vertex apex mark -->
+  <g>
+    <path d="M40 100 L88 22" stroke="#0F1E3C" stroke-width="16" stroke-linecap="round"/>
+    <path d="M88 22 L136 100" stroke="#22C5D1" stroke-width="16" stroke-linecap="round"/>
+  </g>
+
+  <!-- Wordmark -->
+  <text x="168" y="72" font-family="Montserrat, Arial, sans-serif" font-weight="800" font-size="46" fill="#0F1E3C" letter-spacing="1">VERTEX</text>
+  <text x="169" y="98" font-family="Montserrat, Arial, sans-serif" font-weight="600" font-size="18" fill="#64748B" letter-spacing="2">RENTAL CARS</text>
+</svg>

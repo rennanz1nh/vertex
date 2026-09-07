@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 285" width="48" height="57">
+  <defs>
+    <clipPath id="google-shopping-bag">
+      <rect x="0" y="30" width="160" height="160" rx="28" ry="28"/>
+    </clipPath>
+  </defs>
+  <g transform="translate(40, 47.5)">
+    <path d="M 46 34 A 34 34 0 0 1 114 34" fill="none" stroke="#4285F4" stroke-width="16" stroke-linecap="round"/>
+    <g clip-path="url(#google-shopping-bag)">
+      <path d="M 80 110 L 0 30 Q 80 46 160 30 Z" fill="#FBBC05"/>
+      <path d="M 80 110 L 160 30 Q 176 110 160 190 Z" fill="#34A853"/>
+      <path d="M 80 110 L 160 190 Q 80 174 0 190 Z" fill="#EA4335"/>
+      <path d="M 80 110 L 0 190 Q -16 110 0 30 Z" fill="#4285F4"/>
+    </g>
+  </g>
+</svg>

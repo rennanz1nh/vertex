@@ -1,0 +1,4 @@
+ALTER TABLE public.banners
+  ADD COLUMN IF NOT EXISTS button_text TEXT,
+  ADD COLUMN IF NOT EXISTS subtitle_text TEXT,
+  ADD COLUMN IF NOT EXISTS duration_seconds INTEGER NOT NULL DEFAULT 5 CHECK (duration_seconds BETWEEN 2 AND 30);
