@@ -681,6 +681,7 @@ export type Database = {
           estimated_total: number
           customer_email: string | null
           customer_name: string | null
+          notes: string | null
           created_at: string
           updated_at: string
         }
@@ -707,6 +708,7 @@ export type Database = {
           estimated_total: number
           customer_email?: string | null
           customer_name?: string | null
+          notes?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -733,6 +735,7 @@ export type Database = {
           estimated_total?: number
           customer_email?: string | null
           customer_name?: string | null
+          notes?: string | null
           created_at?: string
           updated_at?: string
         }

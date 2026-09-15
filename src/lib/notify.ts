@@ -126,7 +126,7 @@ const DEFAULT_DESTINATIONS: Partial<Record<PushTriggerKey, string>> = {
   google_shopping_error: "/admin/automations/google-shopping/sync",
   new_chat_message: "/admin/chat",
   new_visit: "/",
-  checkout_started: "/admin/orders",
+  checkout_started: "/admin/bookings",
   daily_report: "/admin/reports/daily",
   ebay_offers_eligible: "/admin/automations/ebay/send-offer",
   new_order: "/admin",

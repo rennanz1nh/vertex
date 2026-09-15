@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Box, LogOut, Truck, Settings, MessageCircle, ChevronRight, Sparkles, Newspaper, Video, ClipboardCheck, CalendarDays, CalendarClock, CheckCircle2, BarChart3, Zap, Car } from "lucide-react";
+import { LayoutDashboard, Users, LogOut, Settings, MessageCircle, ChevronRight, Sparkles, Newspaper, Video, ClipboardCheck, ClipboardList, CalendarDays, CalendarClock, CheckCircle2, BarChart3, Zap, Car } from "lucide-react";
 import { HubIcon } from "@/components/icons/HubIcon";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton, SidebarHeader, SidebarFooter, useSidebar } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -37,8 +37,7 @@ const navigation = [
   { title: "Carros", url: "/admin/cars", icon: Car },
   { title: "Calendário", url: "/admin/calendar", icon: CalendarClock },
   { title: "Clientes", url: "/admin/clients", icon: Users },
-  { title: "Pedidos", url: "/admin/orders", icon: Box },
-  { title: "Shipping's", url: "/admin/orders-test", icon: Truck },
+  { title: "Reservas", url: "/admin/bookings", icon: ClipboardList },
 ];
 
 // Each platform is a single link straight into its main page — the sub-pages that used
