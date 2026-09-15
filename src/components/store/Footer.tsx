@@ -28,20 +28,16 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Col 2: Categories */}
+          {/* Col 2: Vehicles */}
           <div>
-            <h4 className="text-sm font-semibold text-gray-900 mb-3">Categories</h4>
+            <h4 className="text-sm font-semibold text-gray-900 mb-3">Vehicles</h4>
             <ul className="space-y-1.5 text-sm text-gray-600">
-              <li><Link href="/women" className="font-semibold text-gray-900 hover:underline">Women</Link></li>
-              <li><Link href="/women-skin" className="hover:underline ml-3">Skin</Link></li>
-              <li><Link href="/women-body" className="hover:underline ml-3">Body</Link></li>
-              <li><Link href="/women-hair" className="hover:underline ml-3">Hair</Link></li>
-              <li><Link href="/professional" className="font-semibold text-gray-900 hover:underline">Professional</Link></li>
-              <li><Link href="/courses" className="font-semibold text-gray-900 hover:underline">Courses</Link></li>
-              <li><Link href="/men" className="font-semibold text-gray-900 hover:underline">Men</Link></li>
-              <li><Link href="/clearance" className="font-semibold text-gray-900 hover:underline">Clearance</Link></li>
-              <li><Link href="/american-fda" className="font-semibold text-gray-900 hover:underline">American (FDA)</Link></li>
-              <li><Link href="/ebooks" className="font-semibold text-gray-900 hover:underline">E-books</Link></li>
+              <li><Link href="/products" className="font-semibold text-gray-900 hover:underline">All Vehicles</Link></li>
+              <li><Link href="/products?category=compact" className="hover:underline">Compact</Link></li>
+              <li><Link href="/products?category=big-van" className="hover:underline">Big Van</Link></li>
+              <li><Link href="/products?category=luxe" className="hover:underline">Luxe</Link></li>
+              <li><Link href="/products?category=sport" className="hover:underline">Sport</Link></li>
+              <li><Link href="/clearance" className="font-semibold text-gray-900 hover:underline">Special Offers</Link></li>
               <li><Link href="/contact-us" className="font-semibold text-gray-900 hover:underline">Contact Us</Link></li>
             </ul>
           </div>
@@ -52,10 +48,11 @@ export default function Footer() {
             <ul className="space-y-1 text-sm text-gray-600 mb-5">
               <li>Orlando USA</li>
             </ul>
-            <h4 className="text-sm font-semibold text-gray-900 mb-3">Shop Policies</h4>
+            <h4 className="text-sm font-semibold text-gray-900 mb-3">Policies</h4>
             <ul className="space-y-1.5 text-sm text-gray-600">
-              <li><Link href="/refund-policy" className="hover:underline">Refund policy</Link></li>
-              <li><Link href="/shipping-policy" className="hover:underline">Shipping policy</Link></li>
+              <li><Link href="/terms" className="hover:underline">Terms &amp; Conditions</Link></li>
+              <li><Link href="/privacy" className="hover:underline">Privacy Policy</Link></li>
+              <li><Link href="/refund-policy" className="hover:underline">Refund Policy</Link></li>
             </ul>
           </div>
 
@@ -63,7 +60,7 @@ export default function Footer() {
           <div>
             <h4 className="text-sm font-semibold text-gray-900 mb-2">Newsletter</h4>
             <p className="text-xs text-gray-600 mb-4">
-              Subscribe to our newsletter and get 10% off your first order
+              Subscribe to our newsletter for exclusive rental deals and new fleet updates
             </p>
             <FooterNewsletter />
           </div>

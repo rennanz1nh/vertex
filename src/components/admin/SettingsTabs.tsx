@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
-import { Bell, History, Image as ImageIcon, Search, Mail, Ticket } from "lucide-react";
+import { Bell, Image as ImageIcon, Search, Mail, Ticket } from "lucide-react";
 import { GoogleLogo, FacebookLogo } from "@/components/brand-logos";
 import { cn } from "@/lib/utils";
 
@@ -25,8 +25,6 @@ const TABS: Tab[] = [
   { href: "/admin/settings/seo", label: "SEO", icon: Search },
   { href: "/admin/settings/google", label: "Google", logo: GoogleLogo },
   { href: "/admin/settings/facebook", label: "Facebook", logo: FacebookLogo },
-  { href: "/admin/settings/amazon", label: "Amazon", image: "/images/sales-channels/Amazon.png" },
-  { href: "/admin/settings/updates", label: "Updates", icon: History },
 ];
 
 export function SettingsTabs() {

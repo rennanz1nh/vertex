@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, LogOut, Settings, MessageCircle, ChevronRight, Sparkles, Newspaper, Video, ClipboardCheck, ClipboardList, CalendarDays, CalendarClock, CheckCircle2, BarChart3, Zap, Car } from "lucide-react";
+import { LayoutDashboard, Users, LogOut, Settings, MessageCircle, ChevronRight, Newspaper, Video, ClipboardCheck, ClipboardList, CalendarDays, CalendarClock, CheckCircle2, BarChart3, Zap, Car } from "lucide-react";
 import { HubIcon } from "@/components/icons/HubIcon";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton, SidebarHeader, SidebarFooter, useSidebar } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -60,12 +60,11 @@ const facebookPixel = {
   label: "Meta Pixel",
 };
 
-// Email Marketing (Brevo), Product Create and Stripe: same single-row pattern as
-// Facebook Pixel above, just not sales-channel automations — grouped here at the end
-// of Automações instead of getting their own top-level rows.
+// Email Marketing (Brevo) and Stripe: same single-row pattern as Facebook Pixel
+// above, just not sales-channel automations — grouped here at the end of
+// Automações instead of getting their own top-level rows.
 const extraAutomations = [
   { title: "Email Marketing", Logo: BrevoLogo, url: "/admin/email-marketing/overview", basePath: "/admin/email-marketing", label: "Email Marketing" },
-  { title: "Product Create", icon: Sparkles, url: "/admin/automations/product-create", basePath: "/admin/automations/product-create", label: "Product Create" },
   { title: "Stripe", Logo: StripeLogo, url: "/admin/automations/stripe", basePath: "/admin/automations/stripe", label: "Stripe" },
 ];
 
@@ -279,7 +278,7 @@ export function AppSidebar() {
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild className={resetButtonClass}>
                       <Link href={item.url} className={navLinkClass(isActive)} title={item.title}>
-                        {"Logo" in item ? <item.Logo className="h-6 w-6 shrink-0" /> : <item.icon className="h-6 w-6 shrink-0" />}
+                        <item.Logo className="h-6 w-6 shrink-0" />
                         <span className="text-xs font-semibold truncate">{item.label}</span>
                       </Link>
                     </SidebarMenuButton>
@@ -326,12 +325,9 @@ export function AppSidebar() {
 
       <SidebarFooter className="border-t border-border" onClick={handleNavClick}>
         <div className="p-4 space-y-3">
-          <Link
-            href="/admin/settings/updates"
-            className="block text-xs text-muted-foreground text-center hover:text-foreground hover:underline group-data-[collapsible=icon]:hidden"
-          >
+          <p className="text-xs text-muted-foreground text-center group-data-[collapsible=icon]:hidden">
             Version {CURRENT_VERSION}
-          </Link>
+          </p>
           <Link
             href="/admin/reports/daily"
             className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center hover:text-foreground"
