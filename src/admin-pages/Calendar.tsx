@@ -4,6 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  type VehicleClass,
+  VEHICLE_CLASS_LABEL,
+  VEHICLE_CLASS_COLOR,
+  NEUTRAL_VEHICLE_COLOR,
+  vehicleClassOf,
+} from '@/lib/vehicle-classes';
 
 type Car = {
   id: string;
@@ -27,17 +34,6 @@ type Booking = {
   customer_name: string | null;
 };
 
-type VehicleClass = 'compact' | 'big-van' | 'luxe' | 'sport';
-const VEHICLE_CLASSES: VehicleClass[] = ['compact', 'big-van', 'luxe', 'sport'];
-
-const CATEGORY_COLOR: Record<VehicleClass, string> = {
-  compact: '#1fb8c4',
-  'big-van': '#7a5cf0',
-  luxe: '#b8862f',
-  sport: '#d1444f',
-};
-const NEUTRAL_COLOR = '#64748b';
-
 const STATUS_COLOR: Record<string, { fg: string; bg: string; border: string; label: string }> = {
   confirmed: { fg: '#1b8f6b', bg: '#e2f4ec', border: '#1b8f6b59', label: 'Confirmed' },
   pending_payment: { fg: '#c07a12', bg: '#fbecd4', border: '#c07a1259', label: 'Pending payment' },
@@ -46,20 +42,18 @@ const STATUS_COLOR: Record<string, { fg: string; bg: string; border: string; lab
 const TODAY_COLOR = '#e0475a';
 
 function carClass(car: Car): VehicleClass | null {
-  const cats = car.store_categories ?? [];
-  return VEHICLE_CLASSES.find((c) => cats.includes(c)) ?? null;
+  return vehicleClassOf(car.store_categories);
 }
 function carColor(car: Car): string {
   const cls = carClass(car);
-  return cls ? CATEGORY_COLOR[cls] : NEUTRAL_COLOR;
+  return cls ? VEHICLE_CLASS_COLOR[cls] : NEUTRAL_VEHICLE_COLOR;
 }
 function carLabel(car: Car): string {
   return car.name || [car.year, car.make, car.model].filter(Boolean).join(' ') || 'Vehicle';
 }
 function carClassLabel(car: Car): string {
   const cls = carClass(car);
-  if (!cls) return '';
-  return { compact: 'Compact', 'big-van': 'Big Van', luxe: 'Luxe', sport: 'Sport' }[cls];
+  return cls ? VEHICLE_CLASS_LABEL[cls] : '';
 }
 
 // Side-view silhouette that varies slightly by vehicle class — same shapes as the

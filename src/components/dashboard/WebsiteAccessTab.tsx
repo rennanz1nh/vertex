@@ -33,7 +33,7 @@ type Report = {
   previous: { sessions: number; activeUsers: number } | null;
 };
 
-type SalesTotals = { revenue: number; orders: number };
+type SalesTotals = { revenue: number; bookings: number };
 
 const fmtUSD = (v: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(v);
 
@@ -96,10 +96,11 @@ async function loadGa4(d: Period): Promise<Report> {
   return data;
 }
 
-// Sales/orders are our own ground truth (Supabase), not GA4's ecommerce tracking — the
-// store never sends purchase events to GA4, only to the Facebook Pixel — so pulling these
-// two numbers from GA4 would just show $0. "Vertex Rental Cars" is the sales channel the
-// website's own Stripe checkout tags its orders with.
+// Bookings are our own ground truth (Supabase), not GA4's ecommerce tracking — the site
+// never sends purchase/booking events to GA4, only to the Facebook Pixel — so pulling
+// these two numbers from GA4 would just show $0. Every booking comes from the site's own
+// "Request to Book" flow (there's no other channel), so no filter is needed beyond the
+// date range; cancelled bookings never happened as far as this is concerned.
 async function loadSales(d: Period): Promise<{ current: SalesTotals; previous: SalesTotals }> {
   const cStart = format(subDays(new Date(), d - 1), "yyyy-MM-dd");
   const cEnd = format(new Date(), "yyyy-MM-dd");
@@ -107,14 +108,14 @@ async function loadSales(d: Period): Promise<{ current: SalesTotals; previous: S
   const pEnd = format(subDays(new Date(), d), "yyyy-MM-dd");
 
   const [curRes, prevRes] = await Promise.all([
-    supabase.from("orders").select("total").eq("canal", "Vertex Rental Cars").gte("data_pedido", cStart).lte("data_pedido", cEnd),
-    supabase.from("orders").select("total").eq("canal", "Vertex Rental Cars").gte("data_pedido", pStart).lte("data_pedido", pEnd),
+    supabase.from("bookings").select("estimated_total").neq("status", "cancelled").gte("pickup_date", cStart).lte("pickup_date", cEnd),
+    supabase.from("bookings").select("estimated_total").neq("status", "cancelled").gte("pickup_date", pStart).lte("pickup_date", pEnd),
   ]);
 
-  const sum = (rows: { total: number | null }[] | null) => (rows ?? []).reduce((s, o) => s + (Number(o.total) || 0), 0);
+  const sum = (rows: { estimated_total: number | null }[] | null) => (rows ?? []).reduce((s, b) => s + (Number(b.estimated_total) || 0), 0);
   return {
-    current: { revenue: sum(curRes.data), orders: (curRes.data ?? []).length },
-    previous: { revenue: sum(prevRes.data), orders: (prevRes.data ?? []).length },
+    current: { revenue: sum(curRes.data), bookings: (curRes.data ?? []).length },
+    previous: { revenue: sum(prevRes.data), bookings: (prevRes.data ?? []).length },
   };
 }
 
@@ -313,14 +314,14 @@ export default function WebsiteAccessTab() {
                   pct={report.previous ? pctChange(report.sessions, report.previous.sessions) : null}
                 />
                 <StatTile
-                  label="Total de vendas"
+                  label="Receita de reservas"
                   value={sales ? fmtUSD(sales.current.revenue) : "—"}
                   pct={sales ? pctChange(sales.current.revenue, sales.previous.revenue) : null}
                 />
                 <StatTile
-                  label="Total de pedidos"
-                  value={sales ? sales.current.orders.toLocaleString("pt-BR") : "—"}
-                  pct={sales ? pctChange(sales.current.orders, sales.previous.orders) : null}
+                  label="Total de reservas"
+                  value={sales ? sales.current.bookings.toLocaleString("pt-BR") : "—"}
+                  pct={sales ? pctChange(sales.current.bookings, sales.previous.bookings) : null}
                 />
                 <StatTile
                   label="Visitantes únicos"
