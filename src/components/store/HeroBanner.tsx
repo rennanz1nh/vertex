@@ -26,19 +26,20 @@ export default async function HeroBanner() {
     return <HeroBannerCarousel banners={data as Banner[]} ratio={RATIO} />;
   }
 
+  // No banner configured yet — a branded placeholder instead of a hardcoded photo, since
+  // the real hero image is meant to come from an admin-uploaded banner (see above).
   return (
     <div className="mx-auto w-full max-w-[1600px]">
       <div
-        className="relative w-full min-h-[140px] md:min-h-0"
+        className="relative w-full min-h-[140px] md:min-h-0 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200"
         style={{ aspectRatio: "4.64" }}
       >
         <Image
-          src="/images/home-hero.jpg"
+          src="/images/store-logo.png"
           alt="Vertex Rental Cars"
-          fill
-          priority
-          className="object-cover object-center"
-          sizes="(max-width: 1600px) 100vw, 1600px"
+          width={220}
+          height={124}
+          className="h-12 md:h-20 w-auto opacity-90"
         />
       </div>
     </div>

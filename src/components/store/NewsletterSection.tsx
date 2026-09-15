@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useState } from "react";
+import Image from "next/image";
 
 export default function NewsletterSection() {
   const [name, setName] = useState("");
@@ -42,15 +43,15 @@ export default function NewsletterSection() {
                 Thank you!
               </h2>
               <p className="text-gray-600 text-sm">
-                Your 10% discount code is on its way to your inbox.
+                You&apos;re on the list — we&apos;ll email you about rental deals and new fleet arrivals.
               </p>
             </div>
           ) : (
             <>
               <h2 className="font-serif text-2xl md:text-3xl font-light text-gray-900 leading-snug mb-1">
-                Subscribe and save 10%
+                Subscribe for exclusive deals
               </h2>
-              <p className="text-sm text-gray-600 mb-6">on your first order</p>
+              <p className="text-sm text-gray-600 mb-6">Rental discounts and new fleet updates, straight to your inbox</p>
 
               <form onSubmit={handleSubmit} className="flex flex-col gap-3 max-w-sm">
                 <input
@@ -91,14 +92,16 @@ export default function NewsletterSection() {
           )}
         </div>
 
-        {/* Right: Image */}
-        <div
-          className="h-64 md:h-auto bg-cover bg-no-repeat"
-          style={{
-            backgroundImage: "url('/images/newsletter-spa.jpg')",
-            backgroundPosition: "46% 64%",
-          }}
-        />
+        {/* Right: branded placeholder until a real fleet photo replaces it */}
+        <div className="h-64 md:h-auto flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+          <Image
+            src="/images/store-logo.png"
+            alt="Vertex Rental Cars"
+            width={220}
+            height={124}
+            className="h-16 w-auto opacity-90"
+          />
+        </div>
       </div>
     </section>
   );

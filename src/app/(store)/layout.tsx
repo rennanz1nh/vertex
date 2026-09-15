@@ -1,6 +1,5 @@
 import Header from "@/components/store/Header";
 import Footer from "@/components/store/Footer";
-import TrustedBy from "@/components/store/TrustedBy";
 import GoogleTranslate from "@/components/store/GoogleTranslate";
 import ClearanceRail from "@/components/store/ClearanceRail";
 import NewsletterSection from "@/components/store/NewsletterSection";
@@ -70,7 +69,6 @@ export default async function StoreLayout({ children }: { children: React.ReactN
       <main className="flex-1">{children}</main>
       <ClearanceRail />
       <NewsletterSection />
-      <TrustedBy />
       <Footer />
       <ChatWidget />
       <BannerPopupManager banners={(data as Banner[] | null) ?? []} />

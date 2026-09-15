@@ -5,7 +5,6 @@ import MarqueeTicker from "@/components/store/MarqueeTicker";
 import ProductBrowser from "@/components/store/ProductBrowser";
 import CategoryTiles from "@/components/store/CategoryTiles";
 import HomeClearanceSection from "@/components/store/HomeClearanceSection";
-import LearnMoreSection from "@/components/store/LearnMoreSection";
 import { buildPageMetadata } from "@/lib/site-settings";
 import { STORE_CATEGORY_OPTIONS } from "@/lib/categories";
 
@@ -43,9 +42,6 @@ export default async function HomePage() {
 
       {/* Clearance — random order */}
       <HomeClearanceSection />
-
-      {/* Know more about you banner */}
-      <LearnMoreSection />
 
       {/* ClearanceRail (2nd clearance) + NewsletterSection are injected by the layout */}
     </>

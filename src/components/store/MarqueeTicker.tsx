@@ -1,5 +1,5 @@
 export default function MarqueeTicker() {
-  const text = "Shop Sale  •  Up to 70% off  •  ";
+  const text = "Fully Insured Fleet  •  Easy Online Booking  •  Flexible Protection Plans  •  ";
   const repeated = text.repeat(10);
 
   return (
