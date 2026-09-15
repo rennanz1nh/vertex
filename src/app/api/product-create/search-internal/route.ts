@@ -22,21 +22,19 @@ export async function GET(request: NextRequest) {
   const term = `%${q}%`;
   const { data, error } = await supabase
     .from("products")
-    .select(`id, "Produto Nome", "Marca", image_url, "Informacoes dos produtos / descricao", "Valor de venda (Online)"`)
-    .or(
-      `"Produto Nome".ilike.${term},"Marca".ilike.${term},"Informacoes dos produtos / descricao".ilike.${term}`
-    )
+    .select("id, name, make, image_url, description, daily_rate")
+    .or(`name.ilike.${term},make.ilike.${term},description.ilike.${term}`)
     .limit(20);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const products = (data ?? []).map((p: any) => ({
     id: p.id,
-    name: p["Produto Nome"],
-    brand: p["Marca"],
+    name: p.name,
+    brand: p.make,
     imageUrl: p.image_url,
-    description: p["Informacoes dos produtos / descricao"],
-    price: p["Valor de venda (Online)"],
+    description: p.description,
+    price: p.daily_rate,
   }));
 
   return NextResponse.json({ products });

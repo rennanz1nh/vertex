@@ -105,17 +105,6 @@ function toAmount(value: unknown): string {
   return (Number.isFinite(parsed) ? parsed : 0).toFixed(2);
 }
 
-// "Quantidade no Estoque" is free-text (spreadsheet import artifact — can hold "Teste",
-// blanks, etc.), same as the stock-deduction trigger has to handle server-side. Returns
-// null when there's nothing sensible to show, rather than a misleading 0.
-function parseStock(value: unknown): number | null {
-  if (value == null) return null;
-  const cleaned = String(value).replace(/[^0-9-]/g, '');
-  if (cleaned === '' || cleaned === '-') return null;
-  const n = parseInt(cleaned, 10);
-  return Number.isFinite(n) ? n : null;
-}
-
 export function OrderForm({ open, onOpenChange, onSuccess, editingOrder }: OrderFormProps) {
   const [date, setDate] = useState<Date>(new Date());
   const [clients, setClients] = useState<any[]>([]);
@@ -271,14 +260,14 @@ export function OrderForm({ open, onOpenChange, onSuccess, editingOrder }: Order
         if (editingOrder.order_items) {
           setOrderItems(editingOrder.order_items.map((item: any) => ({
             productId: item.product_id,
-            productName: item.products?.['Produto Nome'] || '',
-            marca: item.products?.Marca || '',
+            productName: item.products?.name || '',
+            marca: item.products?.make || '',
             quantidade: item.quantidade,
             valorUnitario: item.preco_unitario,
             custoUnitario: item.custo_unitario,
             imageUrl: item.products?.image_url || '',
-            descricao: item.products?.['Informacoes dos produtos / descricao'] || '',
-            sku: item.sku || item.products?.SKU || item.products?.sku || '',
+            descricao: item.products?.description || '',
+            sku: item.sku || item.products?.vin || '',
             ebayLineItemId: item.ebay_line_item_id ?? null,
           })));
         }
@@ -352,8 +341,8 @@ export function OrderForm({ open, onOpenChange, onSuccess, editingOrder }: Order
     const { data } = await supabase
       .from("products")
       .select("*")
-      .order("Produto Nome");
-    if (data) setProducts(data.filter(p => p["Produto Nome"]));
+      .order("name");
+    if (data) setProducts(data.filter(p => p.name));
   };
 
   const addProduct = () => {
@@ -363,19 +352,16 @@ export function OrderForm({ open, onOpenChange, onSuccess, editingOrder }: Order
       return;
     }
 
-    const custoStr = product["Custo por unidade (Minimo)"];
-    const custoUnitario = custoStr ? parseFloat(String(custoStr).replace(/[^0-9.-]/g, '')) : 0;
-    
     setOrderItems([...orderItems, {
       productId: product.id,
-      productName: product["Produto Nome"],
-      marca: product.Marca || "",
+      productName: product.name,
+      marca: product.make || "",
       quantidade,
       valorUnitario: parseFloat(valorUnitario) || 0,
-      custoUnitario: isNaN(custoUnitario) ? 0 : custoUnitario,
+      custoUnitario: 0,
       imageUrl: product.image_url || "",
-      descricao: product["Informacoes dos produtos / descricao"] || "",
-      sku: product.SKU || "",
+      descricao: product.description || "",
+      sku: product.vin || "",
     }]);
 
     setSelectedProduct("");
@@ -414,17 +400,15 @@ export function OrderForm({ open, onOpenChange, onSuccess, editingOrder }: Order
   // no SKU match) without touching its quantity, unit price, or eBay anchor — unlike
   // addProduct, which appends a brand-new line from the quantity/price inputs above.
   const assignProductToItem = (index: number, product: any) => {
-    const custoStr = product["Custo por unidade (Minimo)"];
-    const custoUnitario = custoStr ? parseFloat(String(custoStr).replace(/[^0-9.-]/g, '')) : 0;
     setOrderItems(orderItems.map((item, i) => i === index ? {
       ...item,
       productId: product.id,
-      productName: product["Produto Nome"],
-      marca: product.Marca || "",
-      custoUnitario: isNaN(custoUnitario) ? 0 : custoUnitario,
+      productName: product.name,
+      marca: product.make || "",
+      custoUnitario: 0,
       imageUrl: product.image_url || "",
-      descricao: product["Informacoes dos produtos / descricao"] || "",
-      sku: item.sku || product.SKU || "",
+      descricao: product.description || "",
+      sku: item.sku || product.vin || "",
     } : item));
   };
 
@@ -669,8 +653,8 @@ export function OrderForm({ open, onOpenChange, onSuccess, editingOrder }: Order
         orderNumber: editingOrder.numero_pedido_canal || String(editingOrder.id).slice(0, 8),
         channel: editingOrder.canal,
         items: (editingOrder.order_items || []).map((i: any) => ({
-          sku: i.products?.SKU,
-          name: i.products?.['Produto Nome'] || 'Produto',
+          sku: i.products?.vin,
+          name: i.products?.name || 'Produto',
           quantity: i.quantidade,
           unitPrice: i.preco_unitario,
           imageUrl: i.products?.image_url,
@@ -1090,13 +1074,13 @@ export function OrderForm({ open, onOpenChange, onSuccess, editingOrder }: Order
                           {selected.image_url ? (
                             <img
                               src={selected.image_url}
-                              alt={selected["Produto Nome"]}
+                              alt={selected.name}
                               className="w-6 h-6 object-cover rounded shrink-0"
                             />
                           ) : (
                             <Package className="h-4 w-4 shrink-0 text-muted-foreground font-bold" />
                           )}
-                          <span className="truncate">{selected["Produto Nome"]}</span>
+                          <span className="truncate">{selected.name}</span>
                         </div>
                       ) : (
                         <span className="text-muted-foreground font-bold">Selecionar produto</span>
@@ -1673,8 +1657,8 @@ export function OrderForm({ open, onOpenChange, onSuccess, editingOrder }: Order
                           <img src={item.products.image_url} className="h-9 w-9 rounded object-cover bg-muted shrink-0" alt="" />
                         )}
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{item.products?.["Produto Nome"] || "—"}</p>
-                          {item.products?.SKU && <p className="text-xs text-muted-foreground">SKU {item.products.SKU}</p>}
+                          <p className="text-sm font-medium truncate">{item.products?.name || "—"}</p>
+                          {item.products?.vin && <p className="text-xs text-muted-foreground">VIN {item.products.vin}</p>}
                         </div>
                         <span className="text-sm text-muted-foreground shrink-0">×{item.quantidade}</span>
                         <span className="text-sm font-medium tabular-nums shrink-0">{fmtUSD(item.preco_unitario)}</span>
@@ -1782,7 +1766,7 @@ export function OrderForm({ open, onOpenChange, onSuccess, editingOrder }: Order
           </div>
           {/* Brand Filter */}
           {(() => {
-            const brands = [...new Set(products.map(p => p.Marca).filter(Boolean))].sort();
+            const brands = [...new Set(products.map(p => p.make).filter(Boolean))].sort();
             if (brands.length === 0) return null;
             return (
               <div className="flex flex-wrap gap-1.5">
@@ -1813,14 +1797,14 @@ export function OrderForm({ open, onOpenChange, onSuccess, editingOrder }: Order
           <div className="overflow-y-auto flex-1 -mx-2 px-2">
             {(() => {
               const filtered = products.filter((p) => {
-                if (selectedBrand && p.Marca !== selectedBrand) return false;
+                if (selectedBrand && p.make !== selectedBrand) return false;
                 const q = productSearch.toLowerCase().trim();
                 if (!q) return true;
                 return (
-                  (p["Produto Nome"] || "").toLowerCase().includes(q) ||
-                  (p.Marca || "").toLowerCase().includes(q) ||
-                  (p.SKU || "").toLowerCase().includes(q) ||
-                  (p.ASIN || "").toLowerCase().includes(q)
+                  (p.name || "").toLowerCase().includes(q) ||
+                  (p.make || "").toLowerCase().includes(q) ||
+                  (p.vin || "").toLowerCase().includes(q) ||
+                  (p.license_plate || "").toLowerCase().includes(q)
                 );
               });
 
@@ -1856,7 +1840,7 @@ export function OrderForm({ open, onOpenChange, onSuccess, editingOrder }: Order
                             {product.image_url ? (
                               <img
                                 src={product.image_url}
-                                alt={product["Produto Nome"]}
+                                alt={product.name}
                                 className="w-full h-full object-cover"
                               />
                             ) : (
@@ -1865,24 +1849,11 @@ export function OrderForm({ open, onOpenChange, onSuccess, editingOrder }: Order
                           </div>
                           <div className="w-full space-y-1">
                             <p className="text-sm font-medium line-clamp-2">
-                              {product["Produto Nome"]}
+                              {product.name}
                             </p>
-                            {product.Marca && (
-                              <p className="text-xs text-muted-foreground font-bold">{product.Marca}</p>
+                            {product.make && (
+                              <p className="text-xs text-muted-foreground font-bold">{product.make}</p>
                             )}
-                            {product["Custo por unidade (Minimo)"] && (
-                              <p className="text-xs text-muted-foreground font-bold">
-                                Custo: ${parseFloat(String(product["Custo por unidade (Minimo)"]).replace(/[^0-9.-]/g, '') || '0').toFixed(2)}
-                              </p>
-                            )}
-                            {(() => {
-                              const stock = parseStock(product["Quantidade no Estoque"]);
-                              return stock !== null ? (
-                                <p className={cn("text-xs font-bold", stock <= 0 ? "text-destructive" : "text-muted-foreground")}>
-                                  Estoque: {stock}
-                                </p>
-                              ) : null;
-                            })()}
                           </div>
                         </button>
                       );
@@ -1909,7 +1880,7 @@ export function OrderForm({ open, onOpenChange, onSuccess, editingOrder }: Order
                           {product.image_url ? (
                             <img
                               src={product.image_url}
-                              alt={product["Produto Nome"]}
+                              alt={product.name}
                               className="w-full h-full object-cover"
                             />
                           ) : (
@@ -1918,27 +1889,14 @@ export function OrderForm({ open, onOpenChange, onSuccess, editingOrder }: Order
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">
-                            {product["Produto Nome"]}
+                            {product.name}
                           </p>
                           <div className="flex items-center gap-2 text-xs text-muted-foreground font-bold">
-                            {product.Marca && <span>{product.Marca}</span>}
-                            {product.SKU && <span>· SKU: {product.SKU}</span>}
-                            {product.ASIN && <span>· ASIN: {product.ASIN}</span>}
+                            {product.make && <span>{product.make}</span>}
+                            {product.vin && <span>· SKU: {product.vin}</span>}
+                            {product.license_plate && <span>· ASIN: {product.license_plate}</span>}
                           </div>
                         </div>
-                        {product["Custo por unidade (Minimo)"] && (
-                          <div className="text-xs text-muted-foreground font-bold shrink-0">
-                            Custo: ${parseFloat(String(product["Custo por unidade (Minimo)"]).replace(/[^0-9.-]/g, '') || '0').toFixed(2)}
-                          </div>
-                        )}
-                        {(() => {
-                          const stock = parseStock(product["Quantidade no Estoque"]);
-                          return stock !== null ? (
-                            <div className={cn("text-xs font-bold shrink-0", stock <= 0 ? "text-destructive" : "text-muted-foreground")}>
-                              Estoque: {stock}
-                            </div>
-                          ) : null;
-                        })()}
                         {isSelected && (
                           <div className="bg-primary text-primary-foreground rounded-full p-1 shrink-0">
                             <Check className="h-3 w-3" />

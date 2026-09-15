@@ -11,10 +11,10 @@ import { SeoFieldsBlock, type SeoValues } from "@/components/admin/SeoFieldsBloc
 
 type ProductRow = {
   id: string;
-  "Produto Nome": string | null;
-  SKU: string | null;
+  name: string | null;
+  vin: string | null;
   image_url: string | null;
-  "Informacoes dos produtos / descricao": string | null;
+  description: string | null;
 };
 
 const EMPTY: SeoValues = { title: null, description: null, og_image: null, noindex: false };
@@ -34,8 +34,8 @@ export default function SeoProductsTab() {
       setLoadingList(true);
       const { data } = await supabase
         .from("products")
-        .select('id, "Produto Nome", SKU, image_url, "Informacoes dos produtos / descricao"')
-        .order("Produto Nome");
+        .select("id, name, vin, image_url, description")
+        .order("name");
       setProducts((data as ProductRow[] | null) ?? []);
       setLoadingList(false);
     })();
@@ -87,8 +87,8 @@ export default function SeoProductsTab() {
   const term = search.toLowerCase();
   const filtered = products.filter(
     (p) =>
-      (p["Produto Nome"] || "").toLowerCase().includes(term) ||
-      (p.SKU || "").toLowerCase().includes(term)
+      (p.name || "").toLowerCase().includes(term) ||
+      (p.vin || "").toLowerCase().includes(term)
   );
 
   // ---- Editing a selected product ----
@@ -107,10 +107,10 @@ export default function SeoProductsTab() {
               // eslint-disable-next-line @next/next/no-img-element
               <img src={selected.image_url} alt="" className="w-10 h-10 rounded object-cover" />
             )}
-            {selected["Produto Nome"] || "Produto"}
+            {selected.name || "Produto"}
           </CardTitle>
           <CardDescription>
-            Em branco = usa o nome/descrição do próprio produto. SKU: {selected.SKU || "—"}
+            Em branco = usa o nome/descrição do próprio carro. VIN: {selected.vin || "—"}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
@@ -123,8 +123,8 @@ export default function SeoProductsTab() {
               <SeoFieldsBlock
                 values={values}
                 onChange={set}
-                fallbackTitle={selected["Produto Nome"] || undefined}
-                fallbackDescription={selected["Informacoes dos produtos / descricao"] || undefined}
+                fallbackTitle={selected.name || undefined}
+                fallbackDescription={selected.description || undefined}
               />
               <Button className="bg-black hover:bg-black/80 text-white" onClick={handleSave} disabled={saving}>
                 {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
@@ -178,8 +178,8 @@ export default function SeoProductsTab() {
                   )}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">{p["Produto Nome"] || "Sem nome"}</p>
-                  <p className="text-xs text-muted-foreground">{p.SKU || "sem SKU"}</p>
+                  <p className="text-sm font-medium truncate">{p.name || "Sem nome"}</p>
+                  <p className="text-xs text-muted-foreground">{p.vin || "sem VIN"}</p>
                 </div>
               </button>
             ))}

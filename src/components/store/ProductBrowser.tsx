@@ -20,11 +20,11 @@ export default function ProductBrowser({
   categories?: CategoryLink[];
 }) {
   const brands = useMemo(
-    () => [...new Set(products.map((p) => p.Marca).filter(Boolean))] as string[],
+    () => [...new Set(products.map((p) => p.make).filter(Boolean))] as string[],
     [products]
   );
   const priceBounds = useMemo(() => {
-    const prices = products.map((p) => parsePrice(p["Valor de venda (Online)"])).filter((n) => n > 0);
+    const prices = products.map((p) => parsePrice(p.daily_rate)).filter((n) => n > 0);
     const min = prices.length ? Math.floor(Math.min(...prices)) : 0;
     const max = prices.length ? Math.ceil(Math.max(...prices)) : 0;
     return { min, max };
@@ -44,20 +44,16 @@ export default function ProductBrowser({
 
   const filtered = useMemo(() => {
     let list = products.filter((p) => {
-      if (selectedBrands.size && !selectedBrands.has(p.Marca || "")) return false;
-      if (maxPrice != null && parsePrice(p["Valor de venda (Online)"]) > maxPrice) return false;
+      if (selectedBrands.size && !selectedBrands.has(p.make || "")) return false;
+      if (maxPrice != null && parsePrice(p.daily_rate) > maxPrice) return false;
       return true;
     });
     if (sort === "price-asc")
-      list = [...list].sort(
-        (a, b) => parsePrice(a["Valor de venda (Online)"]) - parsePrice(b["Valor de venda (Online)"])
-      );
+      list = [...list].sort((a, b) => parsePrice(a.daily_rate) - parsePrice(b.daily_rate));
     else if (sort === "price-desc")
-      list = [...list].sort(
-        (a, b) => parsePrice(b["Valor de venda (Online)"]) - parsePrice(a["Valor de venda (Online)"])
-      );
+      list = [...list].sort((a, b) => parsePrice(b.daily_rate) - parsePrice(a.daily_rate));
     else if (sort === "name")
-      list = [...list].sort((a, b) => (a["Produto Nome"] || "").localeCompare(b["Produto Nome"] || ""));
+      list = [...list].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
     return list;
   }, [products, selectedBrands, maxPrice, sort]);
 
@@ -135,13 +131,13 @@ export default function ProductBrowser({
         )}
       </div>
 
-      {/* Brand */}
+      {/* Make */}
       <div className="border-t border-gray-200 pt-4 mt-4">
         <button
           className="flex items-center justify-between w-full"
           onClick={() => setOpenSection((s) => ({ ...s, brand: !s.brand }))}
         >
-          <h4 className="text-sm font-medium text-gray-800">Brand</h4>
+          <h4 className="text-sm font-medium text-gray-800">Make</h4>
           <ChevronDown
             className={`h-4 w-4 text-gray-400 transition-transform ${openSection.brand ? "rotate-180" : ""}`}
           />

@@ -102,12 +102,13 @@ export async function POST(request: NextRequest) {
 
   const supabase = getSupabase();
 
-  // Resolve every ASIN in one round trip — products carry the ASIN, so this is the join key.
+  // Resolve every ASIN in one round trip — the license_plate column doubles as the ASIN
+  // join key now that the catalog is cars, not marketplace listings.
   const asins = [...new Set(orders.flatMap((o) => o.items.map((i) => i.asin)))];
   const { data: products, error: productsError } = await supabase
     .from("products")
-    .select('id, "SKU", "ASIN"')
-    .in("ASIN", asins);
+    .select("id, vin, license_plate")
+    .in("license_plate", asins);
 
   if (productsError) {
     return NextResponse.json({ error: `Falha ao ler produtos: ${productsError.message}` }, { status: 500 });
@@ -115,8 +116,8 @@ export async function POST(request: NextRequest) {
 
   const productByAsin = new Map(
     (products ?? [])
-      .filter((p) => p.ASIN)
-      .map((p) => [String(p.ASIN).trim(), { id: p.id as string, sku: (p.SKU as string) ?? null }])
+      .filter((p) => p.license_plate)
+      .map((p) => [String(p.license_plate).trim(), { id: p.id as string, sku: (p.vin as string) ?? null }])
   );
   const unmappedAsins = asins.filter((a) => !productByAsin.has(a));
 

@@ -79,6 +79,7 @@ export type TripDraft = {
   carName: string;
   carImage: string | null;
   dailyRate: number;
+  minDriverAge: number;
   pickupDate: string; // ISO date, e.g. 2026-09-20
   pickupTime: string; // HH:mm
   returnDate: string;

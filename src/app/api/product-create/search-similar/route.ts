@@ -23,8 +23,8 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await supabase
     .from("order_items")
-    .select(`quantidade, product_id, products!inner("Produto Nome","Marca",image_url,"Valor de venda (Online)")`)
-    .or(`"Produto Nome".ilike.${term},"Marca".ilike.${term},"Linha do produto".ilike.${term}`, { foreignTable: "products" })
+    .select(`quantidade, product_id, products!inner(name,make,image_url,daily_rate)`)
+    .or(`name.ilike.${term},make.ilike.${term},model.ilike.${term}`, { foreignTable: "products" })
     .limit(2000);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -39,10 +39,10 @@ export async function GET(request: NextRequest) {
       existing.qty += qty;
     } else {
       totals.set(row.product_id, {
-        name: p?.["Produto Nome"] ?? "",
-        brand: p?.["Marca"] ?? "",
+        name: p?.name ?? "",
+        brand: p?.make ?? "",
         imageUrl: p?.image_url ?? null,
-        price: p?.["Valor de venda (Online)"] ?? null,
+        price: p?.daily_rate ?? null,
         qty,
       });
     }

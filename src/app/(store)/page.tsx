@@ -7,6 +7,7 @@ import CategoryTiles from "@/components/store/CategoryTiles";
 import HomeClearanceSection from "@/components/store/HomeClearanceSection";
 import LearnMoreSection from "@/components/store/LearnMoreSection";
 import { buildPageMetadata } from "@/lib/site-settings";
+import { STORE_CATEGORY_OPTIONS } from "@/lib/categories";
 
 export const revalidate = 60;
 
@@ -15,18 +16,13 @@ export function generateMetadata() {
 }
 
 const CATEGORIES = [
-  { label: "All", href: "/products" },
-  { label: "Women (All Products)", href: "/women" },
-  { label: "Sale | Clearance", href: "/clearance" },
-  { label: "Women's Hair", href: "/women-hair" },
-  { label: "Women's Skin", href: "/women-skin" },
-  { label: "Men (All Products)", href: "/men" },
-  { label: "Professional Line", href: "/professional" },
+  { label: "All Vehicles", href: "/products" },
+  ...STORE_CATEGORY_OPTIONS.map((c) => ({ label: c.label, href: `/products?category=${c.value}` })),
 ];
 
 async function getProducts() {
   const { data } = await supabase.from(STORE_PRODUCTS).select("*").limit(300);
-  return (data || []).filter((p) => parsePrice(p["Valor de venda (Online)"]) > 0);
+  return (data || []).filter((p) => parsePrice(p.daily_rate) > 0);
 }
 
 export default async function HomePage() {

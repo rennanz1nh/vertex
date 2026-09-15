@@ -320,7 +320,7 @@ export default function Reports() {
     try {
       const [ordersRes, itemsRes, productsRes, clientsRes, shippoRes] = await Promise.all([
         supabase.from('orders').select('id, data_pedido, canal, total, status, impostos, frete_total, descontos, client_id, custo_total_shipping, shipping_tracking, comissao_ebay, comissao_tiktok, promoted_listings'),
-        supabase.from('order_items').select('order_id, product_id, quantidade, preco_unitario, custo_unitario, products:product_id ("Produto Nome", image_url)'),
+        supabase.from('order_items').select('order_id, product_id, quantidade, preco_unitario, custo_unitario, products:product_id (name, image_url)'),
         supabase.from('products').select('id', { count: 'exact', head: true }),
         supabase.from('clients').select('id', { count: 'exact', head: true }),
         authedFetch('/api/shippo/transactions-list').then((r) => r.json()).catch(() => ({ transactions: [] })),
@@ -524,7 +524,7 @@ export default function Reports() {
     orderItems.filter((i) => topProductsOrderIds.has(i.order_id)).forEach((i) => {
       const pid = i.product_id;
       if (!map[pid]) {
-        map[pid] = { name: i.products?.["Produto Nome"] || 'Sem nome', imageUrl: i.products?.image_url || null, qty: 0, revenue: 0 };
+        map[pid] = { name: i.products?.name || 'Sem nome', imageUrl: i.products?.image_url || null, qty: 0, revenue: 0 };
       }
       map[pid].qty += Number(i.quantidade) || 0;
       map[pid].revenue += (Number(i.quantidade) || 0) * (Number(i.preco_unitario) || 0);

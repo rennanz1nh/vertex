@@ -36,16 +36,15 @@ export async function GET() {
 
   const items = products
     .map((p) => {
-      const name = p["Produto Nome"];
-      const priceRaw = p["Valor de venda (Online)"];
+      const name = p.name || [p.year, p.make, p.model].filter(Boolean).join(" ");
+      const priceRaw = p.daily_rate;
       if (!name || !priceRaw) return "";
 
-      const { price } = getEffectivePrice(priceRaw, p.sale_price);
+      const { price } = getEffectivePrice(priceRaw, p.discounted_daily_rate);
       if (!price || price <= 0) return "";
 
-      const stock = parseInt(p["Quantidade no Estoque"] || "0");
       const image = absoluteUrl(p.image_url || getProductImage(name), siteUrl);
-      const description = p["Informacoes dos produtos / descricao"] || name;
+      const description = p.description || name;
       const link = `${siteUrl}/products/${p.id}`;
 
       return [
@@ -55,12 +54,14 @@ export async function GET() {
         `      <description>${cdata(description)}</description>`,
         `      <link>${xmlEscape(link)}</link>`,
         image ? `      <g:image_link>${xmlEscape(image)}</g:image_link>` : "",
-        `      <g:availability>${stock > 0 ? "in stock" : "out of stock"}</g:availability>`,
+        // every row here is already store_visible = true (see the query below) — a single
+        // vehicle listing has no separate stock quantity, so it's always "in stock".
+        `      <g:availability>in stock</g:availability>`,
         `      <g:price>${price.toFixed(2)} USD</g:price>`,
         `      <g:condition>new</g:condition>`,
-        p.Marca ? `      <g:brand>${cdata(p.Marca)}</g:brand>` : "",
-        p.SKU ? `      <g:mpn>${xmlEscape(p.SKU)}</g:mpn>` : "",
-        `      <g:identifier_exists>${p.SKU ? "yes" : "no"}</g:identifier_exists>`,
+        p.make ? `      <g:brand>${cdata(p.make)}</g:brand>` : "",
+        p.vin ? `      <g:mpn>${xmlEscape(p.vin)}</g:mpn>` : "",
+        `      <g:identifier_exists>${p.vin ? "yes" : "no"}</g:identifier_exists>`,
         "    </item>",
       ]
         .filter(Boolean)

@@ -12,10 +12,9 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Search, Sparkles, Loader2, Upload, X, Plus, TrendingUp, Trash2, Send, ShoppingBag,
+  Search, Sparkles, Loader2, Upload, X, Plus, TrendingUp, Trash2, Send,
 } from "lucide-react";
 import { PublishToEbayDialog } from "@/components/product-create/PublishToEbayDialog";
-import { AmazonPrepareDialog } from "@/components/product-create/AmazonPrepareDialog";
 import { ProductCreateTabs } from "@/components/product-create/ProductCreateTabs";
 import { authedFetch } from "@/lib/admin-fetch";
 
@@ -71,7 +70,6 @@ export default function ProductCreatePage() {
   const [searching, setSearching] = useState(false);
 
   const [publishEbayOpen, setPublishEbayOpen] = useState(false);
-  const [publishAmazonOpen, setPublishAmazonOpen] = useState(false);
 
   const loadDrafts = useCallback(async (q?: string) => {
     const res = await authedFetch(`/api/product-create/drafts${q ? `?q=${encodeURIComponent(q)}` : ""}`);
@@ -479,9 +477,6 @@ export default function ProductCreatePage() {
                 <Button variant="outline" onClick={() => setPublishEbayOpen(true)}>
                   <Send className="h-4 w-4 mr-2" /> Publicar no eBay
                 </Button>
-                <Button variant="outline" onClick={() => setPublishAmazonOpen(true)}>
-                  <ShoppingBag className="h-4 w-4 mr-2" /> Preparar para Amazon
-                </Button>
               </CardContent>
             </Card>
           )}
@@ -494,11 +489,6 @@ export default function ProductCreatePage() {
             draft={{ name: current.name ?? "", ai_description: current.ai_description, price: current.price, images: current.images }}
             open={publishEbayOpen}
             onOpenChange={setPublishEbayOpen}
-          />
-          <AmazonPrepareDialog
-            draft={{ name: current.name ?? "", brand: current.brand, ai_description: current.ai_description, ai_triggers: current.ai_triggers, price: current.price, images: current.images }}
-            open={publishAmazonOpen}
-            onOpenChange={setPublishAmazonOpen}
           />
         </>
       )}

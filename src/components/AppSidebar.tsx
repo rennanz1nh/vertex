@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Box, LogOut, Truck, Settings, MessageCircle, ChevronRight, Sparkles, Newspaper, Video, ClipboardCheck, CalendarDays, CheckCircle2, BarChart3, Zap } from "lucide-react";
-import { ShampooBottleIcon } from "@/components/icons/ShampooBottleIcon";
+import { LayoutDashboard, Users, Box, LogOut, Truck, Settings, MessageCircle, ChevronRight, Sparkles, Newspaper, Video, ClipboardCheck, CalendarDays, CheckCircle2, BarChart3, Zap, Car } from "lucide-react";
 import { HubIcon } from "@/components/icons/HubIcon";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton, SidebarHeader, SidebarFooter, useSidebar } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -35,7 +34,7 @@ function navLinkClass(isActive: boolean): string {
 
 const navigation = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
-  { title: "Produtos", url: "/admin/products", icon: ShampooBottleIcon },
+  { title: "Carros", url: "/admin/cars", icon: Car },
   { title: "Clientes", url: "/admin/clients", icon: Users },
   { title: "Pedidos", url: "/admin/orders", icon: Box },
   { title: "Shipping's", url: "/admin/orders-test", icon: Truck },
@@ -45,26 +44,11 @@ const navigation = [
 // to be separate sidebar entries are now tabs at the top of that page (same pattern as
 // Configurações/SettingsTabs), so the sidebar only needs to know the landing page and the
 // path prefix that should keep this entry highlighted while on any of its tabs.
-const automations = [
-  {
-    title: "eBay Automation",
-    image: "/images/sales-channels/Ebay.png",
-    url: "/admin/automations/ebay/reports/traffic",
-    basePath: "/admin/automations/ebay",
-  },
-  {
-    title: "Amazon Automation",
-    image: "/images/sales-channels/Amazon.png",
-    url: "/admin/automations/amazon/price",
-    basePath: "/admin/automations/amazon",
-  },
-  {
-    title: "TikTok Shop Automation",
-    image: "/images/sales-channels/TikTok.png",
-    url: "/admin/automations/tiktok-shop/orders",
-    basePath: "/admin/automations/tiktok-shop",
-  },
-];
+//
+// eBay/Amazon/TikTok Shop automation removed — those were dropshipping/marketplace
+// integrations for the old cosmetics catalog and don't apply to car rental. Google
+// Shopping stays (see googleAutomations below).
+const automations: { title: string; image: string; url: string; basePath: string }[] = [];
 
 // Official Meta mark (infinity symbol) instead of the static Facebook "f" asset —
 // the product is Meta Pixel, not Facebook. Rendered after the Google group below.

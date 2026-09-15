@@ -10,52 +10,28 @@ import { getRibbonClassName } from "@/lib/ribbon";
 import { trackViewContent } from "@/lib/facebook-pixel-events";
 import type { Product } from "@/lib/supabase";
 
-const BADGE_STYLES: Record<string, string> = {
-  "Progressive (Brazilian)": "bg-brand text-white",
-  "Brazilian Keratin": "bg-brand text-white",
-  "Best Seller's": "bg-brand text-white",
-  KIT: "bg-gray-200 text-gray-800",
-};
-
-function getBadge(product: Product): string | null {
-  const linha = product["Linha do produto"] || "";
-  if (linha.toLowerCase().includes("progressive") || linha.toLowerCase().includes("keratin"))
-    return "Progressive (Brazilian)";
-  if (linha.toLowerCase().includes("kit")) return "KIT";
-  return null;
-}
-
 type Props = { product: Product };
 
 export default function ProductCard({ product }: Props) {
-  const name = product["Produto Nome"] || "Product";
-  const { price, originalPrice } = getEffectivePrice(product["Valor de venda (Online)"], product.sale_price);
+  const name = product.name || [product.year, product.make, product.model].filter(Boolean).join(" ") || "Vehicle";
+  const { price, originalPrice } = getEffectivePrice(product.daily_rate, product.discounted_daily_rate);
   const ribbonText = product.ribbon_text;
-  const badge = ribbonText ? null : getBadge(product);
   const image = product.image_url || getProductImage(name);
   const hoverImage = product.gallery_urls?.[0] || null;
 
   useEffect(() => {
-    trackViewContent(name, product.id, price, product.Marca);
-  }, [product.id, name, price, product.Marca]);
+    trackViewContent(name, product.id, price, product.make);
+  }, [product.id, name, price, product.make]);
 
   return (
     <Link href={`/products/${product.id}`} className="group flex flex-col">
       <div className="relative bg-white aspect-[3/4] overflow-hidden">
-        {ribbonText ? (
+        {ribbonText && (
           <span
             className={`absolute top-2 left-2 z-10 text-[10px] font-bold px-2 py-0.5 uppercase tracking-wide ${getRibbonClassName(product.ribbon_color)}`}
           >
             {ribbonText}
           </span>
-        ) : (
-          badge && (
-            <span
-              className={`absolute top-2 left-2 z-10 text-[10px] font-bold px-2 py-0.5 uppercase tracking-wide ${BADGE_STYLES[badge] || "bg-gray-200 text-gray-800"}`}
-            >
-              {badge}
-            </span>
-          )
         )}
         {image ? (
           <>
@@ -90,7 +66,7 @@ export default function ProductCard({ product }: Props) {
       </div>
 
       <div className="pt-3 pb-1 flex-1 flex flex-col">
-        <p className="text-xs text-gray-500 mb-0.5">{product.Marca || ""}</p>
+        <p className="text-xs text-gray-500 mb-0.5">{product.make || ""}</p>
         <h3 className="text-sm text-gray-900 leading-snug line-clamp-2 flex-1">{name}</h3>
         <div className="mt-2 flex items-baseline gap-2">
           {originalPrice != null && (

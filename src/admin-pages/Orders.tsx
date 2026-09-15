@@ -354,11 +354,11 @@ export default function Orders() {
             preco_unitario,
             custo_unitario,
             products (
-              "Produto Nome",
-              "Marca",
+              name,
+              make,
               image_url,
-              "SKU",
-              "ASIN"
+              vin,
+              license_plate
             )
           )
         `).order('data_pedido', { ascending: false });
@@ -554,9 +554,9 @@ export default function Orders() {
     // uses, so the two never disagree on this order's shipping cost again.
     const shippoFallback = order.shipping_tracking ? shippoTxMap[order.shipping_tracking]?.amount : null;
     const calc = calcularPedidoFromDbOrder(order, shippoFallback);
-    const produtosNomes = items.map((item: any) => item.products?.["Produto Nome"] || 'N/A').join(', ');
-    const marcas = [...new Set(items.map((item: any) => item.products?.["Marca"] || 'N/A'))].join(', ');
-    const asins = [...new Set(items.map((item: any) => item.products?.["ASIN"]).filter(Boolean))].join(', ');
+    const produtosNomes = items.map((item: any) => item.products?.name || 'N/A').join(', ');
+    const marcas = [...new Set(items.map((item: any) => item.products?.make || 'N/A'))].join(', ');
+    const asins = [...new Set(items.map((item: any) => item.products?.license_plate).filter(Boolean))].join(', ');
     const primeiraImagem = items.find((item: any) => item.products?.image_url)?.products?.image_url || null;
     return {
       qtdProdutos,
@@ -653,8 +653,8 @@ export default function Orders() {
         orderNumber: order.numero_pedido_canal || order.id.slice(0, 8),
         channel: order.canal,
         items: (order.order_items || []).map((i: any) => ({
-          sku: i.products?.SKU,
-          name: i.products?.['Produto Nome'] || 'Produto',
+          sku: i.products?.vin,
+          name: i.products?.name || 'Produto',
           quantity: i.quantidade,
           unitPrice: i.preco_unitario,
           imageUrl: i.products?.image_url,

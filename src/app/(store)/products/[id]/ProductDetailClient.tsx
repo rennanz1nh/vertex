@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { type Product } from "@/lib/supabase";
-import { saveTripDraft, tripDays, type TripDraft } from "@/lib/tripDraft";
+import { saveTripDraft, tripDays, MINIMUM_DRIVER_AGE, type TripDraft } from "@/lib/tripDraft";
 import { formatPrice } from "@/lib/utils";
 import { getEffectivePrice } from "@/lib/pricing";
 import { getProductImage } from "@/lib/product-images";
@@ -37,13 +37,27 @@ export default function ProductDetailClient({ product }: { product: Product }) {
   const [returnTime, setReturnTime] = useState("10:00");
   const [dateError, setDateError] = useState<string | null>(null);
 
-  const name = product["Produto Nome"] || "Vehicle";
+  const name =
+    product.name || [product.year, product.make, product.model].filter(Boolean).join(" ") || "Vehicle";
   const { price: dailyRate, originalPrice } = getEffectivePrice(
-    product["Valor de venda (Online)"],
-    product.sale_price
+    product.daily_rate,
+    product.discounted_daily_rate
   );
-  const description = product["Informacoes dos produtos / descricao"] || "";
+  const description = product.description || "";
   const cover = product.image_url || getProductImage(name);
+  const specs = [
+    { label: "Make", value: product.make },
+    { label: "Model", value: product.model },
+    { label: "Year", value: product.year },
+    { label: "Color", value: product.color },
+    { label: "Mileage", value: product.mileage != null ? `${product.mileage} mi` : null },
+    { label: "Transmission", value: product.transmission },
+    { label: "Fuel type", value: product.fuel_type },
+    { label: "Seats", value: product.seats },
+    { label: "Doors", value: product.doors },
+    { label: "Pickup city", value: product.pickup_city },
+  ].filter((s) => s.value != null && s.value !== "");
+  const features = Array.isArray(product.features) ? product.features.filter(Boolean) : [];
   const details = (Array.isArray(product.details) ? product.details : []).filter(
     (d) => d && d.label && d.value
   );
@@ -71,6 +85,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
       carName: name,
       carImage: imageSrc,
       dailyRate,
+      minDriverAge: product.min_driver_age || MINIMUM_DRIVER_AGE,
       pickupDate,
       pickupTime,
       returnDate,
@@ -153,7 +168,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
 
         {/* Info */}
         <div className="flex flex-col">
-          {product.Marca && <p className="text-sm text-gray-500 mb-1">{product.Marca}</p>}
+          {product.make && <p className="text-sm text-gray-500 mb-1">{product.make}</p>}
           <h1 className="font-serif text-2xl md:text-3xl font-normal text-gray-900 leading-snug mb-4">
             {name}
           </h1>
@@ -171,6 +186,30 @@ export default function ProductDetailClient({ product }: { product: Product }) {
 
           {description && (
             <p className="text-sm text-gray-600 leading-relaxed mb-6">{description}</p>
+          )}
+
+          {specs.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 mb-6 text-sm">
+              {specs.map((s) => (
+                <div key={s.label}>
+                  <span className="block text-xs text-gray-400">{s.label}</span>
+                  <span className="text-gray-800">{s.value}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {features.length > 0 && (
+            <div className="mb-6">
+              <p className="text-sm font-semibold text-gray-900 mb-2">Features</p>
+              <div className="flex flex-wrap gap-2">
+                {features.map((f) => (
+                  <span key={f} className="text-xs bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full">
+                    {f}
+                  </span>
+                ))}
+              </div>
+            </div>
           )}
 
           {details.length > 0 && (

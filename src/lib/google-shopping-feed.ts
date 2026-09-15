@@ -2,7 +2,6 @@ import { createClient } from "@supabase/supabase-js";
 import { getGoogleShoppingConnection } from "@/lib/google-shopping-auth";
 import { getProductImage } from "@/lib/product-images";
 import { getEffectivePrice } from "@/lib/pricing";
-import { parsePrice } from "@/lib/utils";
 
 const API_BASE = "https://merchantapi.googleapis.com";
 // USD only — this catalog's storefront (Stripe checkout) never charges in another
@@ -39,7 +38,7 @@ export type StoreCatalogItem = {
   title: string;
   description: string;
   price: number;
-  stock: number;
+  inStock: boolean;
   brand: string | null;
   imageLink: string | null;
   additionalImageLinks: string[];
@@ -47,32 +46,33 @@ export type StoreCatalogItem = {
 };
 
 /** Pulls exactly the same public-safe rows the storefront itself renders (store_visible
- *  = true), so the Google feed can never advertise a product the store doesn't sell. */
+ *  = true), so the Google feed can never advertise a car the store doesn't rent out. Every
+ *  row here is already store_visible = true (the WHERE clause below), so every car is
+ *  "in stock" — there's no separate quantity concept for a single-vehicle listing. */
 export async function fetchStoreCatalog(): Promise<StoreCatalogItem[]> {
   const supabase = getSupabase();
   const { data, error } = await supabase
     .from("store_products")
-    .select(
-      'id, "Produto Nome", "Informacoes dos produtos / descricao", "Valor de venda (Online)", sale_price, "Quantidade no Estoque", Marca, SKU, image_url, gallery_urls, store_visible'
-    )
+    .select("id, name, make, model, year, description, daily_rate, discounted_daily_rate, vin, image_url, gallery_urls, store_visible")
     .eq("store_visible", true);
 
   if (error) throw new Error(`Falha ao ler catálogo (store_products): ${error.message}`);
 
   return (data ?? [])
     .map((p): StoreCatalogItem | null => {
-      const sku = p.SKU || p.id;
+      const sku = p.vin || p.id;
       if (!sku) return null;
-      const { price } = getEffectivePrice(p["Valor de venda (Online)"], p.sale_price);
-      const cover = p.image_url || getProductImage(p["Produto Nome"]);
+      const title = p.name || [p.year, p.make, p.model].filter(Boolean).join(" ");
+      const { price } = getEffectivePrice(p.daily_rate, p.discounted_daily_rate);
+      const cover = p.image_url || getProductImage(title);
       return {
         id: p.id,
         sku,
-        title: p["Produto Nome"] || sku,
-        description: p["Informacoes dos produtos / descricao"] || "",
+        title: title || sku,
+        description: p.description || "",
         price,
-        stock: parsePrice(p["Quantidade no Estoque"]),
-        brand: p.Marca || null,
+        inStock: true,
+        brand: p.make || null,
         imageLink: cover ? absoluteUrl(cover) : null,
         additionalImageLinks: Array.isArray(p.gallery_urls) ? p.gallery_urls.map(absoluteUrl) : [],
         gtin: null, // this catalog doesn't currently carry a validated GTIN/UPC column on store_products
@@ -164,7 +164,7 @@ function buildProductInputBody(item: StoreCatalogItem, feedLabel: string, conten
       // Both are real protobuf enums in stable v1 (upper snake case), not the lowercase
       // free-form strings the old feed spec / v1beta used.
       condition: "NEW",
-      availability: item.stock > 0 ? "IN_STOCK" : "OUT_OF_STOCK",
+      availability: item.inStock ? "IN_STOCK" : "OUT_OF_STOCK",
       price: {
         amountMicros: String(Math.round(item.price * 1_000_000)),
         currencyCode: CURRENCY,

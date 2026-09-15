@@ -554,111 +554,182 @@ export type Database = {
       }
       products: {
         Row: {
-          "Custo por unidade (Minimo)": string | null
-          "Frete (Unidade)": string | null
           id: string
+          name: string | null
+          make: string | null
+          model: string | null
+          year: number | null
+          color: string | null
+          vin: string | null
+          license_plate: string | null
+          mileage: number | null
+          transmission: string | null
+          fuel_type: string | null
+          seats: number | null
+          doors: number | null
+          pickup_city: string | null
+          min_driver_age: number
+          features: Json
+          daily_rate: string | null
+          discounted_daily_rate: string | null
+          description: string | null
           image_url: string | null
-          "Informacoes dos produtos / descricao": string | null
-          "Linha do produto": string | null
-          "Lucro sobre produt (Revendedor)": string | null
-          "Lucro sobre produto (Cabeleireira)": string | null
-          "Lucro sobre produto (Online)": string | null
-          Marca: string | null
-          "Margem Lucro (Cabeleireira)": string | null
-          "Margem Lucro (Online)": string | null
-          "Margem Lucro (Revendedor)": string | null
-          "Produto Nome": string | null
-          "Qtd. Vendida por caixa": string | null
-          "Quantidade no Estoque": string | null
-          SKU: string | null
-          ASIN: string | null
-          UPC: string | null
-          EAN: string | null
-          "Valor de venda (Cabeleireira Salao)": string | null
-          "Valor de venda (Online)": string | null
-          "Valor de venda (Revendedor)": string | null
-          Volume: string | null
-          store_visible: boolean
-          store_category: string | null
           gallery_urls: Json
           drive_link: string | null
           details: Json
+          store_visible: boolean
           store_categories: Json
           ribbon_text: string | null
           ribbon_color: string | null
-          sale_price: string | null
         }
         Insert: {
-          "Custo por unidade (Minimo)"?: string | null
-          "Frete (Unidade)"?: string | null
           id?: string
+          name?: string | null
+          make?: string | null
+          model?: string | null
+          year?: number | null
+          color?: string | null
+          vin?: string | null
+          license_plate?: string | null
+          mileage?: number | null
+          transmission?: string | null
+          fuel_type?: string | null
+          seats?: number | null
+          doors?: number | null
+          pickup_city?: string | null
+          min_driver_age?: number
+          features?: Json
+          daily_rate?: string | null
+          discounted_daily_rate?: string | null
+          description?: string | null
           image_url?: string | null
-          "Informacoes dos produtos / descricao"?: string | null
-          "Linha do produto"?: string | null
-          "Lucro sobre produt (Revendedor)"?: string | null
-          "Lucro sobre produto (Cabeleireira)"?: string | null
-          "Lucro sobre produto (Online)"?: string | null
-          Marca?: string | null
-          "Margem Lucro (Cabeleireira)"?: string | null
-          "Margem Lucro (Online)"?: string | null
-          "Margem Lucro (Revendedor)"?: string | null
-          "Produto Nome"?: string | null
-          "Qtd. Vendida por caixa"?: string | null
-          "Quantidade no Estoque"?: string | null
-          SKU?: string | null
-          ASIN?: string | null
-          UPC?: string | null
-          EAN?: string | null
-          "Valor de venda (Cabeleireira Salao)"?: string | null
-          "Valor de venda (Online)"?: string | null
-          "Valor de venda (Revendedor)"?: string | null
-          Volume?: string | null
-          store_visible?: boolean
-          store_category?: string | null
           gallery_urls?: Json
           drive_link?: string | null
           details?: Json
+          store_visible?: boolean
           store_categories?: Json
           ribbon_text?: string | null
           ribbon_color?: string | null
-          sale_price?: string | null
         }
         Update: {
-          "Custo por unidade (Minimo)"?: string | null
-          "Frete (Unidade)"?: string | null
           id?: string
+          name?: string | null
+          make?: string | null
+          model?: string | null
+          year?: number | null
+          color?: string | null
+          vin?: string | null
+          license_plate?: string | null
+          mileage?: number | null
+          transmission?: string | null
+          fuel_type?: string | null
+          seats?: number | null
+          doors?: number | null
+          pickup_city?: string | null
+          min_driver_age?: number
+          features?: Json
+          daily_rate?: string | null
+          discounted_daily_rate?: string | null
+          description?: string | null
           image_url?: string | null
-          "Informacoes dos produtos / descricao"?: string | null
-          "Linha do produto"?: string | null
-          "Lucro sobre produt (Revendedor)"?: string | null
-          "Lucro sobre produto (Cabeleireira)"?: string | null
-          "Lucro sobre produto (Online)"?: string | null
-          Marca?: string | null
-          "Margem Lucro (Cabeleireira)"?: string | null
-          "Margem Lucro (Online)"?: string | null
-          "Margem Lucro (Revendedor)"?: string | null
-          "Produto Nome"?: string | null
-          "Qtd. Vendida por caixa"?: string | null
-          "Quantidade no Estoque"?: string | null
-          SKU?: string | null
-          ASIN?: string | null
-          UPC?: string | null
-          EAN?: string | null
-          "Valor de venda (Cabeleireira Salao)"?: string | null
-          "Valor de venda (Online)"?: string | null
-          "Valor de venda (Revendedor)"?: string | null
-          Volume?: string | null
-          store_visible?: boolean
-          store_category?: string | null
           gallery_urls?: Json
           drive_link?: string | null
           details?: Json
+          store_visible?: boolean
           store_categories?: Json
           ribbon_text?: string | null
           ribbon_color?: string | null
-          sale_price?: string | null
         }
         Relationships: []
+      }
+      bookings: {
+        Row: {
+          id: string
+          car_id: string
+          status: string
+          pickup_date: string
+          pickup_time: string
+          return_date: string
+          return_time: string
+          daily_rate: number
+          protection_plan: string
+          extras: Json
+          driver_full_name: string
+          driver_date_of_birth: string
+          driver_license_number: string
+          driver_license_expiration: string
+          driver_license_state: string
+          trip_subtotal: number
+          protection_total: number
+          extras_total: number
+          young_driver_fee_total: number
+          estimated_total: number
+          customer_email: string | null
+          customer_name: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          car_id: string
+          status?: string
+          pickup_date: string
+          pickup_time: string
+          return_date: string
+          return_time: string
+          daily_rate: number
+          protection_plan: string
+          extras?: Json
+          driver_full_name: string
+          driver_date_of_birth: string
+          driver_license_number: string
+          driver_license_expiration: string
+          driver_license_state: string
+          trip_subtotal: number
+          protection_total: number
+          extras_total?: number
+          young_driver_fee_total?: number
+          estimated_total: number
+          customer_email?: string | null
+          customer_name?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          car_id?: string
+          status?: string
+          pickup_date?: string
+          pickup_time?: string
+          return_date?: string
+          return_time?: string
+          daily_rate?: number
+          protection_plan?: string
+          extras?: Json
+          driver_full_name?: string
+          driver_date_of_birth?: string
+          driver_license_number?: string
+          driver_license_expiration?: string
+          driver_license_state?: string
+          trip_subtotal?: number
+          protection_total?: number
+          extras_total?: number
+          young_driver_fee_total?: number
+          estimated_total?: number
+          customer_email?: string | null
+          customer_name?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_car_id_fkey"
+            columns: ["car_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -757,6 +828,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "operador" | "leitura"
+      booking_status: "pending_payment" | "confirmed" | "cancelled" | "completed"
       client_type:
         | "Salão/Cabeleireira"
         | "Revendedor"
@@ -909,6 +981,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "operador", "leitura"],
+      booking_status: ["pending_payment", "confirmed", "cancelled", "completed"],
       client_type: [
         "Salão/Cabeleireira",
         "Revendedor",

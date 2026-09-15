@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Save, Maximize2, Trash2, CheckSquare, Upload, Image as ImageIcon, Columns3, GripVertical, Store, Download, Package } from 'lucide-react';
-import ProductModal from '@/components/admin/ProductModal';
+import { Plus, Search, Save, Maximize2, Trash2, CheckSquare, Upload, Image as ImageIcon, Columns3, GripVertical, Store, Download } from 'lucide-react';
+import CarModal from '@/components/admin/CarModal';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -29,11 +29,8 @@ import { ColumnViewButtons } from '@/components/table/ColumnViewButtons';
 import { useColumnPreferences } from '@/hooks/useColumnPreferences';
 import { isInteractiveClickTarget } from '@/lib/utils';
 import { getRibbonClassName } from '@/lib/ribbon';
-import { BoxManagerDialog } from '@/components/shipping/BoxManagerDialog';
-import { loadBoxes, type BoxPreset } from '@/lib/shippo-types';
-import { authedFetch } from '@/lib/admin-fetch';
 
-type ProductColumn = {
+type CarColumn = {
   id: string;
   field: string;
   label: string;
@@ -44,117 +41,112 @@ type ProductColumn = {
   isCurrency?: boolean;
 };
 
-// Blank product (no `id`) passed to ProductModal to open it in "create" mode.
-const EMPTY_PRODUCT: Record<string, unknown> = {
-  'Quantidade no Estoque': '', 'SKU': '', 'ASIN': '', 'UPC': '', 'EAN': '', 'Produto Nome': '', 'Volume': '',
-  'Marca': '', 'Linha do produto': '',
-  'Valor de venda (Online)': '', 'Lucro sobre produto (Online)': '', 'Margem Lucro (Online)': '',
-  'Informacoes dos produtos / descricao': '', 'image_url': '',
-  'ribbon_text': '', 'ribbon_color': ''
+// Blank car (no `id`) passed to CarModal to open it in "create" mode.
+const EMPTY_CAR: Record<string, unknown> = {
+  name: '', make: '', model: '', year: '', color: '', vin: '', license_plate: '',
+  mileage: '', transmission: '', fuel_type: '', seats: '', doors: '', pickup_city: '',
+  min_driver_age: '18', features: [], daily_rate: '', description: '', image_url: '',
+  ribbon_text: '', ribbon_color: ''
 };
 
-export default function Products() {
-  const [products, setProducts] = useState([]);
+export default function Cars() {
+  const [cars, setCars] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [marcaFilter, setMarcaFilter] = useState('');
-  const [linhaFilter, setLinhaFilter] = useState('');
-  const [marcas, setMarcas] = useState<string[]>([]);
-  const [linhas, setLinhas] = useState<string[]>([]);
-  const [editedProducts, setEditedProducts] = useState<Record<string, any>>({});
+  const [makeFilter, setMakeFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [makes, setMakes] = useState<string[]>([]);
+  const [editedCars, setEditedCars] = useState<Record<string, any>>({});
   const [saving, setSaving] = useState(false);
   const [expandedColumns, setExpandedColumns] = useState<Record<string, boolean>>({});
   const [selectionMode, setSelectionMode] = useState(false);
-  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
-  const [viewProduct, setViewProduct] = useState<any>(null);
-  const [showBoxManager, setShowBoxManager] = useState(false);
-  const [boxes, setBoxes] = useState<BoxPreset[]>([]);
+  const [selectedCars, setSelectedCars] = useState<Set<string>>(new Set());
+  const [viewCar, setViewCar] = useState<any>(null);
 
   const { profile } = useAuth();
   const { toast } = useToast();
   const isAdmin = profile?.role === 'admin';
 
   useEffect(() => {
-    fetchProducts();
-    loadBoxes(authedFetch).then(setBoxes);
+    fetchCars();
   }, []);
 
-  const fetchProducts = async () => {
+  const fetchCars = async () => {
     try {
       const { data, error } = await supabase
         .from('products')
         .select('*')
-        .order('Produto Nome');
+        .order('name');
 
       if (error) throw error;
-      setProducts(data || []);
+      setCars(data || []);
 
-      const uniqueMarcas = [...new Set(data?.map((p: any) => p.Marca).filter(Boolean))] as string[];
-      const uniqueLinhas = [...new Set(data?.map((p: any) => p['Linha do produto']).filter(Boolean))] as string[];
-      setMarcas(uniqueMarcas.sort());
-      setLinhas(uniqueLinhas.sort());
+      const uniqueMakes = [...new Set(data?.map((c: any) => c.make).filter(Boolean))] as string[];
+      setMakes(uniqueMakes.sort());
     } catch (error) {
-      console.error('Error fetching products:', error);
+      console.error('Error fetching cars:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredProducts = products.filter((product: any) => {
-    const hasEssentialData = product['Produto Nome'] || product.SKU || product.UPC || product.Marca;
+  const filteredCars = cars.filter((car: any) => {
+    const hasEssentialData = car.name || car.make || car.model || car.vin;
     if (!hasEssentialData) return false;
 
     const matchesSearch =
-      (product['Produto Nome'] || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (product.SKU || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (product.ASIN || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (product.UPC || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (product.EAN || '').toLowerCase().includes(searchTerm.toLowerCase());
+      (car.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (car.make || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (car.model || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (car.vin || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (car.license_plate || '').toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesMarca = !marcaFilter || marcaFilter === 'all' || product.Marca === marcaFilter;
-    const matchesLinha = !linhaFilter || linhaFilter === 'all' || product['Linha do produto'] === linhaFilter;
+    const matchesMake = !makeFilter || makeFilter === 'all' || car.make === makeFilter;
+    const matchesCategory =
+      !categoryFilter || categoryFilter === 'all' ||
+      (Array.isArray(car.store_categories) && car.store_categories.includes(categoryFilter));
 
-    return matchesSearch && matchesMarca && matchesLinha;
+    return matchesSearch && matchesMake && matchesCategory;
   });
 
-  const handleCellEdit = (productId: string, field: string, value: string) => {
-    setEditedProducts(prev => ({
+  const handleCellEdit = (carId: string, field: string, value: string) => {
+    setEditedCars(prev => ({
       ...prev,
-      [productId]: {
-        ...(prev[productId] || {}),
+      [carId]: {
+        ...(prev[carId] || {}),
         [field]: value
       }
     }));
   };
 
   const handleSaveAll = async () => {
-    if (Object.keys(editedProducts).length === 0) {
-      toast({ title: "Nenhuma alteração", description: "Não há produtos para salvar.", variant: "default" });
+    if (Object.keys(editedCars).length === 0) {
+      toast({ title: "Nenhuma alteração", description: "Não há carros para salvar.", variant: "default" });
       return;
     }
 
     setSaving(true);
     try {
-      const updates = Object.entries(editedProducts).map(([id, changes]) => ({ id, ...changes }));
+      const updates = Object.entries(editedCars).map(([id, changes]) => ({ id, ...changes }));
       for (const update of updates) {
         const { error } = await supabase.from('products').update(update).eq('id', update.id);
         if (error) throw error;
       }
-      toast({ title: "Sucesso!", description: `${updates.length} produto(s) atualizado(s) com sucesso.` });
-      setEditedProducts({});
-      fetchProducts();
+      toast({ title: "Sucesso!", description: `${updates.length} carro(s) atualizado(s) com sucesso.` });
+      setEditedCars({});
+      fetchCars();
     } catch (error) {
-      console.error('Error saving products:', error);
-      toast({ title: "Erro ao salvar", description: "Ocorreu um erro ao salvar os produtos.", variant: "destructive" });
+      console.error('Error saving cars:', error);
+      toast({ title: "Erro ao salvar", description: "Ocorreu um erro ao salvar os carros.", variant: "destructive" });
     } finally {
       setSaving(false);
     }
   };
 
-  const handleImageUpload = async (productId: string, file: File) => {
+  const handleImageUpload = async (carId: string, file: File) => {
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${productId}-${Date.now()}.${fileExt}`;
+      const fileName = `${carId}-${Date.now()}.${fileExt}`;
       const filePath = `${fileName}`;
 
       const { error: uploadError } = await supabase.storage.from('vertex-product-images').upload(filePath, file, { upsert: true });
@@ -162,11 +154,11 @@ export default function Products() {
 
       const { data: { publicUrl } } = supabase.storage.from('vertex-product-images').getPublicUrl(filePath);
 
-      const { error: updateError } = await supabase.from('products').update({ image_url: publicUrl }).eq('id', productId);
+      const { error: updateError } = await supabase.from('products').update({ image_url: publicUrl }).eq('id', carId);
       if (updateError) throw updateError;
 
       toast({ title: "Sucesso!", description: "Imagem enviada com sucesso." });
-      fetchProducts();
+      fetchCars();
     } catch (error) {
       console.error('Error uploading image:', error);
       toast({ title: "Erro ao enviar imagem", description: "Ocorreu um erro ao enviar a imagem.", variant: "destructive" });
@@ -175,58 +167,54 @@ export default function Products() {
 
   const handleExport = () => {
     const exportFields = [
-      'Quantidade no Estoque', 'SKU', 'ASIN', 'UPC', 'EAN', 'Produto Nome', 'Volume', 'Marca',
-      'Linha do produto',
-      'Valor de venda (Online)', 'Lucro sobre produto (Online)', 'Margem Lucro (Online)',
-      'Informacoes dos produtos / descricao', 'image_url',
+      'name', 'make', 'model', 'year', 'color', 'vin', 'license_plate', 'mileage',
+      'transmission', 'fuel_type', 'seats', 'doors', 'pickup_city', 'min_driver_age',
+      'daily_rate', 'discounted_daily_rate', 'description', 'image_url',
       'ribbon_text', 'ribbon_color',
     ];
 
-    const rows = (filteredProducts as any[]).map(p =>
-      Object.fromEntries(exportFields.map(f => [f, p[f] ?? '']))
+    const rows = (filteredCars as any[]).map(c =>
+      Object.fromEntries(exportFields.map(f => [f, c[f] ?? '']))
     );
 
     const ws = XLSX.utils.json_to_sheet(rows, { header: exportFields });
 
-    // Column widths
     ws['!cols'] = exportFields.map(f =>
-      f === 'Produto Nome' || f === 'Informacoes dos produtos / descricao'
-        ? { wch: 40 }
-        : { wch: 20 }
+      f === 'name' || f === 'description' ? { wch: 40 } : { wch: 20 }
     );
 
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Produtos');
+    XLSX.utils.book_append_sheet(wb, ws, 'Carros');
 
     const date = new Date().toISOString().slice(0, 10);
-    XLSX.writeFile(wb, `produtos_${date}.xlsx`);
+    XLSX.writeFile(wb, `carros_${date}.xlsx`);
   };
 
-  const toggleSelection = (productId: string) => {
-    setSelectedProducts(prev => {
+  const toggleSelection = (carId: string) => {
+    setSelectedCars(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(productId)) newSet.delete(productId);
-      else newSet.add(productId);
+      if (newSet.has(carId)) newSet.delete(carId);
+      else newSet.add(carId);
       return newSet;
     });
   };
 
   const handleDeleteSelected = async () => {
-    if (selectedProducts.size === 0) return;
+    if (selectedCars.size === 0) return;
     setSaving(true);
     try {
-      const productsToDelete = Array.from(selectedProducts);
-      for (const productId of productsToDelete) {
-        const { error } = await supabase.from('products').delete().eq('id', productId);
+      const carsToDelete = Array.from(selectedCars);
+      for (const carId of carsToDelete) {
+        const { error } = await supabase.from('products').delete().eq('id', carId);
         if (error) throw error;
       }
-      toast({ title: "Sucesso!", description: `${productsToDelete.length} produto(s) excluído(s) com sucesso.` });
-      setSelectedProducts(new Set());
+      toast({ title: "Sucesso!", description: `${carsToDelete.length} carro(s) excluído(s) com sucesso.` });
+      setSelectedCars(new Set());
       setSelectionMode(false);
-      fetchProducts();
+      fetchCars();
     } catch (error) {
-      console.error('Error deleting products:', error);
-      toast({ title: "Erro ao excluir", description: "Ocorreu um erro ao excluir os produtos.", variant: "destructive" });
+      console.error('Error deleting cars:', error);
+      toast({ title: "Erro ao excluir", description: "Ocorreu um erro ao excluir os carros.", variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -238,22 +226,22 @@ export default function Products() {
 
   const getColumnWidth = (columnName: string) => {
     if (expandedColumns[columnName]) return 'min-w-[400px]';
-    if (columnName === 'Informacoes dos produtos / descricao') return 'min-w-[200px] max-w-[200px]';
-    if (columnName === 'Produto Nome') return 'min-w-[200px]';
+    if (columnName === 'description') return 'min-w-[200px] max-w-[200px]';
+    if (columnName === 'name') return 'min-w-[200px]';
     return '';
   };
 
-  const renderEditableCell = (product: any, field: string, value: string, isCurrency?: boolean) => {
+  const renderEditableCell = (car: any, field: string, value: string, isCurrency?: boolean) => {
     if (!isAdmin) {
       return <span>{value || '-'}</span>;
     }
-    const currentValue = editedProducts[product.id]?.[field] ?? value ?? '';
-    const isLongText = field === 'Informacoes dos produtos / descricao';
+    const currentValue = editedCars[car.id]?.[field] ?? value ?? '';
+    const isLongText = field === 'description';
     if (isLongText) {
       return (
         <Textarea
           value={currentValue}
-          onChange={(e) => handleCellEdit(product.id, field, e.target.value)}
+          onChange={(e) => handleCellEdit(car.id, field, e.target.value)}
           className="min-h-[60px] w-full"
         />
       );
@@ -262,7 +250,7 @@ export default function Products() {
       return (
         <CurrencyInput
           value={currentValue}
-          onChange={(e) => handleCellEdit(product.id, field, e.target.value)}
+          onChange={(e) => handleCellEdit(car.id, field, e.target.value)}
           className="w-full"
         />
       );
@@ -270,18 +258,18 @@ export default function Products() {
     return (
       <Input
         value={currentValue}
-        onChange={(e) => handleCellEdit(product.id, field, e.target.value)}
+        onChange={(e) => handleCellEdit(car.id, field, e.target.value)}
         className="w-full"
       />
     );
   };
 
-  const renderRibbonCell = (product: any) => {
-    const text = product.ribbon_text;
+  const renderRibbonCell = (car: any) => {
+    const text = car.ribbon_text;
     if (!text) return <span className="text-muted-foreground text-xs">-</span>;
     return (
       <span
-        className={`inline-block text-[10px] font-bold px-2 py-0.5 uppercase tracking-wide ${getRibbonClassName(product.ribbon_color)}`}
+        className={`inline-block text-[10px] font-bold px-2 py-0.5 uppercase tracking-wide ${getRibbonClassName(car.ribbon_color)}`}
       >
         {text}
       </span>
@@ -289,32 +277,34 @@ export default function Products() {
   };
 
   // ===== Column definitions (excluding image column which stays fixed left) =====
-  const columns: ProductColumn[] = useMemo(() => [
-    { id: 'estoque', field: 'Quantidade no Estoque', label: 'Quantidade no Estoque', newPlaceholder: 'Quantidade' },
-    { id: 'sku', field: 'SKU', label: 'SKU', cellClassName: 'font-medium', newPlaceholder: 'SKU' },
-    { id: 'asin', field: 'ASIN', label: 'ASIN', newPlaceholder: 'ASIN' },
-    { id: 'upc', field: 'UPC', label: 'UPC', newPlaceholder: 'UPC' },
-    { id: 'ean', field: 'EAN', label: 'EAN', newPlaceholder: 'EAN' },
-    { id: 'nome', field: 'Produto Nome', label: 'Produto Nome', newPlaceholder: 'Nome' },
+  const columns: CarColumn[] = useMemo(() => [
+    { id: 'name', field: 'name', label: 'Nome', newPlaceholder: 'Nome' },
+    { id: 'make', field: 'make', label: 'Marca', cellClassName: 'font-medium', newPlaceholder: 'Marca' },
+    { id: 'model', field: 'model', label: 'Modelo', newPlaceholder: 'Modelo' },
+    { id: 'year', field: 'year', label: 'Ano', newPlaceholder: 'Ano' },
+    { id: 'color', field: 'color', label: 'Cor', newPlaceholder: 'Cor' },
+    { id: 'vin', field: 'vin', label: 'VIN', newPlaceholder: 'VIN' },
+    { id: 'license_plate', field: 'license_plate', label: 'Placa', newPlaceholder: 'Placa' },
+    { id: 'mileage', field: 'mileage', label: 'Quilometragem', newPlaceholder: 'Quilometragem' },
+    { id: 'transmission', field: 'transmission', label: 'Câmbio', newPlaceholder: 'Câmbio' },
+    { id: 'fuel_type', field: 'fuel_type', label: 'Combustível', newPlaceholder: 'Combustível' },
+    { id: 'seats', field: 'seats', label: 'Assentos', newPlaceholder: 'Assentos' },
+    { id: 'doors', field: 'doors', label: 'Portas', newPlaceholder: 'Portas' },
+    { id: 'pickup_city', field: 'pickup_city', label: 'Cidade de retirada', newPlaceholder: 'Cidade' },
     { id: 'fita', field: 'ribbon_text', label: 'Fita', newPlaceholder: 'Texto da fita' },
-    { id: 'volume', field: 'Volume', label: 'Volume', newPlaceholder: 'Volume' },
-    { id: 'marca', field: 'Marca', label: 'Marca', newPlaceholder: 'Marca' },
-    { id: 'linha', field: 'Linha do produto', label: 'Linha do produto', newPlaceholder: 'Linha' },
-    { id: 'venda_online', field: 'Valor de venda (Online)', label: 'Valor de venda (Online)', newPlaceholder: '0.00', isCurrency: true },
-    { id: 'lucro_online', field: 'Lucro sobre produto (Online)', label: 'Lucro sobre produto (Online)', newPlaceholder: '0.00', isCurrency: true },
-    { id: 'margem_online', field: 'Margem Lucro (Online)', label: 'Margem Lucro (Online)', newPlaceholder: 'Margem Online' },
-    { id: 'descricao', field: 'Informacoes dos produtos / descricao', label: 'Informacoes dos produtos / descricao', isLongText: true, expandable: true, newPlaceholder: 'Descrição' },
+    { id: 'daily_rate', field: 'daily_rate', label: 'Diária', newPlaceholder: '0.00', isCurrency: true },
+    { id: 'description', field: 'description', label: 'Descrição', isLongText: true, expandable: true, newPlaceholder: 'Descrição' },
   ], []);
 
   const defaultOrder = useMemo(() => columns.map(c => c.id), [columns]);
   const { columnOrder, columnVisibility, setColumnVisibility, handleDragEnd, reset, saveView, isDirty, visibleOrderedIds } =
-    useColumnPreferences('products', defaultOrder);
+    useColumnPreferences('cars', defaultOrder);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const orderedColumns = useMemo(() => {
     const map = new Map(columns.map(c => [c.id, c]));
-    return visibleOrderedIds.map(id => map.get(id)).filter((c): c is ProductColumn => !!c);
+    return visibleOrderedIds.map(id => map.get(id)).filter((c): c is CarColumn => !!c);
   }, [columns, visibleOrderedIds]);
 
   if (loading) {
@@ -331,9 +321,9 @@ export default function Products() {
     <div className="space-y-6">
       <div className="sticky top-0 z-20 bg-background pb-4 border-b flex flex-wrap justify-between items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Produtos</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Carros</h1>
           <p className="text-muted-foreground font-bold">
-            Gerencie seu catálogo de produtos {isAdmin && '(Admin)'}
+            Gerencie sua frota de carros {isAdmin && '(Admin)'}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -344,36 +334,30 @@ export default function Products() {
           {isAdmin && (
             <Button
               onClick={handleSaveAll}
-              disabled={saving || Object.keys(editedProducts).length === 0}
+              disabled={saving || Object.keys(editedCars).length === 0}
               variant="default"
             >
               <Save className="mr-2 h-4 w-4" />
-              {saving ? 'Salvando...' : `Salvar${Object.keys(editedProducts).length > 0 ? ` (${Object.keys(editedProducts).length})` : ''}`}
-            </Button>
-          )}
-          {isAdmin && (
-            <Button onClick={() => setShowBoxManager(true)} variant="outline">
-              <Package className="mr-2 h-4 w-4" />
-              Caixas ({boxes.length})
+              {saving ? 'Salvando...' : `Salvar${Object.keys(editedCars).length > 0 ? ` (${Object.keys(editedCars).length})` : ''}`}
             </Button>
           )}
           {isAdmin && (
             <Button
               onClick={() => {
-                if (selectionMode && selectedProducts.size > 0) {
+                if (selectionMode && selectedCars.size > 0) {
                   handleDeleteSelected();
                 } else {
                   setSelectionMode(!selectionMode);
-                  setSelectedProducts(new Set());
+                  setSelectedCars(new Set());
                 }
               }}
-              variant={selectionMode && selectedProducts.size > 0 ? "destructive" : "outline"}
+              variant={selectionMode && selectedCars.size > 0 ? "destructive" : "outline"}
               disabled={saving}
             >
-              {selectionMode && selectedProducts.size > 0 ? (
+              {selectionMode && selectedCars.size > 0 ? (
                 <>
                   <Trash2 className="mr-2 h-4 w-4" />
-                  Excluir ({selectedProducts.size})
+                  Excluir ({selectedCars.size})
                 </>
               ) : (
                 <>
@@ -384,9 +368,9 @@ export default function Products() {
             </Button>
           )}
           {isAdmin && (
-            <Button onClick={() => setViewProduct(EMPTY_PRODUCT)}>
+            <Button onClick={() => setViewCar(EMPTY_CAR)}>
               <Plus className="mr-2 h-4 w-4" />
-              Novo Produto
+              Novo Carro
             </Button>
           )}
         </div>
@@ -394,44 +378,46 @@ export default function Products() {
 
       <Card>
         <CardHeader className="sticky top-[73px] z-10 bg-background border-b">
-          <CardTitle>Lista de Produtos</CardTitle>
+          <CardTitle>Lista de Carros</CardTitle>
           <div className="flex flex-col gap-4 md:flex-row md:items-center">
             <div className="flex items-center space-x-2 flex-1">
               <Search className="h-4 w-4 text-muted-foreground font-bold" />
               <Input
-                placeholder="Buscar por nome, SKU, ASIN, UPC ou EAN..."
+                placeholder="Buscar por nome, marca, modelo, VIN ou placa..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="max-w-md"
               />
             </div>
             <div className="flex gap-2 flex-wrap">
-              <Select value={marcaFilter || 'all'} onValueChange={(value) => setMarcaFilter(value === 'all' ? '' : value)}>
+              <Select value={makeFilter || 'all'} onValueChange={(value) => setMakeFilter(value === 'all' ? '' : value)}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Filtrar por marca" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas as marcas</SelectItem>
-                  {marcas.map((marca) => (
-                    <SelectItem key={marca} value={marca}>{marca}</SelectItem>
+                  {makes.map((make) => (
+                    <SelectItem key={make} value={make}>{make}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={linhaFilter || 'all'} onValueChange={(value) => setLinhaFilter(value === 'all' ? '' : value)}>
+              <Select value={categoryFilter || 'all'} onValueChange={(value) => setCategoryFilter(value === 'all' ? '' : value)}>
                 <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Filtrar por linha" />
+                  <SelectValue placeholder="Filtrar por categoria" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todas as linhas</SelectItem>
-                  {linhas.map((linha) => (
-                    <SelectItem key={linha} value={linha}>{linha}</SelectItem>
-                  ))}
+                  <SelectItem value="all">Todas as categorias</SelectItem>
+                  <SelectItem value="compact">Compact</SelectItem>
+                  <SelectItem value="big-van">Big Van</SelectItem>
+                  <SelectItem value="luxe">Luxe</SelectItem>
+                  <SelectItem value="sport">Sport</SelectItem>
+                  <SelectItem value="clearance">Special Offers</SelectItem>
                 </SelectContent>
               </Select>
-              {(marcaFilter || linhaFilter) && (
+              {(makeFilter || categoryFilter) && (
                 <Button
                   variant="ghost"
-                  onClick={() => { setMarcaFilter(''); setLinhaFilter(''); }}
+                  onClick={() => { setMakeFilter(''); setCategoryFilter(''); }}
                 >
                   Limpar Filtros
                 </Button>
@@ -502,40 +488,40 @@ export default function Products() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredProducts.length === 0 ? (
+                    {filteredCars.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={totalCols} className="text-center text-muted-foreground font-bold">
-                          Nenhum produto encontrado
+                          Nenhum carro encontrado
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredProducts.map((product: any) => (
+                      filteredCars.map((car: any) => (
                         <TableRow
-                          key={product.id}
-                          className={`cursor-pointer ${editedProducts[product.id] ? 'bg-accent/50' : ''}`}
-                          onClick={(e) => { if (!isInteractiveClickTarget(e)) setViewProduct(product); }}
+                          key={car.id}
+                          className={`cursor-pointer ${editedCars[car.id] ? 'bg-accent/50' : ''}`}
+                          onClick={(e) => { if (!isInteractiveClickTarget(e)) setViewCar(car); }}
                         >
                           {selectionMode && isAdmin && (
                             <TableCell>
                               <Checkbox
-                                checked={selectedProducts.has(product.id)}
-                                onCheckedChange={() => toggleSelection(product.id)}
+                                checked={selectedCars.has(car.id)}
+                                onCheckedChange={() => toggleSelection(car.id)}
                               />
                             </TableCell>
                           )}
                           <TableCell>
                             <div className="flex items-center justify-center">
-                              {product.store_visible && (
+                              {car.store_visible && (
                                 <Store className="h-6 w-6 text-green-600" aria-label="Na loja" />
                               )}
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="relative w-16 h-16 rounded overflow-hidden bg-muted flex items-center justify-center">
-                              {product.image_url ? (
+                              {car.image_url ? (
                                 <img
-                                  src={product.image_url}
-                                  alt={product['Produto Nome'] || 'Produto'}
+                                  src={car.image_url}
+                                  alt={car.name || 'Carro'}
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
@@ -550,7 +536,7 @@ export default function Products() {
                                     className="hidden"
                                     onChange={(e) => {
                                       const file = e.target.files?.[0];
-                                      if (file) handleImageUpload(product.id, file);
+                                      if (file) handleImageUpload(car.id, file);
                                     }}
                                   />
                                 </label>
@@ -558,8 +544,8 @@ export default function Products() {
                             </div>
                           </TableCell>
                           {orderedColumns.map(col => (
-                            <TableCell key={col.id} className={`${col.cellClassName || ''} ${col.expandable ? getColumnWidth(col.field) : col.field === 'Produto Nome' ? getColumnWidth('Produto Nome') : ''}`}>
-                              {col.id === 'fita' ? renderRibbonCell(product) : renderEditableCell(product, col.field, product[col.field], col.isCurrency)}
+                            <TableCell key={col.id} className={`${col.cellClassName || ''} ${col.expandable ? getColumnWidth(col.field) : col.field === 'name' ? getColumnWidth('name') : ''}`}>
+                              {col.id === 'fita' ? renderRibbonCell(car) : renderEditableCell(car, col.field, car[col.field], col.isCurrency)}
                             </TableCell>
                           ))}
                         </TableRow>
@@ -573,13 +559,12 @@ export default function Products() {
         </CardContent>
       </Card>
 
-      <ProductModal
-        product={viewProduct}
-        open={!!viewProduct}
-        onClose={() => setViewProduct(null)}
-        onChanged={fetchProducts}
+      <CarModal
+        car={viewCar}
+        open={!!viewCar}
+        onClose={() => setViewCar(null)}
+        onChanged={fetchCars}
       />
-      <BoxManagerDialog open={showBoxManager} onOpenChange={setShowBoxManager} boxes={boxes} onChange={setBoxes} />
     </div>
   );
 }

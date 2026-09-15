@@ -37,7 +37,6 @@ export async function GET(request: NextRequest) {
         title: item.title,
         imageUrl: item.imageLink ?? undefined,
         price: item.price,
-        stock: item.stock,
         status: uiStatus, // "approved" | "under_review" | "disapproved" | "not_synced"
         issues: status?.issues ?? [],
       };

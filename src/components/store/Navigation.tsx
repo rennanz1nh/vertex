@@ -3,48 +3,27 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import SearchBox from "./SearchBox";
 
 const navItems = [
-  {
-    label: "Women",
-    href: "/women",
-    children: [
-      { label: "Skin", href: "/women-skin" },
-      { label: "Body", href: "/women-body" },
-      { label: "Hair", href: "/women-hair" },
-      { label: "Professional", href: "/professional" },
-    ],
-  },
-  { label: "Men", href: "/men" },
-  {
-    label: "Courses",
-    href: "/courses",
-    children: [
-      { label: "Skin Courses", href: "/courses-skin" },
-      { label: "E-books", href: "/ebooks" },
-    ],
-  },
-  {
-    label: "Sell with us",
-    href: "/sell-with-us",
-    children: [
-      { label: "Sell with us", href: "/sell-with-us" },
-      { label: "American (FDA)", href: "/american-fda" },
-    ],
-  },
-  { label: "Clearance", href: "/clearance" },
+  { label: "All Vehicles", href: "/products" },
+  { label: "Compact", href: "/products?category=compact" },
+  { label: "Big Van", href: "/products?category=big-van" },
+  { label: "Luxe", href: "/products?category=luxe" },
+  { label: "Sport", href: "/products?category=sport" },
+  { label: "Special Offers", href: "/clearance" },
 ];
 
 export default function Navigation() {
-  const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const pathname = usePathname();
 
+  // Query-string variants (?category=…) aren't distinguished here — usePathname alone
+  // can't see them, and useSearchParams would force this bar into a Suspense boundary.
+  // "All Vehicles" lights up for any /products URL; the class links just navigate.
   function isActive(item: (typeof navItems)[number]) {
-    if (pathname === item.href) return true;
-    return item.children?.some((c) => pathname === c.href) ?? false;
+    return pathname === item.href.split("?")[0] && !item.href.includes("?");
   }
 
   return (
@@ -53,12 +32,7 @@ export default function Navigation() {
         {navItems.map((item) => {
           const active = isActive(item);
           return (
-            <div
-              key={item.label}
-              className="relative group"
-              onMouseEnter={() => item.children && setOpenMenu(item.label)}
-              onMouseLeave={() => setOpenMenu(null)}
-            >
+            <div key={item.label} className="relative group">
               <Link
                 href={item.href}
                 className={`flex items-center px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${
@@ -74,28 +48,12 @@ export default function Navigation() {
                   •
                 </span>
                 <span className="ml-1">{item.label}</span>
-                {item.children && <ChevronDown size={14} className="mt-0.5 ml-1" />}
               </Link>
-
-              {item.children && openMenu === item.label && (
-                <div className="absolute top-full left-0 bg-white border border-gray-100 shadow-lg rounded-sm min-w-[180px] z-50 py-1">
-                  {item.children.map((child) => (
-                    <Link
-                      key={child.label}
-                      href={child.href}
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-brand transition-colors"
-                      onClick={() => setOpenMenu(null)}
-                    >
-                      {child.label}
-                    </Link>
-                  ))}
-                </div>
-              )}
             </div>
           );
         })}
 
-        {/* Search sits right after Clearance, same light-gray tone as the rest of
+        {/* Search sits right after Special Offers, same light-gray tone as the rest of
             the row (a bit lighter than the nav text) — clicking it toggles the
             centered search bar below the whole menu. */}
         <button

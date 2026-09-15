@@ -61,7 +61,7 @@ export type BuyLabelOrder = {
   } | null;
   order_items: {
     quantidade: number;
-    products: { "Produto Nome": string; image_url: string | null } | null;
+    products: { name: string; image_url: string | null } | null;
   }[];
 };
 
@@ -351,7 +351,7 @@ export default function BuyLabelDialog({ order, labelTx, open, onOpenChange, onS
                         ? <img src={item.products.image_url} alt="" className="w-12 h-12 rounded-md object-cover border shrink-0" />
                         : <span className="w-12 h-12 rounded-md border bg-background flex items-center justify-center text-muted-foreground shrink-0"><Package className="h-5 w-5" /></span>
                       }
-                      <span className="flex-1 text-sm leading-snug line-clamp-2" title={item.products?.["Produto Nome"] ?? undefined}>{item.products?.["Produto Nome"] ?? "Produto"}</span>
+                      <span className="flex-1 text-sm leading-snug line-clamp-2" title={item.products?.name ?? undefined}>{item.products?.name ?? "Produto"}</span>
                       <span className="text-sm font-semibold shrink-0">×{item.quantidade}</span>
                     </label>
                   ))}

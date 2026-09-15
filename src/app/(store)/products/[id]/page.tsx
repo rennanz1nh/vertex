@@ -28,14 +28,14 @@ export async function generateMetadata({
     getSiteSettings(),
   ]);
 
-  if (!product) return { title: "Product not found" };
+  if (!product) return { title: "Vehicle not found" };
 
   const siteUrl = resolveSiteUrl(settings);
-  const name = product["Produto Nome"] || "Product";
-  const title = seo?.title || `${name}${product.Marca ? ` — ${product.Marca}` : ""}`;
+  const name = product.name || [product.year, product.make, product.model].filter(Boolean).join(" ") || "Vehicle";
+  const title = seo?.title || `${name}${product.make ? ` — ${product.make}` : ""}`;
   const description =
     seo?.description ||
-    product["Informacoes dos produtos / descricao"] ||
+    product.description ||
     settings?.default_description ||
     undefined;
   const image = absoluteUrl(
@@ -71,28 +71,27 @@ export default async function ProductDetailPage({
   if (!product) notFound();
 
   const siteUrl = resolveSiteUrl(settings);
-  const name = product["Produto Nome"] || "Product";
-  const { price } = getEffectivePrice(product["Valor de venda (Online)"], product.sale_price);
-  const stock = parseInt(product["Quantidade no Estoque"] || "0");
+  const name = product.name || [product.year, product.make, product.model].filter(Boolean).join(" ") || "Vehicle";
+  const { price } = getEffectivePrice(product.daily_rate, product.discounted_daily_rate);
   const image = absoluteUrl(product.image_url || getProductImage(name), siteUrl);
 
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "Product",
+    "@type": "Car",
     name,
     ...(image ? { image: [image] } : {}),
-    ...(product["Informacoes dos produtos / descricao"]
-      ? { description: product["Informacoes dos produtos / descricao"] }
-      : {}),
-    ...(product.SKU ? { sku: product.SKU } : {}),
-    ...(product.Marca ? { brand: { "@type": "Brand", name: product.Marca } } : {}),
+    ...(product.description ? { description: product.description } : {}),
+    ...(product.vin ? { vehicleIdentificationNumber: product.vin } : {}),
+    ...(product.make ? { brand: { "@type": "Brand", name: product.make } } : {}),
+    ...(product.model ? { model: product.model } : {}),
+    ...(product.year ? { vehicleModelDate: String(product.year) } : {}),
     offers: {
       "@type": "Offer",
       url: `${siteUrl}/products/${id}`,
       priceCurrency: "USD",
       price: price.toFixed(2),
-      availability: stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
-      itemCondition: "https://schema.org/NewCondition",
+      priceSpecification: { "@type": "UnitPriceSpecification", price: price.toFixed(2), priceCurrency: "USD", unitText: "DAY" },
+      availability: product.store_visible ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
     },
   };
 

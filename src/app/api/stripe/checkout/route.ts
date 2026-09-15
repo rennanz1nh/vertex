@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
   // product by guessing its id.
   const { data: products, error: productsError } = await supabase
     .from(STORE_PRODUCTS)
-    .select('id, "Produto Nome", "Valor de venda (Online)", sale_price, image_url')
+    .select("id, name, make, model, year, daily_rate, discounted_daily_rate, image_url")
     .in("id", ids);
 
   if (productsError) {
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
     const product = productById.get(item.id);
     if (!product) continue; // unknown, deleted, or no longer listed in the store — silently dropped
     const quantity = Math.min(99, Math.max(1, Math.floor(Number(item.quantity)) || 1));
-    const { price } = getEffectivePrice(product["Valor de venda (Online)"], product.sale_price);
+    const { price } = getEffectivePrice(product.daily_rate, product.discounted_daily_rate);
     if (price <= 0) continue; // no usable price on file — don't charge $0
     line_items.push({
       quantity,
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
         currency: "usd",
         unit_amount: Math.round(price * 100),
         product_data: {
-          name: product["Produto Nome"] || "Product",
+          name: product.name || [product.year, product.make, product.model].filter(Boolean).join(" ") || "Vehicle",
           images: product.image_url?.startsWith("http") ? [product.image_url] : undefined,
           metadata: { product_id: product.id },
         },

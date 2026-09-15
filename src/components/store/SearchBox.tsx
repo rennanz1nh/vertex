@@ -48,10 +48,10 @@ export default function SearchBox(props: SearchBoxProps) {
       const { data } = await supabase
         .from(STORE_PRODUCTS)
         .select("*")
-        .ilike("Produto Nome", `%${q.trim()}%`)
+        .ilike("name", `%${q.trim()}%`)
         .limit(6);
       setResults(
-        (data || []).filter((p) => parsePrice(p["Valor de venda (Online)"]) > 0)
+        (data || []).filter((p) => parsePrice(p.daily_rate) > 0)
       );
       setLoading(false);
     }, 250);
@@ -93,11 +93,11 @@ export default function SearchBox(props: SearchBoxProps) {
       {loading && results.length === 0 ? (
         <p className="px-4 py-3 text-sm text-gray-400">Searching…</p>
       ) : results.length === 0 ? (
-        <p className="px-4 py-3 text-sm text-gray-400">No products found.</p>
+        <p className="px-4 py-3 text-sm text-gray-400">No vehicles found.</p>
       ) : (
         <ul className="max-h-80 overflow-y-auto">
           {results.map((p) => {
-            const name = p["Produto Nome"] || "Product";
+            const name = p.name || "Vehicle";
             const img = p.image_url || getProductImage(name);
             return (
               <li key={p.id}>
@@ -113,7 +113,7 @@ export default function SearchBox(props: SearchBoxProps) {
                   <span className="flex-1 min-w-0">
                     <span className="block text-xs text-gray-800 line-clamp-1">{name}</span>
                     <span className="block text-xs font-medium text-brand">
-                      {formatPrice(parsePrice(p["Valor de venda (Online)"]))}
+                      {formatPrice(parsePrice(p.daily_rate))}
                     </span>
                   </span>
                 </button>
@@ -135,7 +135,7 @@ export default function SearchBox(props: SearchBoxProps) {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && submit()}
-            placeholder="Search products..."
+            placeholder="Search vehicles..."
             className="w-full border border-gray-300 rounded pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-black"
           />
         </div>
@@ -160,7 +160,7 @@ export default function SearchBox(props: SearchBoxProps) {
               if (e.key === "Enter") submit();
               if (e.key === "Escape") setOpen(false);
             }}
-            placeholder="Search products..."
+            placeholder="Search vehicles..."
             className="w-full border border-gray-300 rounded pl-9 pr-8 py-2 text-sm focus:outline-none focus:border-black bg-white"
             autoFocus
           />
@@ -201,7 +201,7 @@ export default function SearchBox(props: SearchBoxProps) {
                 if (e.key === "Enter") submit();
                 if (e.key === "Escape") setOpen(false);
               }}
-              placeholder="Search products..."
+              placeholder="Search vehicles..."
               className="w-full border border-gray-300 rounded pl-9 pr-8 py-2 text-sm focus:outline-none focus:border-black bg-white"
             />
             {q && (

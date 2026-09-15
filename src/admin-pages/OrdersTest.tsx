@@ -75,7 +75,7 @@ type Order = {
   order_items: {
     quantidade: number;
     preco_unitario: number;
-    products: { "Produto Nome": string; image_url: string | null; SKU: string | null } | null;
+    products: { name: string; image_url: string | null; vin: string | null } | null;
   }[];
 };
 
@@ -286,7 +286,7 @@ function ViewDialog({ order, labelTx, open, onOpenChange }: {
                             {item.products?.image_url && (
                               <img src={item.products.image_url} className="h-8 w-8 rounded object-scale-down bg-muted shrink-0" alt="" />
                             )}
-                            {item.products?.["Produto Nome"] || "—"}
+                            {item.products?.name || "—"}
                           </td>
                           <td className="p-2 text-center">1</td>
                           <td className="p-2 text-right">{fmt(item.preco_unitario)}</td>
@@ -460,7 +460,7 @@ export default function OrdersTest() {
         id, data_pedido, numero_pedido_canal, canal, status, total, frete_total, custo_total_shipping, impostos,
         shipping_tracking, carrier, country,
         clients (nome_razao, endereco_rua, endereco_cidade, endereco_estado, endereco_cep, endereco_pais),
-        order_items (quantidade, preco_unitario, products ("Produto Nome", image_url, "SKU"))
+        order_items (quantidade, preco_unitario, products (name, image_url, vin))
       `)
       .order("data_pedido", { ascending: false })
       .limit(50);
@@ -567,8 +567,8 @@ export default function OrdersTest() {
         orderNumber: order.numero_pedido_canal || order.id.slice(0, 8),
         channel: order.canal,
         items: (order.order_items || []).map((i) => ({
-          sku: i.products?.SKU,
-          name: i.products?.["Produto Nome"] || "Produto",
+          sku: i.products?.vin,
+          name: i.products?.name || "Produto",
           quantity: i.quantidade,
           unitPrice: i.preco_unitario,
           imageUrl: i.products?.image_url,

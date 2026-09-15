@@ -16,6 +16,7 @@ import {
   type DriverInfo,
 } from "@/lib/tripDraft";
 import { formatPrice } from "@/lib/utils";
+import { supabase } from "@/lib/supabase";
 
 const US_STATES = [
   "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "DC", "FL", "GA", "HI", "ID", "IL", "IN", "IA",
@@ -48,6 +49,8 @@ export default function CheckoutPage() {
   const [driver, setDriver] = useState<DriverInfo>(emptyDriver);
   const [errors, setErrors] = useState<Partial<Record<keyof DriverInfo, string>>>({});
   const [requested, setRequested] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     const load = () => {
@@ -102,12 +105,13 @@ export default function CheckoutPage() {
   }
 
   function validate(): boolean {
+    const requiredAge = Math.max(MINIMUM_DRIVER_AGE, draft?.minDriverAge || MINIMUM_DRIVER_AGE);
     const next: Partial<Record<keyof DriverInfo, string>> = {};
     if (!driver.fullName.trim()) next.fullName = "Enter the driver's full legal name.";
     if (!driver.dateOfBirth) {
       next.dateOfBirth = "Enter a date of birth.";
-    } else if (ageFromDateOfBirth(driver.dateOfBirth) < MINIMUM_DRIVER_AGE) {
-      next.dateOfBirth = `Drivers must be at least ${MINIMUM_DRIVER_AGE} years old.`;
+    } else if (ageFromDateOfBirth(driver.dateOfBirth) < requiredAge) {
+      next.dateOfBirth = `Drivers must be at least ${requiredAge} years old for this vehicle.`;
     }
     if (!driver.licenseNumber.trim()) next.licenseNumber = "Enter a driver's license number.";
     if (!driver.licenseExpiration) {
@@ -120,12 +124,44 @@ export default function CheckoutPage() {
     return Object.keys(next).length === 0;
   }
 
-  function handleRequestToBook() {
+  async function handleRequestToBook() {
     if (!draft) return;
     if (!validate()) return;
     saveTripDraft({ ...draft, driver });
-    setRequested(true);
-    clearTripDraft();
+
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const { error } = await supabase.from("bookings").insert({
+        car_id: draft.carId,
+        status: "pending_payment",
+        pickup_date: draft.pickupDate,
+        pickup_time: draft.pickupTime,
+        return_date: draft.returnDate,
+        return_time: draft.returnTime,
+        daily_rate: draft.dailyRate,
+        protection_plan: breakdown.plan.id,
+        extras: draft.extras,
+        driver_full_name: driver.fullName,
+        driver_date_of_birth: driver.dateOfBirth,
+        driver_license_number: driver.licenseNumber,
+        driver_license_expiration: driver.licenseExpiration,
+        driver_license_state: driver.licenseState,
+        trip_subtotal: breakdown.tripSubtotal,
+        protection_total: breakdown.protectionTotal,
+        extras_total: breakdown.extrasTotal,
+        young_driver_fee_total: breakdown.youngDriverFeeTotal,
+        estimated_total: breakdown.total,
+      });
+      if (error) throw error;
+      setRequested(true);
+      clearTripDraft();
+    } catch (e) {
+      console.error("Failed to submit booking request:", e);
+      setSubmitError("We couldn't send your request. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -281,10 +317,12 @@ export default function CheckoutPage() {
 
             <button
               onClick={handleRequestToBook}
-              className="block w-full bg-black text-white text-sm font-medium py-3 text-center hover:bg-brand transition-colors"
+              disabled={submitting}
+              className="block w-full bg-black text-white text-sm font-medium py-3 text-center hover:bg-brand transition-colors disabled:opacity-60"
             >
-              Request to Book
+              {submitting ? "Sending request…" : "Request to Book"}
             </button>
+            {submitError && <p className="text-xs text-red-600 mt-2 text-center">{submitError}</p>}
             <p className="text-[11px] text-gray-400 mt-2 text-center">
               No payment is collected — checkout isn&apos;t connected yet.
             </p>

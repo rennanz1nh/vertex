@@ -26,7 +26,7 @@ export default function ClearanceCarousel({ products }: { products: Product[] })
   return (
     <section className="border-t border-gray-100 py-10">
       <h2 className="font-display text-2xl md:text-3xl font-normal text-gray-900 text-center mb-6">
-        Clearance and deals
+        Special offers
       </h2>
 
       <div className="relative max-w-[1600px] mx-auto px-4">
@@ -45,9 +45,9 @@ export default function ClearanceCarousel({ products }: { products: Product[] })
           className="flex gap-4 overflow-x-auto scroll-smooth pb-3 px-10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {products.map((p) => {
-            const name = p["Produto Nome"] || "Product";
+            const name = p.name || [p.year, p.make, p.model].filter(Boolean).join(" ") || "Vehicle";
             const img = p.image_url || getProductImage(name);
-            const { price, originalPrice } = getEffectivePrice(p["Valor de venda (Online)"], p.sale_price);
+            const { price, originalPrice } = getEffectivePrice(p.daily_rate, p.discounted_daily_rate);
             return (
               <Link
                 key={p.id}
