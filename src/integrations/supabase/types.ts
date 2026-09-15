@@ -250,9 +250,11 @@ export type Database = {
       }
       clients: {
         Row: {
+          amazon_buyer_email: string | null
           canal_principal: string | null
           contato_responsavel: string | null
           created_at: string
+          date_of_birth: string | null
           email: string | null
           endereco_cep: string | null
           endereco_cidade: string | null
@@ -260,6 +262,9 @@ export type Database = {
           endereco_pais: string | null
           endereco_rua: string | null
           id: string
+          license_expiration: string | null
+          license_number: string | null
+          license_state: string | null
           nome_razao: string
           observacoes: string | null
           telefone: string | null
@@ -267,9 +272,11 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          amazon_buyer_email?: string | null
           canal_principal?: string | null
           contato_responsavel?: string | null
           created_at?: string
+          date_of_birth?: string | null
           email?: string | null
           endereco_cep?: string | null
           endereco_cidade?: string | null
@@ -277,16 +284,21 @@ export type Database = {
           endereco_pais?: string | null
           endereco_rua?: string | null
           id?: string
+          license_expiration?: string | null
+          license_number?: string | null
+          license_state?: string | null
           nome_razao: string
           observacoes?: string | null
           telefone?: string | null
-          tipo: Database["public"]["Enums"]["client_type"]
+          tipo?: Database["public"]["Enums"]["client_type"]
           updated_at?: string
         }
         Update: {
+          amazon_buyer_email?: string | null
           canal_principal?: string | null
           contato_responsavel?: string | null
           created_at?: string
+          date_of_birth?: string | null
           email?: string | null
           endereco_cep?: string | null
           endereco_cidade?: string | null
@@ -294,6 +306,9 @@ export type Database = {
           endereco_pais?: string | null
           endereco_rua?: string | null
           id?: string
+          license_expiration?: string | null
+          license_number?: string | null
+          license_state?: string | null
           nome_razao?: string
           observacoes?: string | null
           telefone?: string | null
@@ -829,11 +844,7 @@ export type Database = {
     Enums: {
       app_role: "admin" | "operador" | "leitura"
       booking_status: "pending_payment" | "confirmed" | "cancelled" | "completed"
-      client_type:
-        | "Salão/Cabeleireira"
-        | "Revendedor"
-        | "Online/Marketplace"
-        | "Cliente Final"
+      client_type: "Individual" | "Corporate" | "Insurance Replacement"
       order_status: "Orçado" | "Pago" | "Enviado" | "Entregue" | "Cancelado"
       product_brand:
         | "Sorali"
@@ -982,12 +993,7 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "operador", "leitura"],
       booking_status: ["pending_payment", "confirmed", "cancelled", "completed"],
-      client_type: [
-        "Salão/Cabeleireira",
-        "Revendedor",
-        "Online/Marketplace",
-        "Cliente Final",
-      ],
+      client_type: ["Individual", "Corporate", "Insurance Replacement"],
       order_status: ["Orçado", "Pago", "Enviado", "Entregue", "Cancelado"],
       product_brand: [
         "Sorali",

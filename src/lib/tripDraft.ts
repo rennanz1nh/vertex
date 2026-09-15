@@ -68,6 +68,8 @@ export const MINIMUM_DRIVER_AGE = 18;
 
 export type DriverInfo = {
   fullName: string;
+  email: string;
+  phone: string;
   dateOfBirth: string; // ISO date
   licenseNumber: string;
   licenseExpiration: string; // ISO date

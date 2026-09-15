@@ -9,23 +9,29 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Database } from '@/integrations/supabase/types';
+import { US_STATES } from '@/lib/us-states';
 
-type ClientType = Database['public']['Enums']['client_type'];
-type SalesChannel = Database['public']['Enums']['sales_channel'];
+const CLIENT_TYPES = ['Individual', 'Corporate', 'Insurance Replacement'] as const;
+const CHANNEL_OPTIONS = [
+  'Website', 'Phone', 'Walk-in', 'Referral', 'Repeat Customer', 'Social Media', 'Insurance Referral', 'Other',
+] as const;
 
 const clientSchema = z.object({
-  nome_razao: z.string().min(1, 'Nome/Razão Social é obrigatório'),
-  tipo: z.enum(['Salão/Cabeleireira', 'Revendedor', 'Online/Marketplace', 'Cliente Final'] as const),
-  email: z.union([z.string().email('Email inválido'), z.literal('')]).optional().transform(val => val || null),
+  nome_razao: z.string().min(1, "Full name is required"),
+  tipo: z.enum(CLIENT_TYPES),
+  email: z.union([z.string().email('Invalid email'), z.literal('')]).optional().transform(val => val || null),
   telefone: z.string().optional(),
+  date_of_birth: z.string().optional(),
+  license_number: z.string().optional(),
+  license_state: z.string().optional(),
+  license_expiration: z.string().optional(),
   contato_responsavel: z.string().optional(),
   endereco_rua: z.string().optional(),
   endereco_cidade: z.string().optional(),
   endereco_estado: z.string().optional(),
   endereco_cep: z.string().optional(),
   endereco_pais: z.string().optional(),
-  canal_principal: z.enum(['eBay', 'Amazon', 'Etsy', 'Outros'] as const).optional(),
+  canal_principal: z.enum(CHANNEL_OPTIONS).optional(),
   observacoes: z.string().optional(),
 });
 
@@ -45,15 +51,19 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
     resolver: zodResolver(clientSchema),
     defaultValues: {
       nome_razao: client?.nome_razao || '',
-      tipo: client?.tipo || 'Cliente Final',
+      tipo: client?.tipo || 'Individual',
       email: client?.email || '',
       telefone: client?.telefone || '',
+      date_of_birth: client?.date_of_birth || '',
+      license_number: client?.license_number || '',
+      license_state: client?.license_state || '',
+      license_expiration: client?.license_expiration || '',
       contato_responsavel: client?.contato_responsavel || '',
       endereco_rua: client?.endereco_rua || '',
       endereco_cidade: client?.endereco_cidade || '',
       endereco_estado: client?.endereco_estado || '',
       endereco_cep: client?.endereco_cep || '',
-      endereco_pais: client?.endereco_pais || 'Brasil',
+      endereco_pais: client?.endereco_pais || 'United States',
       canal_principal: client?.canal_principal || undefined,
       observacoes: client?.observacoes || '',
     },
@@ -66,12 +76,16 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
         ...data,
         email: data.email || null,
         telefone: data.telefone || null,
+        date_of_birth: data.date_of_birth || null,
+        license_number: data.license_number || null,
+        license_state: data.license_state || null,
+        license_expiration: data.license_expiration || null,
         contato_responsavel: data.contato_responsavel || null,
         endereco_rua: data.endereco_rua || null,
         endereco_cidade: data.endereco_cidade || null,
         endereco_estado: data.endereco_estado || null,
         endereco_cep: data.endereco_cep || null,
-        endereco_pais: data.endereco_pais || 'Brasil',
+        endereco_pais: data.endereco_pais || 'United States',
         canal_principal: data.canal_principal || null,
         observacoes: data.observacoes || null,
       };
@@ -83,22 +97,22 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
           .eq('id', client.id);
 
         if (error) throw error;
-        toast({ title: 'Cliente atualizado com sucesso!' });
+        toast({ title: 'Client updated successfully!' });
       } else {
         const { error } = await supabase
           .from('clients')
           .insert([cleanData]);
 
         if (error) throw error;
-        toast({ title: 'Cliente criado com sucesso!' });
+        toast({ title: 'Client created successfully!' });
       }
 
       onSuccess();
     } catch (error) {
       console.error('Error saving client:', error);
       toast({
-        title: 'Erro ao salvar cliente',
-        description: 'Tente novamente mais tarde.',
+        title: 'Error saving client',
+        description: 'Please try again later.',
         variant: 'destructive',
       });
     } finally {
@@ -115,21 +129,21 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
             name="nome_razao"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Nome/Razão Social *</FormLabel>
+                <FormLabel>Full Name *</FormLabel>
                 <FormControl>
-                  <Input {...field} />
+                  <Input placeholder="As shown on driver's license" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
-          
+
           <FormField
             control={form.control}
             name="tipo"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Tipo *</FormLabel>
+                <FormLabel>Client Type *</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger>
@@ -137,10 +151,9 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="Salão/Cabeleireira">Salão/Cabeleireira</SelectItem>
-                    <SelectItem value="Revendedor">Revendedor</SelectItem>
-                    <SelectItem value="Online/Marketplace">Online/Marketplace</SelectItem>
-                    <SelectItem value="Cliente Final">Cliente Final</SelectItem>
+                    {CLIENT_TYPES.map((t) => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -163,16 +176,84 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
               </FormItem>
             )}
           />
-          
+
           <FormField
             control={form.control}
             name="telefone"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Telefone</FormLabel>
+                <FormLabel>Phone</FormLabel>
                 <FormControl>
                   <Input {...field} />
                 </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        {/* Driver on file — collected once, snapshotted onto each booking at trip time */}
+        <div className="rounded-lg border p-4 space-y-3">
+          <p className="text-sm font-semibold">Driver&apos;s license on file</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <FormField
+              control={form.control}
+              name="date_of_birth"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Date of Birth</FormLabel>
+                  <FormControl>
+                    <Input type="date" lang="en-US" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="license_number"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>License Number</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="license_expiration"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>License Expiration</FormLabel>
+                  <FormControl>
+                    <Input type="date" lang="en-US" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          <FormField
+            control={form.control}
+            name="license_state"
+            render={({ field }) => (
+              <FormItem className="sm:w-1/3">
+                <FormLabel>Issuing State</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value || undefined}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select state" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {US_STATES.map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
@@ -184,9 +265,9 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
           name="contato_responsavel"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Contato Responsável</FormLabel>
+              <FormLabel>Emergency Contact</FormLabel>
               <FormControl>
-                <Input {...field} />
+                <Input placeholder="Name and phone number" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -199,7 +280,7 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
             name="endereco_rua"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Endereço</FormLabel>
+                <FormLabel>Street Address</FormLabel>
                 <FormControl>
                   <Input {...field} />
                 </FormControl>
@@ -207,13 +288,13 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
               </FormItem>
             )}
           />
-          
+
           <FormField
             control={form.control}
             name="endereco_cidade"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Cidade</FormLabel>
+                <FormLabel>City</FormLabel>
                 <FormControl>
                   <Input {...field} />
                 </FormControl>
@@ -229,21 +310,30 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
             name="endereco_estado"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Estado</FormLabel>
-                <FormControl>
-                  <Input {...field} />
-                </FormControl>
+                <FormLabel>State</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value || undefined}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select state" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {US_STATES.map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
           />
-          
+
           <FormField
             control={form.control}
             name="endereco_cep"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>CEP</FormLabel>
+                <FormLabel>ZIP Code</FormLabel>
                 <FormControl>
                   <Input {...field} />
                 </FormControl>
@@ -251,13 +341,13 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
               </FormItem>
             )}
           />
-          
+
           <FormField
             control={form.control}
             name="endereco_pais"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>País</FormLabel>
+                <FormLabel>Country</FormLabel>
                 <FormControl>
                   <Input {...field} />
                 </FormControl>
@@ -272,7 +362,7 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
           name="canal_principal"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Canal Principal</FormLabel>
+              <FormLabel>How They Found Us</FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger>
@@ -280,10 +370,9 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="eBay">eBay</SelectItem>
-                  <SelectItem value="Amazon">Amazon</SelectItem>
-                  <SelectItem value="Etsy">Etsy</SelectItem>
-                  <SelectItem value="Outros">Outros</SelectItem>
+                  {CHANNEL_OPTIONS.map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <FormMessage />
@@ -296,7 +385,7 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
           name="observacoes"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Observações</FormLabel>
+              <FormLabel>Notes</FormLabel>
               <FormControl>
                 <Textarea {...field} />
               </FormControl>
@@ -307,10 +396,10 @@ export function ClientForm({ client, onSuccess, onCancel }: ClientFormProps) {
 
         <div className="flex justify-end space-x-2">
           <Button type="button" variant="outline" onClick={onCancel}>
-            Cancelar
+            Cancel
           </Button>
           <Button type="submit" disabled={isLoading}>
-            {isLoading ? 'Salvando...' : client ? 'Atualizar' : 'Criar'}
+            {isLoading ? 'Saving...' : client ? 'Update' : 'Create'}
           </Button>
         </div>
       </form>

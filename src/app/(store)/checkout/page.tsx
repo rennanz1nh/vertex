@@ -16,14 +16,7 @@ import {
   type DriverInfo,
 } from "@/lib/tripDraft";
 import { formatPrice } from "@/lib/utils";
-import { supabase } from "@/lib/supabase";
-
-const US_STATES = [
-  "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "DC", "FL", "GA", "HI", "ID", "IL", "IN", "IA",
-  "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM",
-  "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA",
-  "WV", "WI", "WY",
-];
+import { US_STATES } from "@/lib/us-states";
 
 function formatUsDate(iso: string): string {
   if (!iso) return "";
@@ -38,6 +31,8 @@ function formatUsDate(iso: string): string {
 
 const emptyDriver: DriverInfo = {
   fullName: "",
+  email: "",
+  phone: "",
   dateOfBirth: "",
   licenseNumber: "",
   licenseExpiration: "",
@@ -108,6 +103,10 @@ export default function CheckoutPage() {
     const requiredAge = Math.max(MINIMUM_DRIVER_AGE, draft?.minDriverAge || MINIMUM_DRIVER_AGE);
     const next: Partial<Record<keyof DriverInfo, string>> = {};
     if (!driver.fullName.trim()) next.fullName = "Enter the driver's full legal name.";
+    if (!driver.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(driver.email.trim())) {
+      next.email = "Enter a valid email address.";
+    }
+    if (!driver.phone.trim()) next.phone = "Enter a phone number.";
     if (!driver.dateOfBirth) {
       next.dateOfBirth = "Enter a date of birth.";
     } else if (ageFromDateOfBirth(driver.dateOfBirth) < requiredAge) {
@@ -132,28 +131,29 @@ export default function CheckoutPage() {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      const { error } = await supabase.from("bookings").insert({
-        car_id: draft.carId,
-        status: "pending_payment",
-        pickup_date: draft.pickupDate,
-        pickup_time: draft.pickupTime,
-        return_date: draft.returnDate,
-        return_time: draft.returnTime,
-        daily_rate: draft.dailyRate,
-        protection_plan: breakdown.plan.id,
-        extras: draft.extras,
-        driver_full_name: driver.fullName,
-        driver_date_of_birth: driver.dateOfBirth,
-        driver_license_number: driver.licenseNumber,
-        driver_license_expiration: driver.licenseExpiration,
-        driver_license_state: driver.licenseState,
-        trip_subtotal: breakdown.tripSubtotal,
-        protection_total: breakdown.protectionTotal,
-        extras_total: breakdown.extrasTotal,
-        young_driver_fee_total: breakdown.youngDriverFeeTotal,
-        estimated_total: breakdown.total,
+      const res = await fetch("/api/bookings/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          carId: draft.carId,
+          pickupDate: draft.pickupDate,
+          pickupTime: draft.pickupTime,
+          returnDate: draft.returnDate,
+          returnTime: draft.returnTime,
+          dailyRate: draft.dailyRate,
+          protectionPlan: breakdown.plan.id,
+          extras: draft.extras,
+          driver,
+          breakdown: {
+            tripSubtotal: breakdown.tripSubtotal,
+            protectionTotal: breakdown.protectionTotal,
+            extrasTotal: breakdown.extrasTotal,
+            youngDriverFeeTotal: breakdown.youngDriverFeeTotal,
+            total: breakdown.total,
+          },
+        }),
       });
-      if (error) throw error;
+      if (!res.ok) throw new Error(await res.text());
       setRequested(true);
       clearTripDraft();
     } catch (e) {
@@ -216,6 +216,30 @@ export default function CheckoutPage() {
                   className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
                 />
                 {errors.fullName && <p className="text-xs text-red-600 mt-1">{errors.fullName}</p>}
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Email</label>
+                <input
+                  type="email"
+                  value={driver.email}
+                  onChange={(e) => updateDriver({ email: e.target.value })}
+                  placeholder="you@example.com"
+                  className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
+                />
+                {errors.email && <p className="text-xs text-red-600 mt-1">{errors.email}</p>}
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Phone</label>
+                <input
+                  type="tel"
+                  value={driver.phone}
+                  onChange={(e) => updateDriver({ phone: e.target.value })}
+                  placeholder="(555) 555-5555"
+                  className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
+                />
+                {errors.phone && <p className="text-xs text-red-600 mt-1">{errors.phone}</p>}
               </div>
 
               <div>

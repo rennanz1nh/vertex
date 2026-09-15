@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     const { error: insertError } = await supabase.from("clients").insert({
       nome_razao: name,
       email,
-      tipo: "Cliente Final" as const,
+      tipo: "Individual" as const,
       canal_principal: "Newsletter",
     });
 

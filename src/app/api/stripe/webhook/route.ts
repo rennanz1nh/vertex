@@ -150,7 +150,7 @@ async function fulfillOrder(session: Stripe.Checkout.Session) {
           email: customerDetails.email,
           telefone: customerDetails.phone || null,
           endereco_cidade: address?.city || null,
-          tipo: "Cliente Final" as const,
+          tipo: "Individual" as const,
           canal_principal: "Vertex Rental Cars",
         })
         .select()

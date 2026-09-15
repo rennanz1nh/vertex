@@ -26,43 +26,53 @@ import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortabl
 import { SortableHeader } from '@/components/table/SortableHeader';
 import { ColumnViewButtons } from '@/components/table/ColumnViewButtons';
 import { useColumnPreferences } from '@/hooks/useColumnPreferences';
-import { SalesChannelBadge } from '@/components/SalesChannelBadge';
 
-const amazonLogo = '/images/sales-channels/Amazon.png';
-const ebayLogo = '/images/sales-channels/Ebay.png';
-const etsyLogo = '/images/sales-channels/Etsy.png';
-const tiktokLogo = '/images/sales-channels/TikTok.png';
-const zelleLogo = '/images/sales-channels/Zelle.png';
-const whatsappLogo = '/images/sales-channels/Whatsapp.png';
-const cosmeticMpLogo = '/images/sales-channels/Vertex_Rental_Cars.png';
+const CLIENT_TYPE_BADGE: Record<string, string> = {
+  Individual: 'bg-gray-100 text-gray-700',
+  Corporate: 'bg-blue-100 text-blue-700',
+  'Insurance Replacement': 'bg-purple-100 text-purple-700',
+};
 
 const ORIGEM_OPTIONS = [
-  { value: 'all', label: 'Todas as Origens', icon: null },
-  { value: 'Presencial', label: 'Presencial', icon: null },
-  { value: 'Amazon', label: 'Amazon', icon: <img src={amazonLogo} alt="Amazon" className="h-5 w-5 object-contain" /> },
-  { value: 'eBay', label: 'eBay', icon: <img src={ebayLogo} alt="eBay" className="h-5 w-5 object-contain" /> },
-  { value: 'Etsy', label: 'Etsy', icon: <img src={etsyLogo} alt="Etsy" className="h-5 w-5 object-contain" /> },
-  { value: 'TikTok', label: 'TikTok', icon: <img src={tiktokLogo} alt="TikTok" className="h-5 w-5 object-contain" /> },
-  { value: 'Vertex Rental Cars', label: 'Cosmetic MP', icon: <img src={cosmeticMpLogo} alt="Vertex Rental Cars" className="h-5 w-5 object-contain" /> },
-  { value: 'Credit Card', label: 'Credit Card', icon: null },
-  { value: 'Zelle', label: 'Zelle', icon: <img src={zelleLogo} alt="Zelle" className="h-5 w-5 object-contain" /> },
-  { value: 'Online', label: 'Online', icon: null },
-  { value: 'WhatsApp', label: 'WhatsApp', icon: <img src={whatsappLogo} alt="WhatsApp" className="h-5 w-5 object-contain" /> },
-  { value: 'Newsletter', label: 'Newsletter', icon: null },
-  { value: 'Outro', label: 'Outro', icon: null },
+  { value: 'all', label: 'All Sources' },
+  { value: 'Website', label: 'Website' },
+  { value: 'Phone', label: 'Phone' },
+  { value: 'Walk-in', label: 'Walk-in' },
+  { value: 'Referral', label: 'Referral' },
+  { value: 'Repeat Customer', label: 'Repeat Customer' },
+  { value: 'Social Media', label: 'Social Media' },
+  { value: 'Insurance Referral', label: 'Insurance Referral' },
+  { value: 'Other', label: 'Other' },
 ];
 
-interface ClientWithOrders {
+const LICENSE_STATUS: Record<'valid' | 'expiring' | 'expired' | 'none', { label: string; className: string }> = {
+  valid: { label: 'Valid', className: 'bg-green-100 text-green-700' },
+  expiring: { label: 'Expiring soon', className: 'bg-amber-100 text-amber-700' },
+  expired: { label: 'Expired', className: 'bg-red-100 text-red-700' },
+  none: { label: 'On file: none', className: 'bg-gray-100 text-gray-500' },
+};
+
+function licenseStatus(expiration: string | null): keyof typeof LICENSE_STATUS {
+  if (!expiration) return 'none';
+  const exp = parseLocalDate(expiration).getTime();
+  const now = Date.now();
+  const sixtyDays = 60 * 24 * 60 * 60 * 1000;
+  if (exp < now) return 'expired';
+  if (exp - now < sixtyDays) return 'expiring';
+  return 'valid';
+}
+
+interface ClientWithBookings {
   id: string;
   nome_razao: string;
+  tipo: string;
   telefone: string | null;
   email: string | null;
   endereco_cidade: string | null;
-  totalProdutosVendidos: number;
-  valorTotalVendido: number;
-  lastOrderDate: string | null;
-  // Sales channel of the client's earliest order — where they originally came from,
-  // not necessarily where their most recent purchase happened.
+  license_expiration: string | null;
+  totalRentals: number;
+  totalSpent: number;
+  lastRentalDate: string | null;
   origemChannel: string | null;
 }
 
@@ -80,11 +90,11 @@ type ColumnDef = {
   id: string;
   label: string;
   headerClassName?: string;
-  render: (client: ClientWithOrders) => React.ReactNode;
+  render: (client: ClientWithBookings) => React.ReactNode;
 };
 
 export default function Clients() {
-  const [clients, setClients] = useState<ClientWithOrders[]>([]);
+  const [clients, setClients] = useState<ClientWithBookings[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [editedClients, setEditedClients] = useState<Record<string, any>>({});
@@ -100,75 +110,59 @@ export default function Clients() {
   const isAdmin = profile?.role === 'admin';
 
   useEffect(() => {
-    fetchClientsWithOrders();
+    fetchClientsWithBookings();
   }, []);
 
-  const fetchClientsWithOrders = async () => {
+  const fetchClientsWithBookings = async () => {
     try {
       const { data: clientsData, error: clientsError } = await supabase
         .from('clients')
-        .select('id, nome_razao, telefone, email, endereco_cidade, canal_principal')
+        .select('id, nome_razao, tipo, telefone, email, endereco_cidade, canal_principal, license_expiration')
         .order('nome_razao');
 
       if (clientsError) throw clientsError;
 
-      const { data: ordersData, error: ordersError } = await supabase
-        .from('orders')
-        .select(`
-          id,
-          client_id,
-          canal,
-          total,
-          data_pedido,
-          order_items (
-            quantidade
-          )
-        `);
+      // Bookings aren't linked to a client by id (the checkout flow doesn't require an
+      // account) — matched by email instead, same as the storefront upserts a client
+      // record when a trip is requested.
+      const { data: bookingsData, error: bookingsError } = await supabase
+        .from('bookings')
+        .select('customer_email, status, pickup_date, estimated_total')
+        .neq('status', 'cancelled');
 
-      if (ordersError) throw ordersError;
+      if (bookingsError) throw bookingsError;
 
-      const clientTotals: Record<string, { produtos: number; valor: number; lastDate: string | null; firstDate: string | null; origemChannel: string | null }> = {};
-
-      ordersData?.forEach(order => {
-        if (order.client_id) {
-          if (!clientTotals[order.client_id]) {
-            clientTotals[order.client_id] = { produtos: 0, valor: 0, lastDate: null, firstDate: null, origemChannel: null };
-          }
-
-          const totalQuantity = order.order_items?.reduce(
-            (sum: number, item: any) => sum + (item.quantidade || 0), 0
-          ) || 0;
-
-          clientTotals[order.client_id].produtos += totalQuantity;
-          clientTotals[order.client_id].valor += parseFloat(String(order.total || 0));
-
-          if (!clientTotals[order.client_id].lastDate || order.data_pedido > clientTotals[order.client_id].lastDate!) {
-            clientTotals[order.client_id].lastDate = order.data_pedido;
-          }
-
-          // "Origem" is the channel of the client's earliest order — where they first came from.
-          if (!clientTotals[order.client_id].firstDate || order.data_pedido < clientTotals[order.client_id].firstDate!) {
-            clientTotals[order.client_id].firstDate = order.data_pedido;
-            clientTotals[order.client_id].origemChannel = order.canal;
-          }
+      const totalsByEmail: Record<string, { rentals: number; spent: number; lastDate: string | null }> = {};
+      bookingsData?.forEach((b) => {
+        const key = (b.customer_email || '').trim().toLowerCase();
+        if (!key) return;
+        if (!totalsByEmail[key]) totalsByEmail[key] = { rentals: 0, spent: 0, lastDate: null };
+        totalsByEmail[key].rentals += 1;
+        totalsByEmail[key].spent += parseFloat(String(b.estimated_total || 0));
+        if (!totalsByEmail[key].lastDate || b.pickup_date > totalsByEmail[key].lastDate!) {
+          totalsByEmail[key].lastDate = b.pickup_date;
         }
       });
 
-      const clientsWithOrders: ClientWithOrders[] = (clientsData || []).map(client => ({
-        id: client.id,
-        nome_razao: client.nome_razao,
-        telefone: client.telefone,
-        email: client.email,
-        endereco_cidade: client.endereco_cidade,
-        totalProdutosVendidos: clientTotals[client.id]?.produtos || 0,
-        valorTotalVendido: clientTotals[client.id]?.valor || 0,
-        lastOrderDate: clientTotals[client.id]?.lastDate || null,
-        // Clients with no orders yet (e.g. newsletter-only signups) fall back to their
-        // registered canal_principal so "Origem" still shows something meaningful.
-        origemChannel: clientTotals[client.id]?.origemChannel || client.canal_principal || null,
-      }));
+      const clientsWithBookings: ClientWithBookings[] = (clientsData || []).map((client) => {
+        const key = (client.email || '').trim().toLowerCase();
+        const totals = totalsByEmail[key];
+        return {
+          id: client.id,
+          nome_razao: client.nome_razao,
+          tipo: client.tipo,
+          telefone: client.telefone,
+          email: client.email,
+          endereco_cidade: client.endereco_cidade,
+          license_expiration: client.license_expiration,
+          totalRentals: totals?.rentals || 0,
+          totalSpent: totals?.spent || 0,
+          lastRentalDate: totals?.lastDate || null,
+          origemChannel: client.canal_principal,
+        };
+      });
 
-      setClients(clientsWithOrders);
+      setClients(clientsWithBookings);
     } catch (error) {
       console.error('Error fetching clients:', error);
     } finally {
@@ -191,20 +185,20 @@ export default function Clients() {
       switch (sortOption) {
         case 'nome_asc': return a.nome_razao.localeCompare(b.nome_razao);
         case 'nome_desc': return b.nome_razao.localeCompare(a.nome_razao);
-        case 'valor_desc': return b.valorTotalVendido - a.valorTotalVendido;
-        case 'valor_asc': return a.valorTotalVendido - b.valorTotalVendido;
-        case 'qtd_desc': return b.totalProdutosVendidos - a.totalProdutosVendidos;
-        case 'qtd_asc': return a.totalProdutosVendidos - b.totalProdutosVendidos;
+        case 'valor_desc': return b.totalSpent - a.totalSpent;
+        case 'valor_asc': return a.totalSpent - b.totalSpent;
+        case 'qtd_desc': return b.totalRentals - a.totalRentals;
+        case 'qtd_asc': return a.totalRentals - b.totalRentals;
         case 'data_desc':
-          if (!a.lastOrderDate && !b.lastOrderDate) return 0;
-          if (!a.lastOrderDate) return 1;
-          if (!b.lastOrderDate) return -1;
-          return b.lastOrderDate.localeCompare(a.lastOrderDate);
+          if (!a.lastRentalDate && !b.lastRentalDate) return 0;
+          if (!a.lastRentalDate) return 1;
+          if (!b.lastRentalDate) return -1;
+          return b.lastRentalDate.localeCompare(a.lastRentalDate);
         case 'data_asc':
-          if (!a.lastOrderDate && !b.lastOrderDate) return 0;
-          if (!a.lastOrderDate) return 1;
-          if (!b.lastOrderDate) return -1;
-          return a.lastOrderDate.localeCompare(b.lastOrderDate);
+          if (!a.lastRentalDate && !b.lastRentalDate) return 0;
+          if (!a.lastRentalDate) return 1;
+          if (!b.lastRentalDate) return -1;
+          return a.lastRentalDate.localeCompare(b.lastRentalDate);
         default: return 0;
       }
     });
@@ -239,7 +233,7 @@ export default function Clients() {
 
       toast({ title: "Sucesso!", description: `${updates.length} cliente(s) atualizado(s) com sucesso.` });
       setEditedClients({});
-      fetchClientsWithOrders();
+      fetchClientsWithBookings();
     } catch (error) {
       console.error('Error saving clients:', error);
       toast({ title: "Erro ao salvar", description: "Ocorreu um erro ao salvar os clientes.", variant: "destructive" });
@@ -265,6 +259,8 @@ export default function Clients() {
       const clientsToDelete = Array.from(selectedClients);
 
       for (const clientId of clientsToDelete) {
+        // A client may still carry legacy orders from the old order-management flow —
+        // clean those up too so the delete doesn't leave orphaned rows.
         const { data: orders, error: ordersQueryError } = await supabase
           .from('orders').select('id').eq('client_id', clientId);
         if (ordersQueryError) throw ordersQueryError;
@@ -282,10 +278,10 @@ export default function Clients() {
         if (error) throw error;
       }
 
-      toast({ title: "Sucesso!", description: `${clientsToDelete.length} cliente(s) e seus pedidos excluídos com sucesso.` });
+      toast({ title: "Sucesso!", description: `${clientsToDelete.length} cliente(s) excluído(s) com sucesso.` });
       setSelectedClients(new Set());
       setSelectionMode(false);
-      fetchClientsWithOrders();
+      fetchClientsWithBookings();
     } catch (error) {
       console.error('Error deleting clients:', error);
       toast({ title: "Erro ao excluir", description: "Ocorreu um erro ao excluir os clientes.", variant: "destructive" });
@@ -294,7 +290,7 @@ export default function Clients() {
     }
   };
 
-  const renderEditableCell = (client: ClientWithOrders, field: keyof ClientWithOrders, value: string | null) => {
+  const renderEditableCell = (client: ClientWithBookings, field: keyof ClientWithBookings, value: string | null) => {
     if (!isAdmin) {
       return <span>{value || '-'}</span>;
     }
@@ -315,11 +311,21 @@ export default function Clients() {
   // ===== Column definitions =====
   const columns: ColumnDef[] = useMemo(() => [
     {
-      id: 'nome_razao', label: 'Nome do Cliente',
+      id: 'nome_razao', label: 'Client Name',
       render: (client) => <TableCell className="font-medium">{renderEditableCell(client, 'nome_razao', client.nome_razao)}</TableCell>,
     },
     {
-      id: 'telefone', label: 'Contato',
+      id: 'tipo', label: 'Type',
+      render: (client) => (
+        <TableCell>
+          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${CLIENT_TYPE_BADGE[client.tipo] || 'bg-gray-100 text-gray-700'}`}>
+            {client.tipo}
+          </span>
+        </TableCell>
+      ),
+    },
+    {
+      id: 'telefone', label: 'Contact',
       render: (client) => <TableCell>{renderEditableCell(client, 'telefone', client.telefone)}</TableCell>,
     },
     {
@@ -327,28 +333,35 @@ export default function Clients() {
       render: (client) => <TableCell>{renderEditableCell(client, 'email', client.email)}</TableCell>,
     },
     {
-      id: 'qtd', label: 'Produtos Vendidos', headerClassName: 'text-right',
-      render: (client) => <TableCell className="text-right font-medium">{client.totalProdutosVendidos}</TableCell>,
+      id: 'license', label: "License",
+      render: (client) => {
+        const status = LICENSE_STATUS[licenseStatus(client.license_expiration)];
+        return (
+          <TableCell>
+            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${status.className}`}>{status.label}</span>
+          </TableCell>
+        );
+      },
     },
     {
-      id: 'valor', label: 'Valor Vendido', headerClassName: 'text-right',
-      render: (client) => <TableCell className="text-right font-medium text-green-600">{formatCurrency(client.valorTotalVendido)}</TableCell>,
+      id: 'qtd', label: 'Total Rentals', headerClassName: 'text-right',
+      render: (client) => <TableCell className="text-right font-medium">{client.totalRentals}</TableCell>,
     },
     {
-      id: 'data', label: 'Data da Venda',
-      render: (client) => <TableCell>{client.lastOrderDate ? formatShortDate(parseLocalDate(client.lastOrderDate)) : '-'}</TableCell>,
+      id: 'valor', label: 'Total Spent', headerClassName: 'text-right',
+      render: (client) => <TableCell className="text-right font-medium text-green-600">{formatCurrency(client.totalSpent)}</TableCell>,
     },
     {
-      id: 'localizacao', label: 'Localização',
+      id: 'data', label: 'Last Rental',
+      render: (client) => <TableCell>{client.lastRentalDate ? formatShortDate(parseLocalDate(client.lastRentalDate)) : '-'}</TableCell>,
+    },
+    {
+      id: 'localizacao', label: 'Location',
       render: (client) => <TableCell>{renderEditableCell(client, 'endereco_cidade', client.endereco_cidade)}</TableCell>,
     },
     {
-      id: 'origem', label: 'Origem',
-      render: (client) => (
-        <TableCell className="text-center">
-          {client.origemChannel ? <SalesChannelBadge canal={client.origemChannel} /> : '-'}
-        </TableCell>
-      ),
+      id: 'origem', label: 'Source',
+      render: (client) => <TableCell>{client.origemChannel || '-'}</TableCell>,
     },
   ], [editedClients, isAdmin]);
 
@@ -377,7 +390,7 @@ export default function Clients() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Clientes</h1>
           <p className="text-muted-foreground font-bold">
-            Gerencie sua base de clientes {isAdmin && '(Admin)'}
+            Locatários e contas corporativas {isAdmin && '(Admin)'}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -446,12 +459,12 @@ export default function Clients() {
               <SelectContent>
                 <SelectItem value="nome_asc">Nome (A-Z)</SelectItem>
                 <SelectItem value="nome_desc">Nome (Z-A)</SelectItem>
-                <SelectItem value="valor_desc">Valor Vendido (Maior para menor)</SelectItem>
-                <SelectItem value="valor_asc">Valor Vendido (Menor para maior)</SelectItem>
-                <SelectItem value="qtd_desc">Qtd. Produtos (Maior para menor)</SelectItem>
-                <SelectItem value="qtd_asc">Qtd. Produtos (Menor para maior)</SelectItem>
-                <SelectItem value="data_desc">Data da venda (Mais recente)</SelectItem>
-                <SelectItem value="data_asc">Data da venda (Mais antiga)</SelectItem>
+                <SelectItem value="valor_desc">Valor Gasto (Maior para menor)</SelectItem>
+                <SelectItem value="valor_asc">Valor Gasto (Menor para maior)</SelectItem>
+                <SelectItem value="qtd_desc">Locações (Maior para menor)</SelectItem>
+                <SelectItem value="qtd_asc">Locações (Menor para maior)</SelectItem>
+                <SelectItem value="data_desc">Última locação (Mais recente)</SelectItem>
+                <SelectItem value="data_asc">Última locação (Mais antiga)</SelectItem>
               </SelectContent>
             </Select>
             <Select value={origemFilter} onValueChange={setOrigemFilter}>
@@ -461,10 +474,7 @@ export default function Clients() {
               <SelectContent>
                 {ORIGEM_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
-                    <span className="flex items-center gap-2">
-                      {option.icon}
-                      {option.label}
-                    </span>
+                    {option.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -549,7 +559,7 @@ export default function Clients() {
           <ClientForm
             onSuccess={() => {
               setIsFormOpen(false);
-              fetchClientsWithOrders();
+              fetchClientsWithBookings();
             }}
             onCancel={() => setIsFormOpen(false)}
           />

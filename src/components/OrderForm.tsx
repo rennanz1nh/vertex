@@ -476,7 +476,7 @@ export function OrderForm({ open, onOpenChange, onSuccess, editingOrder }: Order
             endereco_estado: clientState.trim() || null,
             endereco_cep: clientZip.trim() || null,
             endereco_pais: orderCountry || null,
-            tipo: "Cliente Final" as const,
+            tipo: "Individual" as const,
             canal_principal: canal,
           })
           .select()

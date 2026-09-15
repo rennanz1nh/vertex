@@ -53,7 +53,7 @@ async function upsertAmazonClient(supabase: SupabaseClient, buyer: ParsedBuyer):
     .from("clients")
     .insert({
       nome_razao: buyer.name ?? buyer.email,
-      tipo: "Cliente Final",
+      tipo: "Individual",
       canal_principal: "Amazon",
       amazon_buyer_email: buyer.email,
       email: buyer.email,
