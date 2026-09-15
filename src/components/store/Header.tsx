@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ShoppingCart, User, Menu, X } from "lucide-react";
-import { getCart, getCartCount } from "@/lib/cart";
+import { getTripDraft } from "@/lib/tripDraft";
 import Navigation from "./Navigation";
 import LanguageSelector from "./LanguageSelector";
 import SearchBox from "./SearchBox";
@@ -13,10 +13,10 @@ export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    const update = () => setCartCount(getCartCount(getCart()));
+    const update = () => setCartCount(getTripDraft() ? 1 : 0);
     update();
-    window.addEventListener("cart-updated", update);
-    return () => window.removeEventListener("cart-updated", update);
+    window.addEventListener("trip-draft-updated", update);
+    return () => window.removeEventListener("trip-draft-updated", update);
   }, []);
 
   return (

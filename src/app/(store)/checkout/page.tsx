@@ -3,119 +3,296 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { getCart, getCartTotal, type CartItem } from "@/lib/cart";
+import {
+  getTripDraft,
+  saveTripDraft,
+  clearTripDraft,
+  tripDays,
+  tripPriceBreakdown,
+  ageFromDateOfBirth,
+  youngDriverFeePerDay,
+  MINIMUM_DRIVER_AGE,
+  type TripDraft,
+  type DriverInfo,
+} from "@/lib/tripDraft";
 import { formatPrice } from "@/lib/utils";
-import { trackInitiateCheckout } from "@/lib/facebook-pixel-events";
+
+const US_STATES = [
+  "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "DC", "FL", "GA", "HI", "ID", "IL", "IN", "IA",
+  "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM",
+  "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA",
+  "WV", "WI", "WY",
+];
+
+function formatUsDate(iso: string): string {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+const emptyDriver: DriverInfo = {
+  fullName: "",
+  dateOfBirth: "",
+  licenseNumber: "",
+  licenseExpiration: "",
+  licenseState: "",
+};
 
 export default function CheckoutPage() {
-  const [items, setItems] = useState<CartItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [draft, setDraft] = useState<TripDraft | null>(null);
+  const [driver, setDriver] = useState<DriverInfo>(emptyDriver);
+  const [errors, setErrors] = useState<Partial<Record<keyof DriverInfo, string>>>({});
+  const [requested, setRequested] = useState(false);
 
   useEffect(() => {
-    setItems(getCart());
+    const load = () => {
+      const d = getTripDraft();
+      setDraft(d);
+      if (d?.driver) setDriver(d.driver);
+    };
+    load();
   }, []);
 
-  const total = getCartTotal(items);
-
-  useEffect(() => {
-    if (items.length === 0) return;
-    trackInitiateCheckout(
-      total,
-      items.reduce((sum, item) => sum + item.quantity, 0)
-    );
-  }, [items, total]);
-
-  const handleCheckout = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/stripe/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.url) {
-        throw new Error(data.error || "Could not start checkout");
-      }
-      window.location.href = data.url;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not start checkout");
-      setLoading(false);
-    }
-  };
-
-  if (items.length === 0) {
+  if (requested) {
     return (
-      <div className="max-w-[1600px] mx-auto px-4 py-20 text-center">
-        <h1 className="font-serif text-2xl font-light text-gray-900 mb-3">Your cart is empty</h1>
+      <div className="max-w-[900px] mx-auto px-4 py-20 text-center">
+        <h1 className="font-serif text-2xl md:text-3xl font-light text-gray-900 mb-3">
+          Trip request sent!
+        </h1>
+        <p className="text-sm text-gray-600 max-w-md mx-auto mb-8">
+          We&apos;ve sent your request to the host. You&apos;ll get a confirmation once it&apos;s
+          approved. No payment has been charged yet.
+        </p>
         <Link
           href="/products"
           className="inline-block bg-black text-white px-8 py-3 text-sm font-medium hover:bg-gray-800 transition-colors"
         >
-          Continue Shopping
+          Browse More Vehicles
         </Link>
       </div>
     );
   }
 
+  if (!draft) {
+    return (
+      <div className="max-w-[1600px] mx-auto px-4 py-20 text-center">
+        <h1 className="font-serif text-2xl font-light text-gray-900 mb-3">No trip selected yet</h1>
+        <Link
+          href="/products"
+          className="inline-block bg-black text-white px-8 py-3 text-sm font-medium hover:bg-gray-800 transition-colors"
+        >
+          Browse Vehicles
+        </Link>
+      </div>
+    );
+  }
+
+  const days = tripDays(draft);
+  const breakdown = tripPriceBreakdown({ ...draft, driver: driver.dateOfBirth ? driver : null });
+  const age = driver.dateOfBirth ? ageFromDateOfBirth(driver.dateOfBirth) : null;
+  const youngDriverFee = age != null ? youngDriverFeePerDay(age) : 0;
+
+  function updateDriver(patch: Partial<DriverInfo>) {
+    setDriver((d) => ({ ...d, ...patch }));
+  }
+
+  function validate(): boolean {
+    const next: Partial<Record<keyof DriverInfo, string>> = {};
+    if (!driver.fullName.trim()) next.fullName = "Enter the driver's full legal name.";
+    if (!driver.dateOfBirth) {
+      next.dateOfBirth = "Enter a date of birth.";
+    } else if (ageFromDateOfBirth(driver.dateOfBirth) < MINIMUM_DRIVER_AGE) {
+      next.dateOfBirth = `Drivers must be at least ${MINIMUM_DRIVER_AGE} years old.`;
+    }
+    if (!driver.licenseNumber.trim()) next.licenseNumber = "Enter a driver's license number.";
+    if (!driver.licenseExpiration) {
+      next.licenseExpiration = "Enter the license expiration date.";
+    } else if (new Date(driver.licenseExpiration).getTime() < Date.now()) {
+      next.licenseExpiration = "This license has expired.";
+    }
+    if (!driver.licenseState) next.licenseState = "Select the issuing state.";
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  }
+
+  function handleRequestToBook() {
+    if (!draft) return;
+    if (!validate()) return;
+    saveTripDraft({ ...draft, driver });
+    setRequested(true);
+    clearTripDraft();
+  }
+
   return (
     <div className="max-w-[1600px] mx-auto px-4 py-8">
-      <h1 className="font-serif text-2xl md:text-3xl font-light text-gray-900 mb-8">Checkout</h1>
+      <h1 className="font-serif text-2xl md:text-3xl font-light text-gray-900 mb-8">
+        Review &amp; Request to Book
+      </h1>
 
       <div className="flex flex-col lg:flex-row gap-10">
-        <div className="flex-1 divide-y divide-gray-100">
-          {items.map((item) => (
-            <div key={item.id} className="flex gap-4 py-5">
-              <div className="w-20 h-20 bg-white shrink-0 relative">
-                {item.image_url ? (
-                  <Image src={item.image_url} alt={item.name} fill className="object-contain p-2" sizes="80px" />
-                ) : (
-                  <div className="w-full h-full bg-gray-100" />
+        <div className="flex-1">
+          {/* Trip summary */}
+          <div className="flex gap-4 pb-6 mb-8 border-b border-gray-100">
+            <div className="w-20 h-20 bg-white shrink-0 relative">
+              {draft.carImage ? (
+                <Image src={draft.carImage} alt={draft.carName} fill className="object-contain p-2" sizes="80px" />
+              ) : (
+                <div className="w-full h-full bg-gray-100" />
+              )}
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-900">{draft.carName}</p>
+              <p className="text-sm text-gray-500 mt-1">
+                {formatUsDate(draft.pickupDate)} at {draft.pickupTime} &rarr; {formatUsDate(draft.returnDate)} at{" "}
+                {draft.returnTime}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                {days} day{days > 1 ? "s" : ""} &middot; {breakdown.plan.name} protection
+                {draft.extras.length > 0 ? ` · ${draft.extras.length} extra${draft.extras.length > 1 ? "s" : ""}` : ""}
+              </p>
+            </div>
+            <Link href="/cart" className="text-xs text-gray-500 hover:text-black underline self-start">
+              Edit trip
+            </Link>
+          </div>
+
+          {/* Driver info */}
+          <div>
+            <h2 className="text-sm font-semibold text-gray-900 mb-1">Driver information</h2>
+            <p className="text-xs text-gray-500 mb-4">
+              This is required before any trip can be approved. Use a valid, US-issued driver&apos;s
+              license.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-medium text-gray-500 mb-1">Full legal name</label>
+                <input
+                  type="text"
+                  value={driver.fullName}
+                  onChange={(e) => updateDriver({ fullName: e.target.value })}
+                  placeholder="As shown on your driver's license"
+                  className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
+                />
+                {errors.fullName && <p className="text-xs text-red-600 mt-1">{errors.fullName}</p>}
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Date of birth</label>
+                <input
+                  type="date"
+                  lang="en-US"
+                  value={driver.dateOfBirth}
+                  onChange={(e) => updateDriver({ dateOfBirth: e.target.value })}
+                  className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
+                />
+                {errors.dateOfBirth && <p className="text-xs text-red-600 mt-1">{errors.dateOfBirth}</p>}
+                {!errors.dateOfBirth && age != null && youngDriverFee > 0 && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    A young driver fee of {formatPrice(youngDriverFee)}/day applies for drivers under 25.
+                  </p>
                 )}
               </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900">{item.name}</p>
-                <p className="text-sm text-gray-500 mt-1">
-                  {item.quantity} x {formatPrice(item.price)}
-                </p>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Driver&apos;s license number</label>
+                <input
+                  type="text"
+                  value={driver.licenseNumber}
+                  onChange={(e) => updateDriver({ licenseNumber: e.target.value })}
+                  className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
+                />
+                {errors.licenseNumber && <p className="text-xs text-red-600 mt-1">{errors.licenseNumber}</p>}
               </div>
-              <p className="text-sm font-semibold text-gray-900">{formatPrice(item.price * item.quantity)}</p>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">License expiration date</label>
+                <input
+                  type="date"
+                  lang="en-US"
+                  value={driver.licenseExpiration}
+                  onChange={(e) => updateDriver({ licenseExpiration: e.target.value })}
+                  className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm"
+                />
+                {errors.licenseExpiration && (
+                  <p className="text-xs text-red-600 mt-1">{errors.licenseExpiration}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Issuing state</label>
+                <select
+                  value={driver.licenseState}
+                  onChange={(e) => updateDriver({ licenseState: e.target.value })}
+                  className="w-full border border-gray-300 rounded-sm px-3 py-2 text-sm bg-white"
+                >
+                  <option value="">Select state</option>
+                  {US_STATES.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+                {errors.licenseState && <p className="text-xs text-red-600 mt-1">{errors.licenseState}</p>}
+              </div>
             </div>
-          ))}
+          </div>
         </div>
 
+        {/* Summary */}
         <div className="lg:w-80 shrink-0">
           <div className="bg-gray-50 p-6 sticky top-24">
-            <h2 className="text-sm font-semibold text-gray-900 mb-4">Order Summary</h2>
+            <h2 className="text-sm font-semibold text-gray-900 mb-4">Price Breakdown</h2>
             <div className="flex justify-between text-sm text-gray-600 mb-2">
-              <span>Subtotal</span>
-              <span>{formatPrice(total)}</span>
+              <span>
+                {formatPrice(draft.dailyRate)} &times; {days} day{days > 1 ? "s" : ""}
+              </span>
+              <span>{formatPrice(breakdown.tripSubtotal)}</span>
             </div>
-            <div className="flex justify-between text-xs text-gray-400 mb-4">
-              <span>Shipping &amp; taxes</span>
-              <span>Calculated by Stripe</span>
+            <div className="flex justify-between text-sm text-gray-600 mb-2">
+              <span>{breakdown.plan.name} protection</span>
+              <span>{formatPrice(breakdown.protectionTotal)}</span>
+            </div>
+            {breakdown.extrasTotal > 0 && (
+              <div className="flex justify-between text-sm text-gray-600 mb-2">
+                <span>Extras</span>
+                <span>{formatPrice(breakdown.extrasTotal)}</span>
+              </div>
+            )}
+            {breakdown.youngDriverFeeTotal > 0 && (
+              <div className="flex justify-between text-sm text-gray-600 mb-2">
+                <span>Young driver fee</span>
+                <span>{formatPrice(breakdown.youngDriverFeeTotal)}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-xs text-gray-400 mb-4 mt-2">
+              <span>Taxes &amp; fees</span>
+              <span>Not calculated (no checkout yet)</span>
             </div>
             <div className="border-t border-gray-200 pt-4 flex justify-between text-sm font-semibold text-gray-900 mb-6">
-              <span>Total</span>
-              <span>{formatPrice(total)}</span>
+              <span>Estimated total</span>
+              <span>{formatPrice(breakdown.total)}</span>
             </div>
 
-            {error && <p className="text-xs text-red-500 mb-4">{error}</p>}
-
             <button
-              onClick={handleCheckout}
-              disabled={loading}
-              className="block w-full bg-black text-white text-sm font-medium py-3 text-center hover:bg-brand transition-colors disabled:opacity-50"
+              onClick={handleRequestToBook}
+              className="block w-full bg-black text-white text-sm font-medium py-3 text-center hover:bg-brand transition-colors"
             >
-              {loading ? "Redirecting…" : "Pay with Card"}
+              Request to Book
             </button>
+            <p className="text-[11px] text-gray-400 mt-2 text-center">
+              No payment is collected — checkout isn&apos;t connected yet.
+            </p>
             <Link
               href="/cart"
               className="block w-full text-center text-sm text-gray-500 hover:text-black mt-3 underline"
             >
-              Back to Cart
+              Back to Trip
             </Link>
           </div>
         </div>

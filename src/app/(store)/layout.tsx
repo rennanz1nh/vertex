@@ -4,7 +4,6 @@ import TrustedBy from "@/components/store/TrustedBy";
 import GoogleTranslate from "@/components/store/GoogleTranslate";
 import ClearanceRail from "@/components/store/ClearanceRail";
 import NewsletterSection from "@/components/store/NewsletterSection";
-import CartDrawer from "@/components/store/CartDrawer";
 import ChatWidget from "@/components/store/ChatWidget";
 import BannerPopupManager from "@/components/store/BannerPopupManager";
 import { ButtonClickTracker } from "@/components/store/ButtonClickTracker";
@@ -73,7 +72,6 @@ export default async function StoreLayout({ children }: { children: React.ReactN
       <NewsletterSection />
       <TrustedBy />
       <Footer />
-      <CartDrawer />
       <ChatWidget />
       <BannerPopupManager banners={(data as Banner[] | null) ?? []} />
       <SiteScripts />

@@ -3,12 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect } from "react";
-import { addToCart } from "@/lib/cart";
 import { formatPrice } from "@/lib/utils";
 import { getEffectivePrice } from "@/lib/pricing";
 import { getProductImage } from "@/lib/product-images";
 import { getRibbonClassName } from "@/lib/ribbon";
-import { trackViewContent, trackAddToCart } from "@/lib/facebook-pixel-events";
+import { trackViewContent } from "@/lib/facebook-pixel-events";
 import type { Product } from "@/lib/supabase";
 
 const BADGE_STYLES: Record<string, string> = {
@@ -39,12 +38,6 @@ export default function ProductCard({ product }: Props) {
   useEffect(() => {
     trackViewContent(name, product.id, price, product.Marca);
   }, [product.id, name, price, product.Marca]);
-
-  function handleAddToCart(e: React.MouseEvent) {
-    e.preventDefault();
-    trackAddToCart(name, product.id, price, 1);
-    addToCart({ id: product.id, name, price, image_url: image });
-  }
 
   return (
     <Link href={`/products/${product.id}`} className="group flex flex-col">
@@ -106,16 +99,14 @@ export default function ProductCard({ product }: Props) {
           <span className={`text-sm font-medium ${originalPrice != null ? "text-red-600" : "text-brand"}`}>
             {formatPrice(price)}
           </span>
+          <span className="text-xs text-gray-500">/ day</span>
         </div>
-        <p className="text-[10px] text-gray-400 mt-0.5">Excluding Sales Tax</p>
+        <p className="text-[10px] text-gray-400 mt-0.5">Excluding taxes and fees</p>
       </div>
 
-      <button
-        onClick={handleAddToCart}
-        className="mt-2 w-full bg-black text-white text-xs py-2.5 font-medium hover:bg-brand transition-colors"
-      >
-        Add to Cart
-      </button>
+      <span className="mt-2 block w-full text-center bg-black text-white text-xs py-2.5 font-medium group-hover:bg-brand transition-colors">
+        View Vehicle
+      </span>
     </Link>
   );
 }

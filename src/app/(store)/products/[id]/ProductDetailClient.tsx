@@ -1,39 +1,86 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { type Product } from "@/lib/supabase";
-import { addToCart } from "@/lib/cart";
+import { saveTripDraft, tripDays, type TripDraft } from "@/lib/tripDraft";
 import { formatPrice } from "@/lib/utils";
 import { getEffectivePrice } from "@/lib/pricing";
 import { getProductImage } from "@/lib/product-images";
 import { isVideoUrl } from "@/lib/media-url";
 import Link from "next/link";
-import { ChevronLeft, Minus, Plus, Play } from "lucide-react";
+import { ChevronLeft, Play } from "lucide-react";
+
+function defaultDate(daysFromNow: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + daysFromNow);
+  return d.toISOString().slice(0, 10);
+}
+
+function formatUsDate(iso: string): string {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
 
 export default function ProductDetailClient({ product }: { product: Product }) {
-  const [added, setAdded] = useState(false);
+  const router = useRouter();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [quantity, setQuantity] = useState(1);
+  const [pickupDate, setPickupDate] = useState(defaultDate(1));
+  const [pickupTime, setPickupTime] = useState("10:00");
+  const [returnDate, setReturnDate] = useState(defaultDate(4));
+  const [returnTime, setReturnTime] = useState("10:00");
+  const [dateError, setDateError] = useState<string | null>(null);
 
-  const name = product["Produto Nome"] || "Product";
-  const { price, originalPrice } = getEffectivePrice(product["Valor de venda (Online)"], product.sale_price);
+  const name = product["Produto Nome"] || "Vehicle";
+  const { price: dailyRate, originalPrice } = getEffectivePrice(
+    product["Valor de venda (Online)"],
+    product.sale_price
+  );
   const description = product["Informacoes dos produtos / descricao"] || "";
-  const stock = parseInt(product["Quantidade no Estoque"] || "0");
   const cover = product.image_url || getProductImage(name);
   const details = (Array.isArray(product.details) ? product.details : []).filter(
     (d) => d && d.label && d.value
   );
   const galleryUrls = Array.isArray(product.gallery_urls) ? product.gallery_urls : [];
-  // cover first, then extra photos (deduped)
   const images = [...new Set([cover, ...galleryUrls].filter(Boolean))] as string[];
   const imageSrc = selectedImage && images.includes(selectedImage) ? selectedImage : cover;
 
-  function handleAddToCart() {
-    addToCart({ id: product.id, name, price, image_url: imageSrc }, quantity);
-    setAdded(true);
-    setQuantity(1);
-    setTimeout(() => setAdded(false), 2000);
+  const days = useMemo(() => {
+    if (!pickupDate || !returnDate) return 0;
+    return tripDays({ pickupDate, returnDate });
+  }, [pickupDate, returnDate]);
+  const subtotal = dailyRate * days;
+
+  function handleContinue() {
+    setDateError(null);
+    const pickup = new Date(`${pickupDate}T${pickupTime}`);
+    const ret = new Date(`${returnDate}T${returnTime}`);
+    if (ret.getTime() <= pickup.getTime()) {
+      setDateError("Trip end must be after trip start.");
+      return;
+    }
+
+    const draft: TripDraft = {
+      carId: product.id,
+      carName: name,
+      carImage: imageSrc,
+      dailyRate,
+      pickupDate,
+      pickupTime,
+      returnDate,
+      returnTime,
+      protectionPlan: null,
+      extras: [],
+      driver: null,
+    };
+    saveTripDraft(draft);
+    router.push("/cart");
   }
 
   return (
@@ -42,7 +89,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
         href="/products"
         className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-black mb-6"
       >
-        <ChevronLeft size={16} /> Back to products
+        <ChevronLeft size={16} /> Back to vehicles
       </Link>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-10 lg:gap-16">
@@ -106,9 +153,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
 
         {/* Info */}
         <div className="flex flex-col">
-          {product.Marca && (
-            <p className="text-sm text-gray-500 mb-1">{product.Marca}</p>
-          )}
+          {product.Marca && <p className="text-sm text-gray-500 mb-1">{product.Marca}</p>}
           <h1 className="font-serif text-2xl md:text-3xl font-normal text-gray-900 leading-snug mb-4">
             {name}
           </h1>
@@ -118,10 +163,11 @@ export default function ProductDetailClient({ product }: { product: Product }) {
               <span className="text-base text-gray-400 line-through">{formatPrice(originalPrice)}</span>
             )}
             <span className={`text-xl font-semibold ${originalPrice != null ? "text-red-600" : "text-brand"}`}>
-              {formatPrice(price)}
+              {formatPrice(dailyRate)}
             </span>
+            <span className="text-sm text-gray-500">/ day</span>
           </div>
-          <p className="text-xs text-gray-400 mb-6">Excluding Sales Tax</p>
+          <p className="text-xs text-gray-400 mb-6">Excluding taxes and fees</p>
 
           {description && (
             <p className="text-sm text-gray-600 leading-relaxed mb-6">{description}</p>
@@ -132,76 +178,81 @@ export default function ProductDetailClient({ product }: { product: Product }) {
               {details.map((d, i) => (
                 <div key={i} className="py-3">
                   <h3 className="text-sm font-semibold text-gray-900 mb-1">{d.label}</h3>
-                  <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
-                    {d.value}
-                  </p>
+                  <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{d.value}</p>
                 </div>
               ))}
             </div>
           )}
 
-          {product.Volume && (
-            <p className="text-sm text-gray-500 mb-1">
-              <span className="font-medium text-gray-700">Volume:</span> {product.Volume}
-            </p>
-          )}
-          {product.SKU && (
-            <p className="text-sm text-gray-500 mb-4">
-              <span className="font-medium text-gray-700">SKU:</span> {product.SKU}
-            </p>
-          )}
+          {/* Trip dates */}
+          <div className="mt-auto pt-4 border-t border-gray-100">
+            <p className="text-sm font-semibold text-gray-900 mb-3">Trip dates</p>
 
-          <div className="mt-auto pt-4">
-            {stock > 0 && (
-              <div className="mb-4">
-                <p className="text-sm font-medium text-gray-700 mb-2">Quantity</p>
-                <div className="inline-flex items-center border border-gray-300 rounded-sm">
-                  <button
-                    type="button"
-                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                    className="w-9 h-9 flex items-center justify-center text-gray-600 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
-                    disabled={quantity <= 1}
-                    aria-label="Decrease quantity"
-                  >
-                    <Minus size={14} />
-                  </button>
-                  <span className="w-10 text-center text-sm font-medium text-gray-900">
-                    {quantity}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setQuantity((q) => Math.min(stock, q + 1))}
-                    className="w-9 h-9 flex items-center justify-center text-gray-600 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed"
-                    disabled={quantity >= stock}
-                    aria-label="Increase quantity"
-                  >
-                    <Plus size={14} />
-                  </button>
-                </div>
+            <div className="grid grid-cols-2 gap-3 mb-1">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Trip start</label>
+                <input
+                  type="date"
+                  lang="en-US"
+                  value={pickupDate}
+                  min={defaultDate(0)}
+                  onChange={(e) => setPickupDate(e.target.value)}
+                  className="w-full border border-gray-300 rounded-sm px-2 py-2 text-sm"
+                />
+                <input
+                  type="time"
+                  lang="en-US"
+                  value={pickupTime}
+                  onChange={(e) => setPickupTime(e.target.value)}
+                  className="w-full border border-gray-300 rounded-sm px-2 py-2 text-sm mt-2"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Trip end</label>
+                <input
+                  type="date"
+                  lang="en-US"
+                  value={returnDate}
+                  min={pickupDate}
+                  onChange={(e) => setReturnDate(e.target.value)}
+                  className="w-full border border-gray-300 rounded-sm px-2 py-2 text-sm"
+                />
+                <input
+                  type="time"
+                  lang="en-US"
+                  value={returnTime}
+                  onChange={(e) => setReturnTime(e.target.value)}
+                  className="w-full border border-gray-300 rounded-sm px-2 py-2 text-sm mt-2"
+                />
+              </div>
+            </div>
+
+            {pickupDate && returnDate && (
+              <p className="text-xs text-gray-500 mb-3">
+                {formatUsDate(pickupDate)} at {pickupTime} &rarr; {formatUsDate(returnDate)} at {returnTime}
+              </p>
+            )}
+
+            {dateError && <p className="text-xs text-red-600 mb-3">{dateError}</p>}
+
+            {days > 0 && (
+              <div className="flex justify-between text-sm text-gray-700 mb-4">
+                <span>
+                  {formatPrice(dailyRate)} &times; {days} day{days > 1 ? "s" : ""}
+                </span>
+                <span className="font-semibold">{formatPrice(subtotal)}</span>
               </div>
             )}
 
-            {stock <= 0 ? (
-              <button
-                disabled
-                className="w-full bg-gray-200 text-gray-400 py-3 text-sm font-medium cursor-not-allowed"
-              >
-                Out of Stock
-              </button>
-            ) : (
-              <button
-                onClick={handleAddToCart}
-                className="w-full bg-black text-white py-3 text-sm font-medium hover:bg-brand transition-colors"
-              >
-                {added ? "Added to Cart!" : "Add to Cart"}
-              </button>
-            )}
-            <Link
-              href="/cart"
-              className="block text-center mt-3 text-sm text-gray-600 hover:text-black underline"
+            <button
+              onClick={handleContinue}
+              className="w-full bg-black text-white py-3 text-sm font-medium hover:bg-brand transition-colors"
             >
-              View Cart
-            </Link>
+              Continue
+            </button>
+            <p className="text-[11px] text-gray-400 mt-2 text-center">
+              You won&apos;t be charged yet
+            </p>
           </div>
         </div>
       </div>
