@@ -674,6 +674,8 @@ export type Database = {
           driver_license_number: string
           driver_license_expiration: string
           driver_license_state: string
+          driver_license_front_path: string | null
+          driver_license_back_path: string | null
           trip_subtotal: number
           protection_total: number
           extras_total: number
@@ -701,6 +703,8 @@ export type Database = {
           driver_license_number: string
           driver_license_expiration: string
           driver_license_state: string
+          driver_license_front_path?: string | null
+          driver_license_back_path?: string | null
           trip_subtotal: number
           protection_total: number
           extras_total?: number
@@ -728,6 +732,8 @@ export type Database = {
           driver_license_number?: string
           driver_license_expiration?: string
           driver_license_state?: string
+          driver_license_front_path?: string | null
+          driver_license_back_path?: string | null
           trip_subtotal?: number
           protection_total?: number
           extras_total?: number

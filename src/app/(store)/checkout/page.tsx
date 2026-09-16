@@ -29,6 +29,59 @@ function formatUsDate(iso: string): string {
   });
 }
 
+function LicensePhotoField({
+  label,
+  file,
+  error,
+  onChange,
+}: {
+  label: string;
+  file: File | null;
+  error?: string;
+  onChange: (file: File | null) => void;
+}) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!file) {
+      setPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  return (
+    <div>
+      <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
+      <label
+        className={`flex items-center gap-3 border rounded-sm px-3 py-2 text-sm cursor-pointer hover:border-gray-400 ${
+          error ? "border-red-400" : "border-gray-300"
+        }`}
+      >
+        {previewUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={previewUrl} alt="" className="w-10 h-10 object-cover rounded-sm shrink-0" />
+        ) : (
+          <span className="w-10 h-10 rounded-sm bg-gray-100 shrink-0" />
+        )}
+        <span className="flex-1 truncate text-gray-600">
+          {file ? file.name : "Tap to upload a photo"}
+        </span>
+        <input
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={(e) => onChange(e.target.files?.[0] || null)}
+        />
+      </label>
+      {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
+    </div>
+  );
+}
+
 const emptyDriver: DriverInfo = {
   fullName: "",
   email: "",
@@ -39,10 +92,15 @@ const emptyDriver: DriverInfo = {
   licenseState: "",
 };
 
+const MAX_LICENSE_PHOTO_BYTES = 10 * 1024 * 1024; // 10MB
+const ALLOWED_LICENSE_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
+
 export default function CheckoutPage() {
   const [draft, setDraft] = useState<TripDraft | null>(null);
   const [driver, setDriver] = useState<DriverInfo>(emptyDriver);
-  const [errors, setErrors] = useState<Partial<Record<keyof DriverInfo, string>>>({});
+  const [licenseFront, setLicenseFront] = useState<File | null>(null);
+  const [licenseBack, setLicenseBack] = useState<File | null>(null);
+  const [errors, setErrors] = useState<Partial<Record<keyof DriverInfo, string>> & { licenseFront?: string; licenseBack?: string }>({});
   const [requested, setRequested] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -101,7 +159,7 @@ export default function CheckoutPage() {
 
   function validate(): boolean {
     const requiredAge = Math.max(MINIMUM_DRIVER_AGE, draft?.minDriverAge || MINIMUM_DRIVER_AGE);
-    const next: Partial<Record<keyof DriverInfo, string>> = {};
+    const next: Partial<Record<keyof DriverInfo, string>> & { licenseFront?: string; licenseBack?: string } = {};
     if (!driver.fullName.trim()) next.fullName = "Enter the driver's full legal name.";
     if (!driver.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(driver.email.trim())) {
       next.email = "Enter a valid email address.";
@@ -119,22 +177,44 @@ export default function CheckoutPage() {
       next.licenseExpiration = "This license has expired.";
     }
     if (!driver.licenseState) next.licenseState = "Select the issuing state.";
+    if (!licenseFront) next.licenseFront = "Upload a photo of the front of the license.";
+    if (!licenseBack) next.licenseBack = "Upload a photo of the back of the license.";
     setErrors(next);
     return Object.keys(next).length === 0;
+  }
+
+  function pickLicensePhoto(file: File | null, side: "licenseFront" | "licenseBack") {
+    setErrors((prev) => ({ ...prev, [side]: undefined }));
+    if (!file) {
+      if (side === "licenseFront") setLicenseFront(null);
+      else setLicenseBack(null);
+      return;
+    }
+    if (!ALLOWED_LICENSE_PHOTO_TYPES.includes(file.type)) {
+      setErrors((prev) => ({ ...prev, [side]: "Use a JPG, PNG, WEBP or HEIC photo." }));
+      return;
+    }
+    if (file.size > MAX_LICENSE_PHOTO_BYTES) {
+      setErrors((prev) => ({ ...prev, [side]: "That photo is too large (max 10MB)." }));
+      return;
+    }
+    if (side === "licenseFront") setLicenseFront(file);
+    else setLicenseBack(file);
   }
 
   async function handleRequestToBook() {
     if (!draft) return;
     if (!validate()) return;
+    if (!licenseFront || !licenseBack) return;
     saveTripDraft({ ...draft, driver });
 
     setSubmitting(true);
     setSubmitError(null);
     try {
-      const res = await fetch("/api/bookings/request", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const formData = new FormData();
+      formData.append(
+        "payload",
+        JSON.stringify({
           carId: draft.carId,
           pickupDate: draft.pickupDate,
           pickupTime: draft.pickupTime,
@@ -151,8 +231,12 @@ export default function CheckoutPage() {
             youngDriverFeeTotal: breakdown.youngDriverFeeTotal,
             total: breakdown.total,
           },
-        }),
-      });
+        })
+      );
+      formData.append("licenseFront", licenseFront);
+      formData.append("licenseBack", licenseBack);
+
+      const res = await fetch("/api/bookings/request", { method: "POST", body: formData });
       if (!res.ok) throw new Error(await res.text());
       setRequested(true);
       clearTripDraft();
@@ -300,6 +384,19 @@ export default function CheckoutPage() {
                 </select>
                 {errors.licenseState && <p className="text-xs text-red-600 mt-1">{errors.licenseState}</p>}
               </div>
+
+              <LicensePhotoField
+                label="License photo (front)"
+                file={licenseFront}
+                error={errors.licenseFront}
+                onChange={(f) => pickLicensePhoto(f, "licenseFront")}
+              />
+              <LicensePhotoField
+                label="License photo (back)"
+                file={licenseBack}
+                error={errors.licenseBack}
+                onChange={(f) => pickLicensePhoto(f, "licenseBack")}
+              />
             </div>
           </div>
         </div>

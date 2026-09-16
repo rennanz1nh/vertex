@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Save, Trash2, Check } from "lucide-react";
+import { Loader2, Save, Trash2, Check, Image as ImageIcon } from "lucide-react";
 import { US_STATES } from "@/lib/us-states";
 import { BOOKING_STATUS_LABEL, type BookingStatus } from "@/lib/booking-status";
 import {
@@ -58,11 +58,32 @@ export default function BookingModal({ booking, cars, open, onClose, onChanged }
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [licensePhotoUrls, setLicensePhotoUrls] = useState<{ front: string | null; back: string | null }>({ front: null, back: null });
+  const [loadingLicensePhotos, setLoadingLicensePhotos] = useState(false);
 
   useEffect(() => {
     setForm(booking ? { ...EMPTY_FORM, ...booking } : {});
     setConfirmDelete(false);
   }, [booking]);
+
+  useEffect(() => {
+    const frontPath = booking?.driver_license_front_path as string | null | undefined;
+    const backPath = booking?.driver_license_back_path as string | null | undefined;
+    setLicensePhotoUrls({ front: null, back: null });
+    if (!frontPath && !backPath) return;
+    setLoadingLicensePhotos(true);
+    Promise.all([
+      frontPath ? supabase.storage.from("vertex-license-photos").createSignedUrl(frontPath, 300) : Promise.resolve(null),
+      backPath ? supabase.storage.from("vertex-license-photos").createSignedUrl(backPath, 300) : Promise.resolve(null),
+    ])
+      .then(([frontRes, backRes]) => {
+        setLicensePhotoUrls({
+          front: frontRes?.data?.signedUrl || null,
+          back: backRes?.data?.signedUrl || null,
+        });
+      })
+      .finally(() => setLoadingLicensePhotos(false));
+  }, [booking?.driver_license_front_path, booking?.driver_license_back_path]);
 
   const isNew = !booking?.id;
   const id = (booking?.id as string) || "";
@@ -275,6 +296,41 @@ export default function BookingModal({ booking, cars, open, onClose, onChanged }
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div>
+              <Label className="text-xs">Fotos da CNH</Label>
+              {loadingLicensePhotos ? (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Carregando fotos...
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3 mt-1">
+                  {[
+                    { label: "Frente", url: licensePhotoUrls.front },
+                    { label: "Verso", url: licensePhotoUrls.back },
+                  ].map((photo) => (
+                    <a
+                      key={photo.label}
+                      href={photo.url || undefined}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`relative aspect-[3/2] rounded-sm overflow-hidden border bg-muted flex items-center justify-center ${photo.url ? "hover:opacity-90 cursor-pointer" : "cursor-default"}`}
+                    >
+                      {photo.url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={photo.url} alt={`CNH - ${photo.label}`} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                          <ImageIcon className="h-5 w-5" />
+                          <span className="text-[10px]">{photo.label} — não enviada</span>
+                        </div>
+                      )}
+                    </a>
+                  ))}
+                </div>
+              )}
+              <p className="text-[10px] text-muted-foreground mt-1">Link temporário — clique para ver em tamanho real.</p>
             </div>
           </div>
 
