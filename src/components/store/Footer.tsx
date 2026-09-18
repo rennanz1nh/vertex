@@ -78,10 +78,6 @@ export default function Footer() {
             </div>
             <p>© {new Date().getFullYear()} Vertex Rental Cars</p>
           </div>
-          <div className="flex justify-center">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/images/leaf-left.png" alt="" className="h-6 w-auto opacity-70" />
-          </div>
         </div>
       </div>
     </footer>

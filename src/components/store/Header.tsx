@@ -74,14 +74,12 @@ export default function Header() {
             {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
 
-          <Link href="/" className="flex items-center gap-1.5">
+          <Link href="/" className="flex items-center gap-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/images/leaf-left.png" alt="" className="h-6 w-auto" />
+            <img src="/icons/Small.png" alt="" className="h-7 w-7" />
             <span className="font-display text-lg font-normal tracking-wide text-black">
               Vertex Rental Cars
             </span>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/images/leaf-right.png" alt="" className="h-6 w-auto" />
           </Link>
 
           <Link href="/cart" className="relative">
