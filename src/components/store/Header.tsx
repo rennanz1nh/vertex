@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { ShoppingCart, User, Menu, X } from "lucide-react";
 import { getTripDraft } from "@/lib/tripDraft";
@@ -42,17 +43,13 @@ export default function Header() {
 
           {/* Center: logo */}
           <Link href="/" className="flex items-center justify-center">
-            <div
-              role="img"
-              aria-label="Vertex Rental Cars"
-              style={{
-                backgroundImage: 'url(/images/store-logo.png)',
-                backgroundRepeat: 'no-repeat',
-                backgroundSize: '500px auto',
-                backgroundPosition: 'center center',
-                width: '500px',
-                height: '90px',
-              }}
+            <Image
+              src="/images/store-logo.png"
+              alt="Vertex Rental Cars"
+              width={2000}
+              height={1837}
+              priority
+              className="h-16 w-auto"
             />
           </Link>
 

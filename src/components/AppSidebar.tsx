@@ -169,11 +169,16 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-accent p-0">
         <div className="h-16 px-4 flex flex-row items-center justify-center group-data-[collapsible=icon]:px-2">
-          {/* Collapsed: single-leaf mark. Expanded: full wordmark. Swapped via CSS, not JS, so there's no layout flash. */}
+          {/* Collapsed: just the mark. Expanded: mark + wordmark text (not the stacked lockup
+              image — at this row height a raster of the full lockup would render too small
+              to read). Swapped via CSS, not JS, so there's no layout flash. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/icons/Small.png" alt="Vertex Rental Cars" className="w-8 h-8 shrink-0 hidden group-data-[collapsible=icon]:block" />
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/images/store-logo-sidebar.png" alt="Vertex Rental Cars" className="h-9 w-auto group-data-[collapsible=icon]:hidden" />
+          <div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/icons/Small.png" alt="" className="w-8 h-8 shrink-0" />
+            <span className="font-bold text-lg tracking-wide text-[#020b35]">VERTEX</span>
+          </div>
         </div>
       </SidebarHeader>
 
