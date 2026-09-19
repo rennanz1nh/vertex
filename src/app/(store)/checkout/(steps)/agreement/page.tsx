@@ -14,7 +14,7 @@ export default function CheckoutAgreementPage() {
   const router = useRouter();
   const { loaded, draft, driver, driverStepComplete, requested, submitting, submitError, submitBooking } =
     useCheckout();
-  const [checked, setChecked] = useState<boolean[]>(() => RENTAL_AGREEMENT_ACKNOWLEDGMENTS.map(() => false));
+  const [checked, setChecked] = useState(false);
   const [signatureError, setSignatureError] = useState<string | null>(null);
   const padRef = useRef<SignaturePadHandle>(null);
 
@@ -42,11 +42,11 @@ export default function CheckoutAgreementPage() {
 
   if (!loaded || !draft || !driverStepComplete) return null;
 
-  const allChecked = checked.every(Boolean);
+  const allChecked = checked;
   const today = new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 
-  function toggle(i: number) {
-    setChecked((prev) => prev.map((v, idx) => (idx === i ? !v : v)));
+  function toggle() {
+    setChecked((v) => !v);
   }
 
   async function handleSubmit() {
@@ -98,12 +98,17 @@ export default function CheckoutAgreementPage() {
 
       <div className="space-y-2 mb-6">
         <p className="text-xs font-semibold text-gray-900">Renter&apos;s express acknowledgments</p>
-        {RENTAL_AGREEMENT_ACKNOWLEDGMENTS.map((text, i) => (
-          <label key={i} className="flex items-start gap-2 text-xs text-gray-700 cursor-pointer">
-            <Checkbox checked={checked[i]} onCheckedChange={() => toggle(i)} className="mt-0.5" />
-            <span>{text}</span>
-          </label>
-        ))}
+        <label className="flex items-start gap-2 text-xs text-gray-700 cursor-pointer">
+          <Checkbox checked={checked} onCheckedChange={toggle} className="mt-0.5" />
+          <span>
+            By checking this box, I agree to all of the following:
+            <ul className="list-disc pl-4 mt-1 space-y-1">
+              {RENTAL_AGREEMENT_ACKNOWLEDGMENTS.map((text, i) => (
+                <li key={i}>{text}</li>
+              ))}
+            </ul>
+          </span>
+        </label>
       </div>
 
       <div className="border-t pt-4 mb-6">
