@@ -14,6 +14,7 @@ import {
   type DriverInfo,
 } from "@/lib/tripDraft";
 import { RENTAL_AGREEMENT_VERSION } from "@/lib/rental-agreement";
+import { compressImageFile } from "@/lib/compress-image";
 
 const emptyDriver: DriverInfo = {
   fullName: "",
@@ -25,7 +26,9 @@ const emptyDriver: DriverInfo = {
   licenseState: "",
 };
 
-export const MAX_LICENSE_PHOTO_BYTES = 10 * 1024 * 1024; // 10MB
+// Ceiling on the RAW picked file, before compression — generous since a phone camera's
+// original photo (especially HEIC) gets downscaled/re-encoded before upload anyway.
+export const MAX_LICENSE_PHOTO_BYTES = 20 * 1024 * 1024; // 20MB
 export const ALLOWED_LICENSE_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
 
 export type DriverErrors = Partial<Record<keyof DriverInfo, string>> & { licenseFront?: string; licenseBack?: string };
@@ -39,7 +42,7 @@ type CheckoutContextValue = {
   updateDriver: (patch: Partial<DriverInfo>) => void;
   licenseFront: File | null;
   licenseBack: File | null;
-  pickLicensePhoto: (file: File | null, side: "licenseFront" | "licenseBack") => void;
+  pickLicensePhoto: (file: File | null, side: "licenseFront" | "licenseBack") => Promise<void>;
   errors: DriverErrors;
   validateDriverStep: () => boolean;
   driverStepComplete: boolean;
@@ -84,7 +87,7 @@ export function CheckoutProvider({ children }: { children: ReactNode }) {
     setDriver((d) => ({ ...d, ...patch }));
   }
 
-  function pickLicensePhoto(file: File | null, side: "licenseFront" | "licenseBack") {
+  async function pickLicensePhoto(file: File | null, side: "licenseFront" | "licenseBack") {
     setErrors((prev) => ({ ...prev, [side]: undefined }));
     if (!file) {
       if (side === "licenseFront") setLicenseFront(null);
@@ -96,11 +99,14 @@ export function CheckoutProvider({ children }: { children: ReactNode }) {
       return;
     }
     if (file.size > MAX_LICENSE_PHOTO_BYTES) {
-      setErrors((prev) => ({ ...prev, [side]: "That photo is too large (max 10MB)." }));
+      setErrors((prev) => ({ ...prev, [side]: "That photo is too large (max 20MB)." }));
       return;
     }
-    if (side === "licenseFront") setLicenseFront(file);
-    else setLicenseBack(file);
+    // Downscaled/re-encoded before it ever touches state — keeps both the preview and
+    // the eventual upload small regardless of how large the camera original was.
+    const compressed = await compressImageFile(file);
+    if (side === "licenseFront") setLicenseFront(compressed);
+    else setLicenseBack(compressed);
   }
 
   const days = draft ? tripDays(draft) : 0;
@@ -185,13 +191,21 @@ export function CheckoutProvider({ children }: { children: ReactNode }) {
       formData.append("rentalAgreementSignature", signatureBlob, "signature.png");
 
       const res = await fetch("/api/bookings/request", { method: "POST", body: formData });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        if (res.status === 413) throw new Error("PAYLOAD_TOO_LARGE");
+        throw new Error(await res.text());
+      }
       setRequested(true);
       clearTripDraft();
       return true;
     } catch (e) {
       console.error("Failed to submit booking request:", e);
-      setSubmitError("We couldn't send your request. Please try again.");
+      const tooLarge = e instanceof Error && e.message === "PAYLOAD_TOO_LARGE";
+      setSubmitError(
+        tooLarge
+          ? "Your photos are too large to upload on this connection. Please try again with a smaller photo."
+          : "We couldn't send your request. Please try again."
+      );
       return false;
     } finally {
       setSubmitting(false);
