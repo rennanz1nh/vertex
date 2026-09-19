@@ -1,8 +1,8 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Trash2, CheckSquare, Columns3, GripVertical, Image as ImageIcon } from 'lucide-react';
+import { Plus, Search, Trash2, CheckSquare, Columns3, GripVertical, Image as ImageIcon, Download, Loader2 } from 'lucide-react';
 import BookingModal from '@/components/admin/BookingModal';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,9 +11,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
-import { parseLocalDate, formatShortDate } from '@/lib/date-utils';
+import { parseLocalDate, formatShortDate, formatUsDate } from '@/lib/date-utils';
 import { BOOKING_STATUS_LABEL, BOOKING_STATUS_COLOR, type BookingStatus } from '@/lib/booking-status';
 import { isInteractiveClickTarget } from '@/lib/utils';
+import { downloadRentalAgreementPdf } from '@/lib/rental-agreement-pdf';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -35,11 +36,21 @@ type BookingRow = {
   car_id: string;
   status: string;
   pickup_date: string;
+  pickup_time: string;
   return_date: string;
+  return_time: string;
   daily_rate: number;
   estimated_total: number;
   customer_name: string | null;
   customer_email: string | null;
+  driver_full_name: string;
+  driver_date_of_birth: string;
+  driver_license_number: string;
+  driver_license_state: string;
+  driver_license_expiration: string;
+  rental_agreement_signed_at: string | null;
+  rental_agreement_signature_path: string | null;
+  rental_agreement_version: string | null;
   created_at: string;
 };
 
@@ -76,10 +87,43 @@ export default function Bookings() {
   const [selectedBookings, setSelectedBookings] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [viewBooking, setViewBooking] = useState<Record<string, unknown> | null>(null);
+  const [downloadingAgreementId, setDownloadingAgreementId] = useState<string | null>(null);
 
   const { profile } = useAuth();
   const { toast } = useToast();
   const isAdmin = profile?.role === 'admin';
+
+  const handleDownloadAgreement = useCallback(async (booking: BookingRow, car: CarOption | undefined) => {
+    if (!booking.rental_agreement_signature_path) return;
+    setDownloadingAgreementId(booking.id);
+    try {
+      const { data, error } = await supabase.storage
+        .from('vertex-rental-agreements')
+        .createSignedUrl(booking.rental_agreement_signature_path, 300);
+      if (error || !data?.signedUrl) throw error || new Error('Não foi possível gerar o link da assinatura.');
+      await downloadRentalAgreementPdf({
+        bookingId: booking.id,
+        carName: car ? (car.name || [car.year, car.make, car.model].filter(Boolean).join(' ')) : 'Vehicle',
+        pickupDate: formatUsDate(booking.pickup_date),
+        pickupTime: booking.pickup_time,
+        returnDate: formatUsDate(booking.return_date),
+        returnTime: booking.return_time,
+        driverFullName: booking.driver_full_name,
+        driverDateOfBirth: formatUsDate(booking.driver_date_of_birth),
+        driverLicenseNumber: booking.driver_license_number,
+        driverLicenseState: booking.driver_license_state,
+        driverLicenseExpiration: formatUsDate(booking.driver_license_expiration),
+        signedAt: booking.rental_agreement_signed_at ? new Date(booking.rental_agreement_signed_at).toLocaleString('en-US') : '',
+        agreementVersion: booking.rental_agreement_version,
+        signatureUrl: data.signedUrl,
+      });
+    } catch (e) {
+      console.error(e);
+      toast({ title: 'Erro ao gerar PDF', description: e instanceof Error ? e.message : String(e), variant: 'destructive' });
+    } finally {
+      setDownloadingAgreementId(null);
+    }
+  }, [toast]);
 
   useEffect(() => {
     fetchData();
@@ -207,7 +251,32 @@ export default function Bookings() {
       id: 'created_at', label: 'Criado em',
       render: (booking) => <TableCell>{booking.created_at ? formatShortDate(new Date(booking.created_at)) : '—'}</TableCell>,
     },
-  ], []);
+    {
+      id: 'agreement', label: 'Contrato', headerClassName: 'text-center',
+      render: (booking, car) => (
+        <TableCell className="text-center">
+          {booking.rental_agreement_signed_at && booking.rental_agreement_signature_path ? (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8"
+              disabled={downloadingAgreementId === booking.id}
+              onClick={() => handleDownloadAgreement(booking, car)}
+              title="Baixar Rental Agreement assinado"
+            >
+              {downloadingAgreementId === booking.id ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+            </Button>
+          ) : (
+            <span className="text-muted-foreground text-xs">—</span>
+          )}
+        </TableCell>
+      ),
+    },
+  ], [downloadingAgreementId, handleDownloadAgreement]);
 
   const defaultOrder = useMemo(() => columns.map((c) => c.id), [columns]);
   const { columnOrder, columnVisibility, setColumnVisibility, handleDragEnd, reset, saveView, isDirty, visibleOrderedIds } =

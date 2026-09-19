@@ -15,6 +15,7 @@ import { US_STATES } from "@/lib/us-states";
 import { BOOKING_STATUS_LABEL, type BookingStatus } from "@/lib/booking-status";
 import { authedFetch } from "@/lib/admin-fetch";
 import { downloadRentalAgreementPdf } from "@/lib/rental-agreement-pdf";
+import { formatUsDate } from "@/lib/date-utils";
 import {
   PROTECTION_PLANS,
   EXTRAS,
@@ -33,12 +34,6 @@ type CarOption = { id: string; name: string | null; make: string | null; model: 
 const STATUS_OPTIONS: { value: BookingStatus; label: string }[] = (
   Object.keys(BOOKING_STATUS_LABEL) as BookingStatus[]
 ).map((value) => ({ value, label: BOOKING_STATUS_LABEL[value] }));
-
-function formatUsDate(iso: string): string {
-  if (!iso) return "";
-  const [y, m, d] = iso.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
-}
 
 type Props = {
   booking: Record<string, unknown> | null;

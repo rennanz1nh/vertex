@@ -30,3 +30,15 @@ export function formatShortDate(date: Date): string {
   const currentYear = new Date().getFullYear();
   return year === currentYear ? `${month},${day}` : `${month},${day} (${year})`;
 }
+
+/** "Fri, Sep 25, 2026" — shared long-form date used across the booking flow and the
+ *  Reservas admin pages (checkout, BookingModal, the Rental Agreement PDF). */
+export function formatUsDate(iso: string): string {
+  if (!iso) return "";
+  return parseLocalDate(iso).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}

@@ -13,7 +13,9 @@ export default function Footer() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
           {/* Col 1: Brand */}
           <div className="flex flex-col gap-4">
-            <Link href="/" className="font-display text-lg font-normal text-gray-900">
+            <Link href="/" className="flex items-center gap-2 font-display text-lg font-normal text-gray-900">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/icons/Small.png" alt="" className="h-7 w-7 shrink-0" />
               Vertex Rental Cars
             </Link>
             <div className="flex items-center gap-3">

@@ -4,7 +4,6 @@ import HeroBanner from "@/components/store/HeroBanner";
 import MarqueeTicker from "@/components/store/MarqueeTicker";
 import ProductBrowser from "@/components/store/ProductBrowser";
 import CategoryTiles from "@/components/store/CategoryTiles";
-import HomeClearanceSection from "@/components/store/HomeClearanceSection";
 import { buildPageMetadata } from "@/lib/site-settings";
 import { STORE_CATEGORY_OPTIONS } from "@/lib/categories";
 
@@ -40,10 +39,7 @@ export default async function HomePage() {
       {/* Shop by Category */}
       <CategoryTiles />
 
-      {/* Clearance — random order */}
-      <HomeClearanceSection />
-
-      {/* ClearanceRail (2nd clearance) + NewsletterSection are injected by the layout */}
+      {/* Special Offers (ClearanceRail) + NewsletterSection are injected by the layout */}
     </>
   );
 }
