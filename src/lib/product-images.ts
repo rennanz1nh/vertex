@@ -13,15 +13,9 @@ function normalize(name: string): string {
     .replace(/[^a-z0-9]+/g, "");
 }
 
-/** Resolves a local product image by product name; falls back to partial match. */
+/** Resolves a local product image by exact product name match. */
 export function getProductImage(productName: string | null): string | null {
   if (!productName) return null;
   const key = normalize(productName);
-  if (normalized[key]) return normalized[key];
-
-  // partial match: one contains the other (handles small naming differences)
-  for (const [k, path] of Object.entries(normalized)) {
-    if (k.includes(key) || key.includes(k)) return path;
-  }
-  return null;
+  return normalized[key] || null;
 }

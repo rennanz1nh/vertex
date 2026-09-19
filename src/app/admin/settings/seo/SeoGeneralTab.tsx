@@ -45,7 +45,7 @@ export default function SeoGeneralTab() {
             label="Endereço do site (URL canônica)"
             value={row.site_url}
             onChange={(v) => setField("site_url", v)}
-            placeholder="https://cosmeticmkt.com"
+            placeholder="https://vertexrentalcars.com"
             hint="Base usada em links canônicos, sitemap e feed. Sem barra no final."
           />
           <SettingsField
@@ -58,13 +58,13 @@ export default function SeoGeneralTab() {
             label="Título padrão"
             value={row.default_title}
             onChange={(v) => setField("default_title", v)}
-            placeholder="Vertex Rental Cars — Premium Cosmetics"
+            placeholder="Vertex Rental Cars — Premium Car Rentals"
           />
           <SettingsField
             label="Descrição padrão"
             value={row.default_description}
             onChange={(v) => setField("default_description", v)}
-            placeholder="Premium cosmetics from Sorali and Hanna Lee..."
+            placeholder="Premium vehicles for your next trip in Orlando, FL..."
             textarea
           />
           <SettingsField

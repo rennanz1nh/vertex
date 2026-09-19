@@ -7,7 +7,7 @@ import { InstagramContentSchema, TikTokContentSchema, type InstagramContent, typ
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import type { ActionActor, SocialPlatform } from "./types";
 
-const CONTENT_SYSTEM_PROMPT = `You write social media captions and hashtags for a cosmetics/beauty marketplace. Match each platform's real voice — Instagram captions can be longer and more descriptive; TikTok captions are short and punchy. Never reuse the exact same hashtag set across platforms unless a hashtag is genuinely a strong fit on both — each platform's audience and discovery algorithm differ. Do not invent product claims, prices, or availability that weren't given to you.`;
+const CONTENT_SYSTEM_PROMPT = `You write social media captions and hashtags for a car rental company. Match each platform's real voice — Instagram captions can be longer and more descriptive; TikTok captions are short and punchy. Never reuse the exact same hashtag set across platforms unless a hashtag is genuinely a strong fit on both — each platform's audience and discovery algorithm differ. Do not invent product claims, prices, or availability that weren't given to you.`;
 
 export type PlatformContent =
   | { platform: "instagram"; content: InstagramContent }

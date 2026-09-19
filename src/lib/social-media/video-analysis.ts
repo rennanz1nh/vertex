@@ -6,7 +6,7 @@ import { VideoAnalysisSchema, type VideoAnalysis } from "./content-schemas";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import type { ActionActor } from "./types";
 
-const ANALYSIS_SYSTEM_PROMPT = `You analyze short-form video content for a cosmetics/beauty marketplace's social media team. You're given one representative frame from the video (its thumbnail) plus its filename — not the full video, so base your analysis on what's visible in the frame and reasonable inference from the filename, and keep claims about motion/audio out of scope. Be concrete and specific rather than generic; avoid restating the same idea across fields.`;
+const ANALYSIS_SYSTEM_PROMPT = `You analyze short-form video content for a car rental company's social media team. You're given one representative frame from the video (its thumbnail) plus its filename — not the full video, so base your analysis on what's visible in the frame and reasonable inference from the filename, and keep claims about motion/audio out of scope. Be concrete and specific rather than generic; avoid restating the same idea across fields.`;
 
 export interface AnalyzeVideoResult {
   analysisId: string;

@@ -56,7 +56,7 @@ export default function SearchConsoleIndexingPage() {
   const [sitemapsError, setSitemapsError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const [inspectUrl, setInspectUrl] = useState("https://cosmeticmkt.com/");
+  const [inspectUrl, setInspectUrl] = useState("https://vertexrentalcars.com/");
   const [inspecting, setInspecting] = useState(false);
   const [inspectResult, setInspectResult] = useState<InspectionResult | null>(null);
   const [inspectError, setInspectError] = useState("");
@@ -207,7 +207,7 @@ export default function SearchConsoleIndexingPage() {
             <Input
               value={inspectUrl}
               onChange={(e) => setInspectUrl(e.target.value)}
-              placeholder="https://cosmeticmkt.com/products/..."
+              placeholder="https://vertexrentalcars.com/products/..."
               onKeyDown={(e) => e.key === "Enter" && handleInspect()}
             />
             <Button onClick={handleInspect} disabled={inspecting} className="gap-1.5 bg-black hover:bg-black/80 text-white shrink-0" type="button">

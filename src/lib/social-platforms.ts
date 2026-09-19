@@ -44,7 +44,7 @@ export interface PlatformConfig {
   parseTokenResponse: (data: any) => TokenResult | null;
 }
 
-const APP_BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://cosmeticmkt.com";
+const APP_BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://vertexrentalcars.com";
 
 export function redirectUriFor(platform: SocialPlatform): string {
   return `${APP_BASE_URL}/api/social/${platform}/callback`;

@@ -11,7 +11,7 @@ export const PUSH_SAMPLE_VARS: Record<PushTriggerKey, Record<string, string | nu
   google_shopping_success: { trigger: "manual", mode: "todos", synced: 120, total: 120 },
   google_shopping_error: { trigger: "automática", mode: "todos", error: "Feed inválido" },
   new_chat_message: { who: "Visitante do site", preview: "Olá, o produto X ainda está disponível?" },
-  new_visit: { path: "/products/serum-vitamina-c", location: "Miami, FL, US" },
+  new_visit: { path: "/products/tesla-model-3", location: "Miami, FL, US" },
   checkout_started: { amount: "$54.90", location: "Orlando, FL, US" },
   daily_report: { revenue: "$1,240.00", sessions: 312 },
   ebay_offers_eligible: { count: 3 },

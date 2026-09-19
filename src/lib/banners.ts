@@ -31,15 +31,9 @@ export type Banner = {
 export const BANNER_PAGE_OPTIONS = [
   { value: "*", label: "Todas as páginas" },
   { value: "home", label: "Home" },
-  { value: "women", label: "Women (All Products)" },
-  { value: "women-skin", label: "Women's Skin" },
-  { value: "women-body", label: "Women's Body" },
-  { value: "women-hair", label: "Women's Hair" },
-  { value: "professional", label: "Professional" },
-  { value: "men", label: "Men" },
-  { value: "clearance", label: "Sale | Clearance" },
+  { value: "products", label: "Todos os Veículos" },
+  { value: "clearance", label: "Special Offers" },
   { value: "contact-us", label: "Contact Us" },
-  { value: "sell-with-us", label: "Sell With Us" },
 ] as const;
 
 export const RIBBON_POSITION_OPTIONS: { value: RibbonPosition; label: string }[] = [

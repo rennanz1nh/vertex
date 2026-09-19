@@ -115,7 +115,7 @@ async function notifyAbandonedCart(session: Stripe.Checkout.Session) {
       {
         customer_name: session.customer_details?.name ?? "there",
         items_list: itemsList,
-        store_url: `${process.env.NEXT_PUBLIC_APP_URL || "https://cosmeticmkt.com"}/cart`,
+        store_url: `${process.env.NEXT_PUBLIC_APP_URL || "https://vertexrentalcars.com"}/cart`,
       }
     );
   } catch (err) {

@@ -1,6 +1,6 @@
 // Shared types + constants for SEO and marketing integrations (Admin > Settings).
 
-export const DEFAULT_SITE_URL = "https://cosmeticmkt.com";
+export const DEFAULT_SITE_URL = "https://vertexrentalcars.com";
 
 export type SiteSettings = {
   id: string;
@@ -49,18 +49,9 @@ export type ProductSeo = {
 /** Pages that can have SEO overrides (Admin > Settings > SEO > Páginas). */
 export const SEO_PAGE_OPTIONS = [
   { value: "home", label: "Home", path: "/" },
-  { value: "products", label: "Todos os Produtos", path: "/products" },
-  { value: "women", label: "Women (All)", path: "/women" },
-  { value: "women-skin", label: "Women's Skin", path: "/women-skin" },
-  { value: "women-body", label: "Women's Body", path: "/women-body" },
-  { value: "women-hair", label: "Women's Hair", path: "/women-hair" },
-  { value: "professional", label: "Professional", path: "/professional" },
-  { value: "men", label: "Men", path: "/men" },
-  { value: "clearance", label: "Sale | Clearance", path: "/clearance" },
+  { value: "products", label: "Todos os Veículos", path: "/products" },
+  { value: "clearance", label: "Special Offers", path: "/clearance" },
   { value: "contact-us", label: "Contact Us", path: "/contact-us" },
-  { value: "sell-with-us", label: "Sell With Us", path: "/sell-with-us" },
-  { value: "courses", label: "Courses", path: "/courses" },
-  { value: "ebooks", label: "Ebooks", path: "/ebooks" },
 ] as const;
 
 /** Returns the configured site URL, always without a trailing slash. */

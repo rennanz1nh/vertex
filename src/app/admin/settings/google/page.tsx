@@ -133,7 +133,7 @@ export default function GoogleSettingsPage() {
             />
             <div className="grid sm:grid-cols-2 gap-4">
               <SettingsField label="Telefone" value={row.business_phone} onChange={(v) => setField("business_phone", v)} placeholder="+1 407 000 0000" />
-              <SettingsField label="Email" value={row.business_email} onChange={(v) => setField("business_email", v)} placeholder="contato@cosmeticmkt.com" />
+              <SettingsField label="Email" value={row.business_email} onChange={(v) => setField("business_email", v)} placeholder="contato@vertexrentalcars.com" />
             </div>
             <SettingsField
               label="Número do WhatsApp (botão flutuante do site)"

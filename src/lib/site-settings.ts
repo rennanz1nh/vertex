@@ -74,15 +74,6 @@ export async function buildPageMetadata(pageKey: string, fallbackTitle?: string)
 const SEO_PAGE_PATH: Record<string, string> = {
   home: "/",
   products: "/products",
-  women: "/women",
-  "women-skin": "/women-skin",
-  "women-body": "/women-body",
-  "women-hair": "/women-hair",
-  professional: "/professional",
-  men: "/men",
   clearance: "/clearance",
   "contact-us": "/contact-us",
-  "sell-with-us": "/sell-with-us",
-  courses: "/courses",
-  ebooks: "/ebooks",
 };
