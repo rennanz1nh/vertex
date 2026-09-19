@@ -10,10 +10,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Save, Trash2, Check, Image as ImageIcon } from "lucide-react";
+import { Loader2, Save, Trash2, Check, Image as ImageIcon, Download } from "lucide-react";
 import { US_STATES } from "@/lib/us-states";
 import { BOOKING_STATUS_LABEL, type BookingStatus } from "@/lib/booking-status";
 import { authedFetch } from "@/lib/admin-fetch";
+import { downloadRentalAgreementPdf } from "@/lib/rental-agreement-pdf";
 import {
   PROTECTION_PLANS,
   EXTRAS,
@@ -32,6 +33,12 @@ type CarOption = { id: string; name: string | null; make: string | null; model: 
 const STATUS_OPTIONS: { value: BookingStatus; label: string }[] = (
   Object.keys(BOOKING_STATUS_LABEL) as BookingStatus[]
 ).map((value) => ({ value, label: BOOKING_STATUS_LABEL[value] }));
+
+function formatUsDate(iso: string): string {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+}
 
 type Props = {
   booking: Record<string, unknown> | null;
@@ -63,6 +70,7 @@ export default function BookingModal({ booking, cars, open, onClose, onChanged }
   const [loadingLicensePhotos, setLoadingLicensePhotos] = useState(false);
   const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
   const [loadingSignature, setLoadingSignature] = useState(false);
+  const [downloadingAgreement, setDownloadingAgreement] = useState(false);
 
   useEffect(() => {
     setForm(booking ? { ...EMPTY_FORM, ...booking } : {});
@@ -201,6 +209,34 @@ export default function BookingModal({ booking, cars, open, onClose, onChanged }
       toast({ title: "Erro ao salvar", description: String((e as Error).message), variant: "destructive" });
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDownloadAgreement() {
+    if (!signatureUrl) return;
+    setDownloadingAgreement(true);
+    try {
+      await downloadRentalAgreementPdf({
+        bookingId: id,
+        carName: selectedCar ? [selectedCar.year, selectedCar.make, selectedCar.model].filter(Boolean).join(" ") : v("car_id"),
+        pickupDate: formatUsDate(v("pickup_date")),
+        pickupTime: v("pickup_time"),
+        returnDate: formatUsDate(v("return_date")),
+        returnTime: v("return_time"),
+        driverFullName: v("driver_full_name"),
+        driverDateOfBirth: formatUsDate(v("driver_date_of_birth")),
+        driverLicenseNumber: v("driver_license_number"),
+        driverLicenseState: v("driver_license_state"),
+        driverLicenseExpiration: formatUsDate(v("driver_license_expiration")),
+        signedAt: new Date(booking!.rental_agreement_signed_at as string).toLocaleString("en-US"),
+        agreementVersion: (booking!.rental_agreement_version as string | null) ?? null,
+        signatureUrl,
+      });
+    } catch (e) {
+      console.error(e);
+      toast({ title: "Erro ao gerar PDF", description: String((e as Error).message), variant: "destructive" });
+    } finally {
+      setDownloadingAgreement(false);
     }
   }
 
@@ -390,13 +426,24 @@ export default function BookingModal({ booking, cars, open, onClose, onChanged }
                     )}
                   </a>
                 )}
-                <div className="text-xs text-muted-foreground space-y-0.5">
+                <div className="text-xs text-muted-foreground space-y-0.5 flex-1">
                   <p className="text-foreground font-medium">Assinado</p>
                   <p>{new Date(booking.rental_agreement_signed_at as string).toLocaleString("pt-BR")}</p>
                   {typeof booking.rental_agreement_version === "string" && (
                     <p>Versão do contrato: {booking.rental_agreement_version}</p>
                   )}
                 </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDownloadAgreement}
+                  disabled={!signatureUrl || downloadingAgreement}
+                  className="shrink-0 gap-1.5"
+                >
+                  {downloadingAgreement ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                  Baixar PDF
+                </Button>
               </div>
             ) : (
               <p className="text-xs text-muted-foreground">

@@ -41,6 +41,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { TimelineView, addDays } from '@/components/admin/BookingTimeline';
 
 type BookingStatus = 'pending_payment' | 'confirmed' | 'cancelled' | 'completed';
 
@@ -49,7 +50,10 @@ type Booking = {
   car_id: string;
   status: BookingStatus;
   pickup_date: string;
+  pickup_time: string;
   return_date: string;
+  return_time: string;
+  driver_full_name: string | null;
   estimated_total: number;
   customer_name: string | null;
   customer_email: string | null;
@@ -246,6 +250,12 @@ export default function Reports() {
   const [refreshing, setRefreshing] = useState(false);
   const { toast } = useToast();
 
+  // Timeline calendar embedded right below "Reservas de Hoje" — same component as the
+  // Calendário page, just fed from this page's own already-loaded bookings/cars.
+  const timelineToday = useMemo(() => startOfDay(new Date()), []);
+  const [timelineStart, setTimelineStart] = useState(() => addDays(timelineToday, -1));
+  const activeBookings = useMemo(() => bookings.filter((b) => b.status !== 'cancelled'), [bookings]);
+
   // Section preferences
   const [sectionOrder, setSectionOrder] = useState<SectionId[]>(() => loadPrefs().order);
   const [sectionVisibility, setSectionVisibility] = useState<Record<SectionId, boolean>>(() => loadPrefs().visibility);
@@ -272,7 +282,7 @@ export default function Reports() {
     fetchData();
   }, []);
 
-  const BOOKING_SELECT = 'id, car_id, status, pickup_date, return_date, estimated_total, customer_name, customer_email, created_at';
+  const BOOKING_SELECT = 'id, car_id, status, pickup_date, pickup_time, return_date, return_time, driver_full_name, estimated_total, customer_name, customer_email, created_at';
 
   const fetchTodayBookings = async () => {
     const startOfToday = startOfDay(new Date()).toISOString();
@@ -865,6 +875,19 @@ export default function Reports() {
             )}
           </CardContent>
         </Card>
+      )}
+
+      {cars.length > 0 && (
+        <TimelineView
+          cars={cars}
+          bookings={activeBookings}
+          today={timelineToday}
+          rangeStart={timelineStart}
+          days={14}
+          onPrev={() => setTimelineStart((s) => addDays(s, -7))}
+          onNext={() => setTimelineStart((s) => addDays(s, 7))}
+          onToday={() => setTimelineStart(addDays(timelineToday, -1))}
+        />
       )}
 
       {/* Filters */}

@@ -166,7 +166,14 @@ export function AppSidebar() {
   }, []);
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar
+      collapsible="icon"
+      // Vertex brand gradient, sampled from the logo mark: strong orange at the bottom
+      // fading to a barely-there blue tint at the top.
+      contentStyle={{
+        backgroundImage: "linear-gradient(to top, rgba(240, 149, 75, 0.85) 0%, rgba(31, 148, 188, 0.08) 100%)",
+      }}
+    >
       <SidebarHeader className="border-b border-accent p-0">
         <div className="h-16 px-4 flex flex-row items-center justify-center group-data-[collapsible=icon]:px-2">
           {/* Collapsed: just the mark. Expanded: mark + wordmark text (not the stacked lockup

@@ -40,11 +40,37 @@ export function htmlToPlainText(html: string): string {
     .trim();
 }
 
+async function logEmailAttempt(entry: {
+  triggerKey: EmailTriggerKey;
+  email: string;
+  name?: string;
+  subject?: string;
+  status: "sent" | "failed" | "disabled" | "error";
+  errorMessage?: string;
+}): Promise<void> {
+  try {
+    const supabase = getSupabase();
+    await supabase.from("automatic_email_log").insert({
+      trigger_key: entry.triggerKey,
+      recipient_email: entry.email,
+      recipient_name: entry.name ?? null,
+      subject: entry.subject ?? null,
+      status: entry.status,
+      error_message: entry.errorMessage ?? null,
+    });
+  } catch (err) {
+    // Logging the send is never allowed to be the reason a send itself fails/retries.
+    console.error(`logEmailAttempt(${entry.triggerKey}) failed`, err);
+  }
+}
+
 /**
  * Fires one of the automatic emails configured in Settings → E-mails Automáticos.
  * Always swallows its own errors — a missing BREVO_API_KEY, a disabled trigger, or a
  * Brevo API hiccup must never break the checkout webhook / newsletter signup / order
  * sync that called this, since sending a follow-up email is never the critical path.
+ * Every attempt (sent, failed, or skipped because the trigger is off) is recorded in
+ * automatic_email_log, which Settings → E-mails Automáticos reads to show send history.
  */
 export async function sendAutomaticEmail(
   triggerKey: EmailTriggerKey,
@@ -59,16 +85,36 @@ export async function sendAutomaticEmail(
       .eq("trigger_key", triggerKey)
       .maybeSingle();
 
-    if (error || !row || !row.enabled) return;
+    if (error || !row) {
+      await logEmailAttempt({ triggerKey, email: to.email, name: to.name, status: "error", errorMessage: error?.message ?? "Template not found" });
+      return;
+    }
+    if (!row.enabled) {
+      await logEmailAttempt({ triggerKey, email: to.email, name: to.name, status: "disabled" });
+      return;
+    }
 
     const htmlContent = renderTemplate(row.html_content, vars);
-    await sendTransactionalEmail({
-      to: [{ email: to.email, name: to.name }],
-      subject: renderTemplate(row.subject, vars),
-      htmlContent,
-      textContent: htmlToPlainText(htmlContent),
-      sender: row.sender_email ? { name: row.sender_name || "Vertex Rental Cars", email: row.sender_email } : undefined,
-    });
+    const subject = renderTemplate(row.subject, vars);
+    try {
+      await sendTransactionalEmail({
+        to: [{ email: to.email, name: to.name }],
+        subject,
+        htmlContent,
+        textContent: htmlToPlainText(htmlContent),
+        sender: row.sender_email ? { name: row.sender_name || "Vertex Rental Cars", email: row.sender_email } : undefined,
+      });
+      await logEmailAttempt({ triggerKey, email: to.email, name: to.name, subject, status: "sent" });
+    } catch (sendErr) {
+      await logEmailAttempt({
+        triggerKey,
+        email: to.email,
+        name: to.name,
+        subject,
+        status: "failed",
+        errorMessage: sendErr instanceof Error ? sendErr.message : String(sendErr),
+      });
+    }
   } catch (err) {
     console.error(`sendAutomaticEmail(${triggerKey}) failed`, err);
   }

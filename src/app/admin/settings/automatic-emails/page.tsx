@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { SettingsTabs } from "@/components/admin/SettingsTabs";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
@@ -11,8 +11,10 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Save, Send, Mail, Eye } from "lucide-react";
+import { Loader2, Save, Send, Mail, Eye, RefreshCw } from "lucide-react";
 import { SAMPLE_VARS, renderTemplate } from "@/lib/automatic-emails-sample-vars";
 import { authedFetch } from "@/lib/admin-fetch";
 
@@ -245,6 +247,122 @@ function EmailRow({ email, onSaved }: { email: AutomaticEmail; onSaved: (e: Auto
   );
 }
 
+type EmailLogEntry = {
+  id: string;
+  trigger_key: TriggerKey;
+  recipient_email: string;
+  recipient_name: string | null;
+  subject: string | null;
+  status: "sent" | "failed" | "disabled" | "error";
+  error_message: string | null;
+  created_at: string;
+};
+
+const LOG_STATUS_LABEL: Record<EmailLogEntry["status"], string> = {
+  sent: "Enviado",
+  failed: "Falhou",
+  disabled: "Modelo desativado",
+  error: "Erro",
+};
+
+function LogStatusBadge({ status }: { status: EmailLogEntry["status"] }) {
+  const variant = status === "sent" ? "default" : status === "disabled" ? "secondary" : "destructive";
+  return <Badge variant={variant}>{LOG_STATUS_LABEL[status]}</Badge>;
+}
+
+function EmailLogSection() {
+  const [log, setLog] = useState<EmailLogEntry[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [triggerFilter, setTriggerFilter] = useState<TriggerKey | "all">("all");
+
+  async function fetchLog(filter: TriggerKey | "all") {
+    setLoading(true);
+    try {
+      const qs = filter === "all" ? "" : `?trigger_key=${filter}`;
+      const res = await authedFetch(`/api/automatic-emails/log${qs}`);
+      const data = await res.json();
+      setLog(data.log ?? []);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    fetchLog(triggerFilter);
+  }, [triggerFilter]);
+
+  return (
+    <Card>
+      <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
+        <div>
+          <CardTitle className="text-base">Histórico de envios</CardTitle>
+          <p className="text-xs text-muted-foreground mt-1">Últimos e-mails automáticos disparados (não inclui envios de teste).</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Select value={triggerFilter} onValueChange={(v) => setTriggerFilter(v as TriggerKey | "all")}>
+            <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os tipos</SelectItem>
+              {ORDER.map((key) => (<SelectItem key={key} value={key}>{LABELS[key].title}</SelectItem>))}
+            </SelectContent>
+          </Select>
+          <Button size="sm" variant="outline" onClick={() => fetchLog(triggerFilter)} disabled={loading}>
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {!log ? (
+          <div className="flex items-center gap-2 text-muted-foreground py-10 justify-center">
+            <Loader2 className="h-5 w-5 animate-spin" /> Carregando...
+          </div>
+        ) : log.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">Nenhum e-mail enviado ainda.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Enviado em</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Destinatário</TableHead>
+                  <TableHead>Assunto</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {log.map((entry) => (
+                  <TableRow key={entry.id}>
+                    <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                      {new Date(entry.created_at).toLocaleString("pt-BR")}
+                    </TableCell>
+                    <TableCell className="text-sm">{LABELS[entry.trigger_key]?.title ?? entry.trigger_key}</TableCell>
+                    <TableCell className="text-sm">
+                      {entry.recipient_name ? `${entry.recipient_name} — ` : ""}
+                      {entry.recipient_email}
+                    </TableCell>
+                    <TableCell className="text-sm max-w-[280px] truncate" title={entry.subject ?? undefined}>
+                      {entry.subject ?? "—"}
+                    </TableCell>
+                    <TableCell>
+                      <LogStatusBadge status={entry.status} />
+                      {entry.error_message && (
+                        <p className="text-[10px] text-muted-foreground mt-0.5 max-w-[220px] truncate" title={entry.error_message}>
+                          {entry.error_message}
+                        </p>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function AutomaticEmailsPage() {
   const [emails, setEmails] = useState<AutomaticEmail[] | null>(null);
 
@@ -288,6 +406,8 @@ export default function AutomaticEmailsPage() {
       <p className="text-xs text-muted-foreground flex items-center gap-1.5">
         <Mail className="h-3.5 w-3.5" /> Enviados via Brevo — mesma conta já conectada em Email Marketing.
       </p>
+
+      <EmailLogSection />
     </div>
   );
 }

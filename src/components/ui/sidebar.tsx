@@ -160,6 +160,11 @@ const Sidebar = React.forwardRef<
     side?: "left" | "right"
     variant?: "sidebar" | "floating" | "inset"
     collapsible?: "offcanvas" | "icon" | "none"
+    // Styling for the actual visible surface (the inner data-sidebar="sidebar" box) —
+    // className/style on Sidebar itself only reach the outer positioning wrapper, which
+    // sits behind that box, so a background set there would never be visible.
+    contentClassName?: string
+    contentStyle?: React.CSSProperties
   }
 >(
   (
@@ -168,6 +173,8 @@ const Sidebar = React.forwardRef<
       variant = "sidebar",
       collapsible = "offcanvas",
       className,
+      contentClassName,
+      contentStyle,
       children,
       ...props
     },
@@ -180,8 +187,10 @@ const Sidebar = React.forwardRef<
         <div
           className={cn(
             "flex h-full w-[var(--sidebar-width)] flex-col bg-sidebar text-sidebar-foreground",
-            className
+            className,
+            contentClassName
           )}
+          style={contentStyle}
           ref={ref}
           {...props}
         >
@@ -196,10 +205,11 @@ const Sidebar = React.forwardRef<
           <SheetContent
             data-sidebar="sidebar"
             data-mobile="true"
-            className="w-[var(--sidebar-width)] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+            className={cn("w-[var(--sidebar-width)] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden", contentClassName)}
             style={
               {
                 "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
+                ...contentStyle,
               } as React.CSSProperties
             }
             side={side}
@@ -258,7 +268,11 @@ const Sidebar = React.forwardRef<
         >
           <div
             data-sidebar="sidebar"
-            className="flex h-full w-full flex-col bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow"
+            className={cn(
+              "flex h-full w-full flex-col bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow",
+              contentClassName
+            )}
+            style={contentStyle}
           >
             {children}
           </div>
