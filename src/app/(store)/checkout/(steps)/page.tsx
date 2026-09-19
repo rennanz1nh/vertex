@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { formatPrice } from "@/lib/utils";
 import { US_STATES } from "@/lib/us-states";
 import { useCheckout, formatUsDate } from "./CheckoutContext";
-import StepProgress from "./StepProgress";
+import StepProgress from "@/components/store/StepProgress";
 
 function LicensePhotoField({
   label,
@@ -99,9 +99,9 @@ export default function CheckoutDriverInfoPage() {
 
   return (
     <div className="max-w-[800px] mx-auto px-4 py-8">
-      <StepProgress current={1} />
+      <StepProgress current={2} />
       <h1 className="font-serif text-2xl md:text-3xl font-light text-gray-900 mb-1">Driver Information</h1>
-      <p className="text-xs text-gray-500 mb-6">Step 1 of 3</p>
+      <p className="text-xs text-gray-500 mb-6">Step 2 of 4</p>
 
       {/* Trip summary */}
       <div className="flex gap-4 pb-6 mb-6 border-b border-gray-100">

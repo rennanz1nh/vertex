@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatPrice } from "@/lib/utils";
 import { useCheckout, formatUsDate } from "../CheckoutContext";
-import StepProgress from "../StepProgress";
+import StepProgress from "@/components/store/StepProgress";
 
 export default function CheckoutReviewPage() {
   const router = useRouter();
@@ -20,9 +20,9 @@ export default function CheckoutReviewPage() {
 
   return (
     <div className="max-w-[800px] mx-auto px-4 py-8">
-      <StepProgress current={2} />
+      <StepProgress current={3} />
       <h1 className="font-serif text-2xl md:text-3xl font-light text-gray-900 mb-1">Review Your Trip</h1>
-      <p className="text-xs text-gray-500 mb-6">Step 2 of 3</p>
+      <p className="text-xs text-gray-500 mb-6">Step 3 of 4</p>
 
       {/* Trip details */}
       <div className="border border-gray-200 rounded-sm p-5 mb-6">

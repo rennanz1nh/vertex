@@ -1,12 +1,13 @@
 const STEPS = [
-  { step: 1, label: "Driver Info" },
-  { step: 2, label: "Review" },
-  { step: 3, label: "Agreement" },
+  { step: 1, label: "Your Trip" },
+  { step: 2, label: "Driver Info" },
+  { step: 3, label: "Review" },
+  { step: 4, label: "Agreement" },
 ];
 
-export default function StepProgress({ current }: { current: 1 | 2 | 3 }) {
+export default function StepProgress({ current }: { current: 1 | 2 | 3 | 4 }) {
   return (
-    <div className="flex items-center gap-2 mb-8 max-w-md">
+    <div className="flex items-center gap-2 mb-8 max-w-xl">
       {STEPS.map((s, i) => (
         <div key={s.step} className="flex items-center gap-2 flex-1">
           <div className="flex items-center gap-1.5 shrink-0">

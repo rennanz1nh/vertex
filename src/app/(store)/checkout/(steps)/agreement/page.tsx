@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import SignaturePad, { type SignaturePadHandle } from "@/components/store/SignaturePad";
 import { RENTAL_AGREEMENT_SECTIONS, RENTAL_AGREEMENT_ACKNOWLEDGMENTS } from "@/lib/rental-agreement";
 import { useCheckout } from "../CheckoutContext";
-import StepProgress from "../StepProgress";
+import StepProgress from "@/components/store/StepProgress";
 
 export default function CheckoutAgreementPage() {
   const router = useRouter();
@@ -61,9 +61,9 @@ export default function CheckoutAgreementPage() {
 
   return (
     <div className="max-w-[800px] mx-auto px-4 py-8">
-      <StepProgress current={3} />
+      <StepProgress current={4} />
       <h1 className="font-serif text-2xl md:text-3xl font-light text-gray-900 mb-1">Rental Agreement</h1>
-      <p className="text-xs text-gray-500 mb-6">Step 3 of 3</p>
+      <p className="text-xs text-gray-500 mb-6">Step 4 of 4</p>
 
       <p className="text-xs text-gray-500 mb-4">
         Vertex Rental Car USA LLC &mdash; General Rental Terms. Please read before signing to request your booking.

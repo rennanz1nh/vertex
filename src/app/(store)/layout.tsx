@@ -2,6 +2,7 @@ import Header from "@/components/store/Header";
 import Footer from "@/components/store/Footer";
 import GoogleTranslate from "@/components/store/GoogleTranslate";
 import ClearanceRail from "@/components/store/ClearanceRail";
+import HideOnCheckoutFlow from "@/components/store/HideOnCheckoutFlow";
 import NewsletterSection from "@/components/store/NewsletterSection";
 import ChatWidget from "@/components/store/ChatWidget";
 import BannerPopupManager from "@/components/store/BannerPopupManager";
@@ -67,7 +68,9 @@ export default async function StoreLayout({ children }: { children: React.ReactN
       <GoogleTranslate />
       <Header />
       <main className="flex-1">{children}</main>
-      <ClearanceRail />
+      <HideOnCheckoutFlow>
+        <ClearanceRail />
+      </HideOnCheckoutFlow>
       <NewsletterSection />
       <Footer />
       <ChatWidget />

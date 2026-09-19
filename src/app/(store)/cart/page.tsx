@@ -16,6 +16,7 @@ import {
   type ExtraId,
 } from "@/lib/tripDraft";
 import { formatPrice } from "@/lib/utils";
+import StepProgress from "@/components/store/StepProgress";
 
 function formatUsDate(iso: string): string {
   if (!iso) return "";
@@ -75,7 +76,9 @@ export default function TripPage() {
 
   return (
     <div className="max-w-[1600px] mx-auto px-4 py-8">
-      <h1 className="font-serif text-2xl md:text-3xl font-light text-gray-900 mb-8">Your Trip</h1>
+      <StepProgress current={1} />
+      <h1 className="font-serif text-2xl md:text-3xl font-light text-gray-900 mb-1">Your Trip</h1>
+      <p className="text-xs text-gray-500 mb-6">Step 1 of 4</p>
 
       <div className="flex flex-col lg:flex-row gap-10">
         <div className="flex-1">
@@ -202,7 +205,7 @@ export default function TripPage() {
               onClick={() => router.push("/checkout")}
               className="block w-full bg-black text-white text-sm font-medium py-3 text-center hover:bg-brand transition-colors"
             >
-              Continue to Review
+              Continue
             </button>
             <Link
               href="/products"
