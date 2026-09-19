@@ -66,7 +66,7 @@ export default async function HomePage({
             </span>
           </p>
         )}
-        <ProductBrowser products={products} categories={CATEGORIES} />
+        <ProductBrowser products={products} categories={CATEGORIES} defaultFiltersOpen />
       </section>
 
       {/* Shop by Category */}

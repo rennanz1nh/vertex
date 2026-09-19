@@ -15,9 +15,12 @@ type CategoryLink = { label: string; href: string; active?: boolean };
 export default function ProductBrowser({
   products,
   categories,
+  defaultFiltersOpen,
 }: {
   products: Product[];
   categories?: CategoryLink[];
+  /** Desktop only — the mobile filter panel always starts closed regardless. */
+  defaultFiltersOpen?: boolean;
 }) {
   const brands = useMemo(
     () => [...new Set(products.map((p) => p.make).filter(Boolean))] as string[],
@@ -35,6 +38,7 @@ export default function ProductBrowser({
   const [sort, setSort]                     = useState("");
   const [visible, setVisible]               = useState(INITIAL);
   const [showFilters, setShowFilters]       = useState(false);
+  const [showDesktopFilters, setShowDesktopFilters] = useState(!!defaultFiltersOpen);
   const [openSection, setOpenSection]       = useState<{ price: boolean; brand: boolean }>({
     price: false,
     brand: false,
@@ -220,17 +224,17 @@ export default function ProductBrowser({
       <div className="hidden md:block">
         <button
           type="button"
-          onClick={() => setShowFilters((v) => !v)}
+          onClick={() => setShowDesktopFilters((v) => !v)}
           className="flex items-center gap-2 mb-4 text-left"
         >
           <h3 className="text-sm font-semibold text-gray-900">Filter by</h3>
-          <ChevronDown className={`h-4 w-4 text-[#B8860B] transition-transform ${showFilters ? "" : "-rotate-90"}`} />
+          <ChevronDown className={`h-4 w-4 text-[#B8860B] transition-transform ${showDesktopFilters ? "" : "-rotate-90"}`} />
         </button>
       </div>
       <div className="flex flex-col md:flex-row gap-6">
 
         {/* Desktop sidebar — collapses horizontally (no width) instead of just hiding its content */}
-        {showFilters && (
+        {showDesktopFilters && (
           <aside className="hidden md:block w-52 shrink-0">
             <FilterContent />
           </aside>
