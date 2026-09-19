@@ -135,6 +135,13 @@ export default function GoogleSettingsPage() {
               <SettingsField label="Telefone" value={row.business_phone} onChange={(v) => setField("business_phone", v)} placeholder="+1 407 000 0000" />
               <SettingsField label="Email" value={row.business_email} onChange={(v) => setField("business_email", v)} placeholder="contato@cosmeticmkt.com" />
             </div>
+            <SettingsField
+              label="Número do WhatsApp (botão flutuante do site)"
+              value={row.whatsapp_number}
+              onChange={(v) => setField("whatsapp_number", v)}
+              placeholder="14075550000"
+              hint="Somente números, com código do país (sem +, espaços ou traços). Ex: EUA (407) 555-0000 → 14075550000. Deixe em branco para esconder o botão."
+            />
             <SettingsField label="Endereço (rua e número)" value={row.business_street} onChange={(v) => setField("business_street", v)} placeholder="123 Main St" />
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <SettingsField label="Cidade" value={row.business_city} onChange={(v) => setField("business_city", v)} placeholder="Orlando" />

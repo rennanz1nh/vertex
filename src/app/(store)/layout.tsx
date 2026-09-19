@@ -5,6 +5,7 @@ import ClearanceRail from "@/components/store/ClearanceRail";
 import HideOnCheckoutFlow from "@/components/store/HideOnCheckoutFlow";
 import NewsletterSection from "@/components/store/NewsletterSection";
 import ChatWidget from "@/components/store/ChatWidget";
+import WhatsAppButton from "@/components/store/WhatsAppButton";
 import BannerPopupManager from "@/components/store/BannerPopupManager";
 import { ButtonClickTracker } from "@/components/store/ButtonClickTracker";
 import { VisitTracker } from "@/components/store/VisitTracker";
@@ -74,6 +75,7 @@ export default async function StoreLayout({ children }: { children: React.ReactN
       <NewsletterSection />
       <Footer />
       <HideOnCheckoutFlow>
+        <WhatsAppButton phoneNumber={settings?.whatsapp_number} />
         <ChatWidget />
       </HideOnCheckoutFlow>
       <BannerPopupManager banners={(data as Banner[] | null) ?? []} />

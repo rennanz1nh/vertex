@@ -26,6 +26,7 @@ export type SiteSettings = {
   facebook_pixel_id: string | null;
   facebook_domain_verification: string | null;
   facebook_page_url: string | null;
+  whatsapp_number: string | null;
   updated_at: string;
 };
 

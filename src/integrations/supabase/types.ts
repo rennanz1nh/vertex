@@ -136,6 +136,7 @@ export type Database = {
           site_name: string
           site_url: string | null
           updated_at: string
+          whatsapp_number: string | null
         }
         Insert: {
           business_city?: string | null
@@ -162,6 +163,7 @@ export type Database = {
           site_name?: string
           site_url?: string | null
           updated_at?: string
+          whatsapp_number?: string | null
         }
         Update: {
           business_city?: string | null
@@ -188,6 +190,7 @@ export type Database = {
           site_name?: string
           site_url?: string | null
           updated_at?: string
+          whatsapp_number?: string | null
         }
         Relationships: []
       }
