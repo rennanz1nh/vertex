@@ -6,7 +6,8 @@ import { usePathname } from "next/navigation";
 import { Search } from "lucide-react";
 import SearchBox from "./SearchBox";
 
-const navItems = [
+// Shared with the mobile hamburger menu (Header.tsx) so both stay in sync.
+export const navItems = [
   { label: "All Vehicles", href: "/products" },
   { label: "Compact", href: "/products?category=compact" },
   { label: "Big Van", href: "/products?category=big-van" },

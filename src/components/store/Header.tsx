@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ShoppingCart, User, Menu, X } from "lucide-react";
 import { getTripDraft } from "@/lib/tripDraft";
-import Navigation from "./Navigation";
+import Navigation, { navItems } from "./Navigation";
 import LanguageSelector from "./LanguageSelector";
 import SearchBox from "./SearchBox";
 
@@ -100,20 +100,15 @@ export default function Header() {
             <SearchBox mobile />
           </div>
           <nav className="flex flex-col gap-1">
-            <MobileNavLink href="/women" label="Women" onClick={() => setMobileMenuOpen(false)} />
-            <MobileNavLink href="/men" label="Men" onClick={() => setMobileMenuOpen(false)} />
-            <MobileNavLink href="/courses" label="Courses" onClick={() => setMobileMenuOpen(false)} />
-            <MobileNavLink href="/sell-with-us" label="Sell with us" onClick={() => setMobileMenuOpen(false)} />
-            <MobileNavLink href="/clearance" label="Clearance" onClick={() => setMobileMenuOpen(false)} />
+            {navItems.map((item) => (
+              <MobileNavLink key={item.label} href={item.href} label={item.label} onClick={() => setMobileMenuOpen(false)} />
+            ))}
           </nav>
           <div className="mt-4 pt-4 border-t border-gray-100 flex flex-col gap-2 text-sm">
             {/* Plain <a>, not next/link — see the desktop Log In link above for why. */}
             <a href="/admin" className="flex items-center gap-2 text-gray-700" onClick={() => setMobileMenuOpen(false)}>
               <User size={16} /> Log In
             </a>
-            <Link href="/sell-with-us" className="text-brand font-medium text-xs" onClick={() => setMobileMenuOpen(false)}>
-              sell your product with us! become a reseller!
-            </Link>
           </div>
         </div>
       )}
