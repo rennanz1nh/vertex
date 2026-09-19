@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Camera } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import { US_STATES } from "@/lib/us-states";
 import { useCheckout, formatUsDate } from "./CheckoutContext";
@@ -44,13 +45,16 @@ function LicensePhotoField({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={previewUrl} alt="" className="w-10 h-10 object-cover rounded-sm shrink-0" />
         ) : (
-          <span className="w-10 h-10 rounded-sm bg-gray-100 shrink-0" />
+          <span className="w-10 h-10 rounded-sm bg-gray-100 shrink-0 flex items-center justify-center">
+            <Camera className="h-4 w-4 text-gray-400" />
+          </span>
         )}
-        <span className="flex-1 truncate text-gray-600">{file ? file.name : "Tap to upload a photo"}</span>
+        <span className="flex-1 truncate text-gray-600">
+          {file ? file.name : "Take a photo or choose from your gallery"}
+        </span>
         <input
           type="file"
           accept="image/*"
-          capture="environment"
           className="hidden"
           onChange={(e) => onChange(e.target.files?.[0] || null)}
         />

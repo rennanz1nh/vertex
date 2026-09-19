@@ -73,7 +73,9 @@ export default async function StoreLayout({ children }: { children: React.ReactN
       </HideOnCheckoutFlow>
       <NewsletterSection />
       <Footer />
-      <ChatWidget />
+      <HideOnCheckoutFlow>
+        <ChatWidget />
+      </HideOnCheckoutFlow>
       <BannerPopupManager banners={(data as Banner[] | null) ?? []} />
       <SiteScripts />
     </>
