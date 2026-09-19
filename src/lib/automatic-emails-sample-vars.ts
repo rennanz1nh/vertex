@@ -11,6 +11,16 @@ export const SAMPLE_VARS: Record<string, string> = {
   tracking_url: "https://www.ups.com/track?tracknum=1Z999AA10123456784",
   store_url: "https://cosmeticmkt.com/cart",
   refund_amount: "$54.90",
+  confirmation_number: "A1B2C3D4",
+  car_name: "2025 Tesla Model 3",
+  pickup_date: "Fri, Sep 25, 2026",
+  pickup_time: "10:00",
+  return_date: "Mon, Sep 28, 2026",
+  return_time: "10:00",
+  days: "3",
+  protection_plan: "Standard",
+  extras_list: "Unlimited mileage, Prepaid refuel",
+  estimated_total: "$312.00",
 };
 
 export function renderTemplate(template: string, vars: Record<string, string>): string {

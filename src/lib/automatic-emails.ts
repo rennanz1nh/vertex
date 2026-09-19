@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { sendTransactionalEmail } from "@/lib/brevo";
 
 export type EmailTriggerKey =
+  | "booking_confirmed"
   | "order_confirmation"
   | "order_shipped"
   | "order_delivered"

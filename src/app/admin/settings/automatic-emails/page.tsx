@@ -16,7 +16,7 @@ import { Loader2, Save, Send, Mail, Eye } from "lucide-react";
 import { SAMPLE_VARS, renderTemplate } from "@/lib/automatic-emails-sample-vars";
 import { authedFetch } from "@/lib/admin-fetch";
 
-type TriggerKey = "order_confirmation" | "order_shipped" | "order_delivered" | "order_cancelled" | "order_refunded" | "newsletter_welcome" | "abandoned_cart";
+type TriggerKey = "booking_confirmed" | "order_confirmation" | "order_shipped" | "order_delivered" | "order_cancelled" | "order_refunded" | "newsletter_welcome" | "abandoned_cart";
 
 type AutomaticEmail = {
   trigger_key: TriggerKey;
@@ -29,6 +29,11 @@ type AutomaticEmail = {
 };
 
 const LABELS: Record<TriggerKey, { title: string; description: string; vars: string[] }> = {
+  booking_confirmed: {
+    title: "Reserva confirmada",
+    description: "Enviado quando uma reserva muda de status para \"Confirmada\" em Reservas — ou seja, assim que o pagamento é confirmado.",
+    vars: ["customer_name", "confirmation_number", "car_name", "pickup_date", "pickup_time", "return_date", "return_time", "days", "protection_plan", "extras_list", "estimated_total"],
+  },
   order_confirmation: {
     title: "Confirmação de pedido",
     description: "Enviado assim que um pagamento é concluído na loja (checkout Stripe).",
@@ -66,7 +71,7 @@ const LABELS: Record<TriggerKey, { title: string; description: string; vars: str
   },
 };
 
-const ORDER: TriggerKey[] = ["order_confirmation", "order_shipped", "order_delivered", "order_cancelled", "order_refunded", "newsletter_welcome", "abandoned_cart"];
+const ORDER: TriggerKey[] = ["booking_confirmed", "order_confirmation", "order_shipped", "order_delivered", "order_cancelled", "order_refunded", "newsletter_welcome", "abandoned_cart"];
 
 function EmailRow({ email, onSaved }: { email: AutomaticEmail; onSaved: (e: AutomaticEmail) => void }) {
   const { toast } = useToast();

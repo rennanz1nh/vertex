@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Save, Trash2, Check, Image as ImageIcon } from "lucide-react";
 import { US_STATES } from "@/lib/us-states";
 import { BOOKING_STATUS_LABEL, type BookingStatus } from "@/lib/booking-status";
+import { authedFetch } from "@/lib/admin-fetch";
 import {
   PROTECTION_PLANS,
   EXTRAS,
@@ -176,6 +177,23 @@ export default function BookingModal({ booking, cars, open, onClose, onChanged }
         : await supabase.from("bookings").update(payload as unknown as TablesUpdate<"bookings">).eq("id", id);
       if (error) throw error;
       toast({ title: "Salvo!", description: isNew ? "Reserva criada com sucesso." : "Reserva atualizada com sucesso." });
+
+      // Fires the "booking confirmed" email once the status is moved into "confirmed" —
+      // i.e. once payment has been confirmed. Fire-and-forget: Brevo hiccups or a missing
+      // customer_email must never block saving the booking itself.
+      if (!isNew && v("status") === "confirmed" && booking?.status !== "confirmed") {
+        authedFetch(`/api/bookings/${id}/notify-confirmed`, { method: "POST" })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data?.skipped) {
+              toast({ title: "Reserva confirmada", description: "Sem e-mail cadastrado — confirmação não foi enviada." });
+            } else if (data?.ok) {
+              toast({ title: "E-mail de confirmação enviado", description: `Enviado para ${v("customer_email")}.` });
+            }
+          })
+          .catch(() => {});
+      }
+
       onChanged();
       onClose();
     } catch (e) {
