@@ -15,6 +15,7 @@ import { CURRENT_VERSION } from "@/data/updates";
 import { authedFetch } from "@/lib/admin-fetch";
 import { supabase } from "@/integrations/supabase/client";
 import { GoogleLogo, GoogleSearchConsoleLogo, GoogleCloudLogo, GoogleMerchantCenterLogo, MetaLogo, StripeLogo, BrevoLogo } from "@/components/brand-logos";
+import { VERTEX_BRAND_GRADIENT } from "@/lib/brand-gradient";
 
 // Neutralizes SidebarMenuButton's own padding/height/icon-size defaults so navLinkClass
 // (below) is the only thing controlling those on the rendered <a> — asChild/Slot just
@@ -168,11 +169,7 @@ export function AppSidebar() {
   return (
     <Sidebar
       collapsible="icon"
-      // Vertex brand gradient, sampled from the logo mark: strong orange at the bottom
-      // fading to a barely-there blue tint at the top.
-      contentStyle={{
-        backgroundImage: "linear-gradient(to top, rgba(240, 149, 75, 0.85) 0%, rgba(31, 148, 188, 0.08) 100%)",
-      }}
+      contentStyle={{ backgroundImage: VERTEX_BRAND_GRADIENT }}
     >
       <SidebarHeader className="border-b border-accent p-0">
         <div className="h-16 px-4 flex flex-row items-center justify-center group-data-[collapsible=icon]:px-2">

@@ -1,10 +1,14 @@
 ﻿import Link from "next/link";
 import FooterSearch from "./FooterSearch";
 import FooterNewsletter from "./FooterNewsletter";
+import { VERTEX_BRAND_GRADIENT } from "@/lib/brand-gradient";
 
 export default function Footer() {
   return (
-    <footer className="bg-[#f5f5f5] border-t border-gray-200 mt-16">
+    <footer
+      className="bg-[#f5f5f5] border-t border-gray-200 mt-16"
+      style={{ backgroundImage: VERTEX_BRAND_GRADIENT }}
+    >
       <div className="max-w-[1600px] mx-auto px-4 py-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
           {/* Col 1: Brand */}
