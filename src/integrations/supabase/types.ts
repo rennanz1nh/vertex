@@ -676,6 +676,9 @@ export type Database = {
           driver_license_state: string
           driver_license_front_path: string | null
           driver_license_back_path: string | null
+          rental_agreement_signed_at: string | null
+          rental_agreement_signature_path: string | null
+          rental_agreement_version: string | null
           trip_subtotal: number
           protection_total: number
           extras_total: number
@@ -705,6 +708,9 @@ export type Database = {
           driver_license_state: string
           driver_license_front_path?: string | null
           driver_license_back_path?: string | null
+          rental_agreement_signed_at?: string | null
+          rental_agreement_signature_path?: string | null
+          rental_agreement_version?: string | null
           trip_subtotal: number
           protection_total: number
           extras_total?: number
@@ -734,6 +740,9 @@ export type Database = {
           driver_license_state?: string
           driver_license_front_path?: string | null
           driver_license_back_path?: string | null
+          rental_agreement_signed_at?: string | null
+          rental_agreement_signature_path?: string | null
+          rental_agreement_version?: string | null
           trip_subtotal?: number
           protection_total?: number
           extras_total?: number

@@ -17,6 +17,8 @@ import {
 } from "@/lib/tripDraft";
 import { formatPrice } from "@/lib/utils";
 import { US_STATES } from "@/lib/us-states";
+import RentalAgreementModal from "@/components/store/RentalAgreementModal";
+import { RENTAL_AGREEMENT_VERSION } from "@/lib/rental-agreement";
 
 function formatUsDate(iso: string): string {
   if (!iso) return "";
@@ -104,6 +106,7 @@ export default function CheckoutPage() {
   const [requested, setRequested] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [agreementOpen, setAgreementOpen] = useState(false);
 
   useEffect(() => {
     const load = () => {
@@ -202,15 +205,23 @@ export default function CheckoutPage() {
     else setLicenseBack(file);
   }
 
-  async function handleRequestToBook() {
+  function handleRequestToBook() {
     if (!draft) return;
     if (!validate()) return;
     if (!licenseFront || !licenseBack) return;
     saveTripDraft({ ...draft, driver });
+    setSubmitError(null);
+    setAgreementOpen(true);
+  }
+
+  async function handleAgreementAccept(signatureDataUrl: string) {
+    if (!draft || !licenseFront || !licenseBack) return;
 
     setSubmitting(true);
     setSubmitError(null);
     try {
+      const signatureBlob = await (await fetch(signatureDataUrl)).blob();
+
       const formData = new FormData();
       formData.append(
         "payload",
@@ -231,13 +242,16 @@ export default function CheckoutPage() {
             youngDriverFeeTotal: breakdown.youngDriverFeeTotal,
             total: breakdown.total,
           },
+          rentalAgreementVersion: RENTAL_AGREEMENT_VERSION,
         })
       );
       formData.append("licenseFront", licenseFront);
       formData.append("licenseBack", licenseBack);
+      formData.append("rentalAgreementSignature", signatureBlob, "signature.png");
 
       const res = await fetch("/api/bookings/request", { method: "POST", body: formData });
       if (!res.ok) throw new Error(await res.text());
+      setAgreementOpen(false);
       setRequested(true);
       clearTripDraft();
     } catch (e) {
@@ -441,9 +455,8 @@ export default function CheckoutPage() {
               disabled={submitting}
               className="block w-full bg-black text-white text-sm font-medium py-3 text-center hover:bg-brand transition-colors disabled:opacity-60"
             >
-              {submitting ? "Sending request…" : "Request to Book"}
+              Request to Book
             </button>
-            {submitError && <p className="text-xs text-red-600 mt-2 text-center">{submitError}</p>}
             <p className="text-[11px] text-gray-400 mt-2 text-center">
               No payment is collected — checkout isn&apos;t connected yet.
             </p>
@@ -456,6 +469,15 @@ export default function CheckoutPage() {
           </div>
         </div>
       </div>
+
+      <RentalAgreementModal
+        open={agreementOpen}
+        renterName={driver.fullName}
+        submitting={submitting}
+        error={submitError}
+        onClose={() => setAgreementOpen(false)}
+        onAccept={handleAgreementAccept}
+      />
     </div>
   );
 }

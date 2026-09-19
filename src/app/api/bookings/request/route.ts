@@ -26,6 +26,7 @@ type RequestBody = {
     youngDriverFeeTotal: number;
     total: number;
   };
+  rentalAgreementVersion: string;
 };
 
 const MAX_LICENSE_PHOTO_BYTES = 10 * 1024 * 1024; // 10MB
@@ -43,9 +44,10 @@ function extensionFor(file: File): string {
 // license numbers, so it's never opened up to anon reads/writes directly).
 //
 // Submitted as multipart/form-data (not JSON) because it carries the front/back driver's
-// license photos alongside the booking fields — those get uploaded here, server-side, to
-// the private vertex-license-photos bucket, since anon never gets direct write access to
-// a bucket holding photos of government IDs.
+// license photos and the rental agreement signature alongside the booking fields — those
+// get uploaded here, server-side, to private buckets (vertex-license-photos,
+// vertex-rental-agreements), since anon never gets direct write access to a bucket holding
+// photos of government IDs or signed legal documents.
 export async function POST(req: NextRequest) {
   let form: FormData;
   try {
@@ -75,8 +77,13 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const { carId, pickupDate, pickupTime, returnDate, returnTime, dailyRate, protectionPlan, extras, driver, breakdown } = body;
-  if (!carId || !pickupDate || !returnDate || !driver?.fullName?.trim() || !driver?.email?.trim()) {
+  const signature = form.get("rentalAgreementSignature");
+  if (!(signature instanceof File) || signature.size === 0) {
+    return NextResponse.json({ error: "Please sign the rental agreement before submitting your request." }, { status: 400 });
+  }
+
+  const { carId, pickupDate, pickupTime, returnDate, returnTime, dailyRate, protectionPlan, extras, driver, breakdown, rentalAgreementVersion } = body;
+  if (!carId || !pickupDate || !returnDate || !driver?.fullName?.trim() || !driver?.email?.trim() || !rentalAgreementVersion) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
@@ -84,7 +91,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const uploadFolder = crypto.randomUUID();
-    const [frontUpload, backUpload] = await Promise.all([
+    const [frontUpload, backUpload, signatureUpload] = await Promise.all([
       supabaseAdmin.storage
         .from("vertex-license-photos")
         .upload(`${uploadFolder}/front.${extensionFor(licenseFront)}`, await licenseFront.arrayBuffer(), {
@@ -95,11 +102,18 @@ export async function POST(req: NextRequest) {
         .upload(`${uploadFolder}/back.${extensionFor(licenseBack)}`, await licenseBack.arrayBuffer(), {
           contentType: licenseBack.type,
         }),
+      supabaseAdmin.storage
+        .from("vertex-rental-agreements")
+        .upload(`${uploadFolder}/signature.png`, await signature.arrayBuffer(), {
+          contentType: "image/png",
+        }),
     ]);
     if (frontUpload.error) throw frontUpload.error;
     if (backUpload.error) throw backUpload.error;
+    if (signatureUpload.error) throw signatureUpload.error;
     const driverLicenseFrontPath = frontUpload.data.path;
     const driverLicenseBackPath = backUpload.data.path;
+    const signaturePath = signatureUpload.data.path;
 
     const { data: existingClient } = await supabaseAdmin
       .from("clients")
@@ -150,6 +164,9 @@ export async function POST(req: NextRequest) {
       driver_license_state: driver.licenseState,
       driver_license_front_path: driverLicenseFrontPath,
       driver_license_back_path: driverLicenseBackPath,
+      rental_agreement_signed_at: new Date().toISOString(),
+      rental_agreement_signature_path: signaturePath,
+      rental_agreement_version: rentalAgreementVersion,
       trip_subtotal: breakdown.tripSubtotal,
       protection_total: breakdown.protectionTotal,
       extras_total: breakdown.extrasTotal,

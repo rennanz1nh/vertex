@@ -60,6 +60,8 @@ export default function BookingModal({ booking, cars, open, onClose, onChanged }
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [licensePhotoUrls, setLicensePhotoUrls] = useState<{ front: string | null; back: string | null }>({ front: null, back: null });
   const [loadingLicensePhotos, setLoadingLicensePhotos] = useState(false);
+  const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
+  const [loadingSignature, setLoadingSignature] = useState(false);
 
   useEffect(() => {
     setForm(booking ? { ...EMPTY_FORM, ...booking } : {});
@@ -84,6 +86,18 @@ export default function BookingModal({ booking, cars, open, onClose, onChanged }
       })
       .finally(() => setLoadingLicensePhotos(false));
   }, [booking?.driver_license_front_path, booking?.driver_license_back_path]);
+
+  useEffect(() => {
+    const path = booking?.rental_agreement_signature_path as string | null | undefined;
+    setSignatureUrl(null);
+    if (!path) return;
+    setLoadingSignature(true);
+    supabase.storage
+      .from("vertex-rental-agreements")
+      .createSignedUrl(path, 300)
+      .then((res) => setSignatureUrl(res.data?.signedUrl || null))
+      .finally(() => setLoadingSignature(false));
+  }, [booking?.rental_agreement_signature_path]);
 
   const isNew = !booking?.id;
   const id = (booking?.id as string) || "";
@@ -332,6 +346,45 @@ export default function BookingModal({ booking, cars, open, onClose, onChanged }
               )}
               <p className="text-[10px] text-muted-foreground mt-1">Link temporário — clique para ver em tamanho real.</p>
             </div>
+          </div>
+
+          {/* Rental agreement */}
+          <div className="rounded-lg border p-4 space-y-3">
+            <h3 className="text-sm font-semibold">Rental Agreement</h3>
+            {booking?.rental_agreement_signed_at ? (
+              <div className="flex items-center gap-4">
+                {loadingSignature ? (
+                  <div className="w-32 aspect-[3/2] rounded-sm border bg-muted flex items-center justify-center shrink-0">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <a
+                    href={signatureUrl || undefined}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`w-32 aspect-[3/2] rounded-sm border bg-white flex items-center justify-center shrink-0 ${signatureUrl ? "hover:opacity-90 cursor-pointer" : "cursor-default"}`}
+                  >
+                    {signatureUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={signatureUrl} alt="Assinatura do locatário" className="w-full h-full object-contain p-1" />
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground">Sem assinatura</span>
+                    )}
+                  </a>
+                )}
+                <div className="text-xs text-muted-foreground space-y-0.5">
+                  <p className="text-foreground font-medium">Assinado</p>
+                  <p>{new Date(booking.rental_agreement_signed_at as string).toLocaleString("pt-BR")}</p>
+                  {typeof booking.rental_agreement_version === "string" && (
+                    <p>Versão do contrato: {booking.rental_agreement_version}</p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Reserva criada sem assinatura do Rental Agreement (provavelmente criada manualmente pelo admin).
+              </p>
+            )}
           </div>
 
           {/* Contact */}
