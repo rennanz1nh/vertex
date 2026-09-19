@@ -45,81 +45,81 @@ export default function AvailabilitySearchBar({
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
-      <div className="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-gray-200">
+    <div className="bg-[#e4f2f7] border border-[#b1dae8] rounded-lg shadow-sm lg:max-w-[1080px] lg:mx-auto">
+      <div className="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-[#b1dae8]">
         {/* Location — fixed, Orlando only */}
-        <div className="flex items-center gap-2.5 px-4 py-3 lg:flex-1 lg:min-w-0">
-          <MapPin className="h-4 w-4 text-gray-400 shrink-0" />
-          <div className="min-w-0">
-            <p className="text-[11px] text-gray-400 leading-none mb-1">Pick-up</p>
-            <p className="text-sm font-medium text-gray-900 truncate">Orlando, FL</p>
+        <div className="px-5 py-3.5 lg:py-6 lg:flex-1 lg:min-w-0">
+          <div className="flex items-center gap-2 mb-1.5">
+            <MapPin className="h-4 w-4 text-gray-500 shrink-0" />
+            <p className="text-[11px] text-gray-500 leading-none">Pick-up</p>
           </div>
+          <p className="text-sm font-medium text-gray-900 truncate pl-6">Orlando, FL</p>
         </div>
 
         {/* Pick-up date + time */}
-        <div className="flex items-center gap-2.5 px-4 py-3 lg:flex-1 lg:min-w-0">
-          <CalendarDays className="h-4 w-4 text-gray-400 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-[11px] text-gray-400 leading-none mb-1">Pick-up date</p>
+        <div className="px-5 py-3.5 lg:py-6 lg:flex-1 lg:min-w-0">
+          <div className="flex items-center gap-2 mb-1.5">
+            <CalendarDays className="h-4 w-4 text-gray-500 shrink-0" />
+            <p className="text-[11px] text-gray-500 leading-none">Pick-up date</p>
+          </div>
+          <div className="flex items-center gap-2 pl-6">
             <input
               type="date"
               lang="en-US"
               value={pickupDate}
               min={defaultDate(0)}
               onChange={(e) => setPickupDate(e.target.value)}
-              className="text-sm font-medium text-gray-900 border-0 p-0 w-full bg-transparent focus:outline-none focus:ring-0"
+              className="text-sm font-medium text-gray-900 border-0 p-0 bg-transparent focus:outline-none focus:ring-0"
             />
-          </div>
-          <div className="w-[76px] shrink-0 border-l border-gray-200 pl-2.5">
-            <p className="text-[11px] text-gray-400 leading-none mb-1">Time</p>
+            <span className="text-gray-300">&middot;</span>
             <input
               type="time"
               lang="en-US"
               value={pickupTime}
               onChange={(e) => setPickupTime(e.target.value)}
-              className="text-sm font-medium text-gray-900 border-0 p-0 w-full bg-transparent focus:outline-none focus:ring-0"
+              className="text-sm font-medium text-gray-900 border-0 p-0 bg-transparent focus:outline-none focus:ring-0"
             />
           </div>
         </div>
 
         {/* Drop-off date + time */}
-        <div className="flex items-center gap-2.5 px-4 py-3 lg:flex-1 lg:min-w-0">
-          <CalendarDays className="h-4 w-4 text-gray-400 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-[11px] text-gray-400 leading-none mb-1">Drop-off date</p>
+        <div className="px-5 py-3.5 lg:py-6 lg:flex-1 lg:min-w-0">
+          <div className="flex items-center gap-2 mb-1.5">
+            <CalendarDays className="h-4 w-4 text-gray-500 shrink-0" />
+            <p className="text-[11px] text-gray-500 leading-none">Drop-off date</p>
+          </div>
+          <div className="flex items-center gap-2 pl-6">
             <input
               type="date"
               lang="en-US"
               value={returnDate}
               min={pickupDate || defaultDate(0)}
               onChange={(e) => setReturnDate(e.target.value)}
-              className="text-sm font-medium text-gray-900 border-0 p-0 w-full bg-transparent focus:outline-none focus:ring-0"
+              className="text-sm font-medium text-gray-900 border-0 p-0 bg-transparent focus:outline-none focus:ring-0"
             />
-          </div>
-          <div className="w-[76px] shrink-0 border-l border-gray-200 pl-2.5">
-            <p className="text-[11px] text-gray-400 leading-none mb-1">Time</p>
+            <span className="text-gray-300">&middot;</span>
             <input
               type="time"
               lang="en-US"
               value={returnTime}
               onChange={(e) => setReturnTime(e.target.value)}
-              className="text-sm font-medium text-gray-900 border-0 p-0 w-full bg-transparent focus:outline-none focus:ring-0"
+              className="text-sm font-medium text-gray-900 border-0 p-0 bg-transparent focus:outline-none focus:ring-0"
             />
           </div>
         </div>
 
         {/* Search */}
-        <div className="p-2.5 lg:flex lg:items-center">
+        <div className="p-3 lg:flex lg:items-center">
           <button
             type="button"
             onClick={handleSearch}
-            className="w-full lg:w-auto bg-black text-white text-sm font-medium px-8 py-2.5 rounded-md hover:bg-brand transition-colors"
+            className="w-full lg:w-auto bg-black text-white text-sm font-medium px-8 py-3 lg:py-4 rounded-md hover:bg-brand transition-colors"
           >
             Search
           </button>
         </div>
       </div>
-      {error && <p className="text-xs text-red-600 px-4 pb-3">{error}</p>}
+      {error && <p className="text-xs text-red-600 px-5 pb-3">{error}</p>}
     </div>
   );
 }
