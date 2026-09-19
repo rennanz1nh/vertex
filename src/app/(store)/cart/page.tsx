@@ -175,7 +175,7 @@ export default function TripPage() {
 
         {/* Summary */}
         <div className="lg:w-80 shrink-0">
-          <div className="bg-gray-50 p-6 sticky top-24">
+          <div className="bg-gray-50 p-6 lg:sticky lg:top-24">
             <h2 className="text-sm font-semibold text-gray-900 mb-4">Price Breakdown</h2>
             <div className="flex justify-between text-sm text-gray-600 mb-2">
               <span>
@@ -197,24 +197,24 @@ export default function TripPage() {
               <span>Taxes &amp; fees</span>
               <span>Calculated at review</span>
             </div>
-            <div className="border-t border-gray-200 pt-4 flex justify-between text-sm font-semibold text-gray-900 mb-6">
+            <div className="border-t border-gray-200 pt-4 flex justify-between text-sm font-semibold text-gray-900">
               <span>Estimated total</span>
               <span>{formatPrice(breakdown.total)}</span>
             </div>
-            <button
-              onClick={() => router.push("/checkout")}
-              className="block w-full bg-black text-white text-sm font-medium py-3 text-center hover:bg-brand transition-colors"
-            >
-              Continue
-            </button>
-            <Link
-              href="/products"
-              className="block w-full text-center text-sm text-gray-500 hover:text-black mt-3 underline"
-            >
-              Browse Other Vehicles
-            </Link>
           </div>
         </div>
+      </div>
+
+      <div className="flex justify-between items-center mt-10 pt-6 border-t border-gray-100">
+        <Link href="/products" className="text-sm text-gray-500 hover:text-black underline">
+          &larr; Browse Other Vehicles
+        </Link>
+        <button
+          onClick={() => router.push("/checkout")}
+          className="bg-black text-white text-sm font-medium px-8 py-3 hover:bg-brand transition-colors"
+        >
+          Continue
+        </button>
       </div>
     </div>
   );
