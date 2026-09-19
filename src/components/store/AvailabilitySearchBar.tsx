@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { MapPin, CalendarDays } from "lucide-react";
+import { VERTEX_BRAND_GRADIENT } from "@/lib/brand-gradient";
 
 function defaultDate(daysFromNow: number): string {
   const d = new Date();
@@ -120,9 +121,12 @@ export default function AvailabilitySearchBar({
         {error && <p className="text-xs text-red-600 px-4 pb-3">{error}</p>}
       </div>
 
-      {/* Desktop — light-blue, taller/narrower bar */}
-      <div className="hidden lg:block bg-[#e4f2f7] border border-[#b1dae8] rounded-lg shadow-sm max-w-[1080px] mx-auto">
-        <div className="flex divide-x divide-[#b1dae8]">
+      {/* Desktop — brand-gradient, taller/narrower bar */}
+      <div
+        className="hidden lg:block border border-gray-200 rounded-lg shadow-sm max-w-[1080px] mx-auto"
+        style={{ backgroundImage: VERTEX_BRAND_GRADIENT }}
+      >
+        <div className="flex divide-x divide-gray-200">
           {/* Location — fixed, Orlando only */}
           <div className="px-5 py-6 flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1.5">
