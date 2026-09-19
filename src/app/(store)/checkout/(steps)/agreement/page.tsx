@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2, PenLine } from "lucide-react";
+import { Loader2, PenLine, Printer } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import SignaturePad, { type SignaturePadHandle } from "@/components/store/SignaturePad";
 import { RENTAL_AGREEMENT_SECTIONS, RENTAL_AGREEMENT_ACKNOWLEDGMENTS } from "@/lib/rental-agreement";
+import { printRentalAgreementTerms } from "@/lib/rental-agreement-print";
 import { useCheckout } from "../CheckoutContext";
 import StepProgress from "@/components/store/StepProgress";
 
@@ -16,6 +17,7 @@ export default function CheckoutAgreementPage() {
     useCheckout();
   const [checked, setChecked] = useState(false);
   const [signatureError, setSignatureError] = useState<string | null>(null);
+  const [printError, setPrintError] = useState<string | null>(null);
   const padRef = useRef<SignaturePadHandle>(null);
 
   useEffect(() => {
@@ -47,6 +49,15 @@ export default function CheckoutAgreementPage() {
 
   function toggle() {
     setChecked((v) => !v);
+  }
+
+  function handlePrint() {
+    setPrintError(null);
+    try {
+      printRentalAgreementTerms(driver.fullName || undefined);
+    } catch (e) {
+      setPrintError(e instanceof Error ? e.message : "Could not open the print window.");
+    }
   }
 
   async function handleSubmit() {
@@ -134,15 +145,25 @@ export default function CheckoutAgreementPage() {
       </div>
 
       {submitError && <p className="text-xs text-red-600 text-center mb-4">{submitError}</p>}
+      {printError && <p className="text-xs text-red-600 text-center mb-4">{printError}</p>}
 
       <div className="flex justify-between items-center pt-6 border-t border-gray-100">
-        <button
-          onClick={() => router.push("/checkout/review")}
-          disabled={submitting}
-          className="text-sm text-gray-500 hover:text-black underline disabled:opacity-60"
-        >
-          &larr; Back
-        </button>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => router.push("/checkout/review")}
+            disabled={submitting}
+            className="text-sm text-gray-500 hover:text-black underline disabled:opacity-60"
+          >
+            &larr; Back
+          </button>
+          <button
+            type="button"
+            onClick={handlePrint}
+            className="text-sm text-gray-500 hover:text-black underline flex items-center gap-1"
+          >
+            <Printer className="h-3.5 w-3.5" /> Print
+          </button>
+        </div>
         <button
           onClick={handleSubmit}
           disabled={!allChecked || submitting}
