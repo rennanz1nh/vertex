@@ -175,7 +175,7 @@ export default function TripPage() {
 
         {/* Summary */}
         <div className="lg:w-80 shrink-0">
-          <div className="bg-gray-50 p-6 lg:sticky lg:top-24">
+          <div className="bg-gray-50 p-6 lg:sticky lg:top-36">
             <h2 className="text-sm font-semibold text-gray-900 mb-4">Price Breakdown</h2>
             <div className="flex justify-between text-sm text-gray-600 mb-2">
               <span>
