@@ -92,14 +92,14 @@ export default function NewsletterSection() {
           )}
         </div>
 
-        {/* Right: branded placeholder until a real fleet photo replaces it */}
-        <div className="h-64 md:h-auto flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+        {/* Right: fleet photo */}
+        <div className="relative h-64 md:h-auto">
           <Image
-            src="/images/store-logo.png"
+            src="/images/subscribe.jpg"
             alt="Vertex Rental Cars"
-            width={220}
-            height={124}
-            className="h-16 w-auto opacity-90"
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 100vw, 50vw"
           />
         </div>
       </div>

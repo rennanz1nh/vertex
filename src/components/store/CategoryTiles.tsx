@@ -2,10 +2,10 @@
 import Image from "next/image";
 
 const categories = [
-  { label: "Compact", href: "/products?category=compact", image: "/images/category-compact.jpg" },
-  { label: "Big Van", href: "/products?category=big-van", image: "/images/category-big-van.jpg" },
-  { label: "Luxe", href: "/products?category=luxe", image: "/images/category-luxe.jpg" },
-  { label: "Sport", href: "/products?category=sport", image: "/images/category-sport.jpg" },
+  { label: "Compact", href: "/products?category=compact", image: "/images/compact.jpg" },
+  { label: "Big Van", href: "/products?category=big-van", image: "/images/bigvan.png" },
+  { label: "Luxe", href: "/products?category=luxe", image: "/images/luxur.jpg" },
+  { label: "Sport", href: "/products?category=sport", image: "/images/sport.jpg" },
 ];
 
 export default function CategoryTiles() {
