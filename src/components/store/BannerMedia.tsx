@@ -36,9 +36,8 @@ export default function BannerMedia({ banner, ratio = 6.55 }: Props) {
         alt={banner.title}
         fill
         priority
-        quality={100}
+        unoptimized
         className="object-cover object-center"
-        sizes="(max-width: 1600px) 100vw, 1600px"
       />
     );
 
