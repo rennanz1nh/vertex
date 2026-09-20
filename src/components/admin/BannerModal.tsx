@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Save, Trash2, Upload, Image as ImageIcon, Video as VideoIcon } from "lucide-react";
-import { compressImage } from "@/lib/image-compress";
 import { RIBBON_COLOR_OPTIONS } from "@/lib/ribbon";
 import { BANNER_PAGE_OPTIONS, RIBBON_POSITION_OPTIONS, type Banner } from "@/lib/banners";
 
@@ -69,12 +68,14 @@ export default function BannerModal({ banner, open, onClose, onChanged, defaultP
     }
     setUploading(true);
     try {
-      const blob = isVideo ? file : await compressImage(file);
-      const ext = isVideo ? (file.name.split(".").pop() || "mp4") : "jpg";
+      // Banners run full-bleed at the top of the page, so uploaded images are kept
+      // at their original resolution/quality — no client-side downscale or recompression.
+      const blob = file;
+      const ext = file.name.split(".").pop() || (isVideo ? "mp4" : "jpg");
       const path = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
       const { error } = await supabase.storage
         .from("vertex-banner-media")
-        .upload(path, blob, { upsert: true, contentType: isVideo ? file.type : "image/jpeg" });
+        .upload(path, blob, { upsert: true, contentType: file.type });
       if (error) throw error;
       const { data } = supabase.storage.from("vertex-banner-media").getPublicUrl(path);
       set("media_url", data.publicUrl);
