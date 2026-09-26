@@ -45,7 +45,7 @@ export default function SeoGeneralTab() {
             label="Endereço do site (URL canônica)"
             value={row.site_url}
             onChange={(v) => setField("site_url", v)}
-            placeholder="https://vertexrentalcars.com"
+            placeholder="https://vertexrentalcar.com"
             hint="Base usada em links canônicos, sitemap e feed. Sem barra no final."
           />
           <SettingsField

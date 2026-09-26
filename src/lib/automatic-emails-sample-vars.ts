@@ -9,7 +9,7 @@ export const SAMPLE_VARS: Record<string, string> = {
   carrier: "UPS",
   tracking_number: "1Z999AA10123456784",
   tracking_url: "https://www.ups.com/track?tracknum=1Z999AA10123456784",
-  store_url: "https://vertexrentalcars.com/cart",
+  store_url: "https://vertexrentalcar.com/cart",
   refund_amount: "$54.90",
   confirmation_number: "A1B2C3D4",
   car_name: "2025 Tesla Model 3",

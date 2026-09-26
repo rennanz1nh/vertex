@@ -142,7 +142,7 @@ export function SearchConsoleStatusCard() {
               id="sc-site-url"
               value={siteUrlInput}
               onChange={(e) => setSiteUrlInput(e.target.value)}
-              placeholder="https://vertexrentalcars.com/ ou sc-domain:vertexrentalcars.com"
+              placeholder="https://vertexrentalcar.com/ ou sc-domain:vertexrentalcar.com"
             />
             <Button variant="outline" onClick={handleSaveSiteUrl} disabled={saving} type="button">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}

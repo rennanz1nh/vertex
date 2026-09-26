@@ -31,7 +31,7 @@ export type InvoiceFormat = "pdf" | "jpeg";
 export const COMPANY = {
   name: "Vertex Rental Cars",
   address: "4385 Pebbles Throw Drive, Kissimme - FL 34746",
-  email: "contact@vertexrentalcars.com",
+  email: "contact@vertexrentalcar.com",
 };
 
 export function generateInvoiceNumber(): string {

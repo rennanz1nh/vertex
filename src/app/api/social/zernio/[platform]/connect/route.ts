@@ -24,7 +24,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   const returnTo = safeReturnTo(request.nextUrl.searchParams.get("returnTo"));
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://vertexrentalcars.com";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://vertexrentalcar.com";
   const redirectUrl = `${appUrl}/api/social/zernio/${platform}/callback?returnTo=${encodeURIComponent(returnTo)}`;
 
   const result = await getZernioConnectUrl(platform, redirectUrl);

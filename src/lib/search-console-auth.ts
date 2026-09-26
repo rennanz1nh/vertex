@@ -114,7 +114,7 @@ export async function getSiteUrl(): Promise<string> {
     .select("site_url")
     .eq("environment", "production")
     .single();
-  return data?.site_url || "https://vertexrentalcars.com/";
+  return data?.site_url || "https://vertexrentalcar.com/";
 }
 
 export async function saveSiteUrl(siteUrl: string): Promise<void> {

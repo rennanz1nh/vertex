@@ -1,6 +1,6 @@
 // Shared types + constants for SEO and marketing integrations (Admin > Settings).
 
-export const DEFAULT_SITE_URL = "https://vertexrentalcars.com";
+export const DEFAULT_SITE_URL = "https://vertexrentalcar.com";
 
 export type SiteSettings = {
   id: string;
