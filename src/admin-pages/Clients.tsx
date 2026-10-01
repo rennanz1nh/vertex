@@ -107,7 +107,7 @@ export default function Clients() {
 
   const { profile } = useAuth();
   const { toast } = useToast();
-  const isAdmin = profile?.role === 'admin';
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'master';
 
   useEffect(() => {
     fetchClientsWithBookings();

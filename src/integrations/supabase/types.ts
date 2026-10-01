@@ -855,6 +855,10 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      get_exact_user_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
       restore_stock_for_cancelled_order: {
         Args: {
           p_order_id: string
@@ -863,7 +867,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "operador" | "leitura"
+      app_role: "master" | "admin" | "operador" | "leitura"
       booking_status: "pending_payment" | "confirmed" | "cancelled" | "completed"
       client_type: "Individual" | "Corporate" | "Insurance Replacement"
       order_status: "Orçado" | "Pago" | "Enviado" | "Entregue" | "Cancelado"
@@ -1012,7 +1016,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "operador", "leitura"],
+      app_role: ["master", "admin", "operador", "leitura"],
       booking_status: ["pending_payment", "confirmed", "cancelled", "completed"],
       client_type: ["Individual", "Corporate", "Insurance Replacement"],
       order_status: ["Orçado", "Pago", "Enviado", "Entregue", "Cancelado"],
