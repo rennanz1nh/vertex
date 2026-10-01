@@ -331,16 +331,14 @@ export default function Cars() {
             <Download className="mr-2 h-4 w-4" />
             Exportar Excel
           </Button>
-          {isAdmin && (
-            <Button
-              onClick={handleSaveAll}
-              disabled={saving || Object.keys(editedCars).length === 0}
-              variant="default"
-            >
-              <Save className="mr-2 h-4 w-4" />
-              {saving ? 'Salvando...' : `Salvar${Object.keys(editedCars).length > 0 ? ` (${Object.keys(editedCars).length})` : ''}`}
-            </Button>
-          )}
+          <Button
+            onClick={handleSaveAll}
+            disabled={saving || Object.keys(editedCars).length === 0}
+            variant="default"
+          >
+            <Save className="mr-2 h-4 w-4" />
+            {saving ? 'Salvando...' : `Salvar${Object.keys(editedCars).length > 0 ? ` (${Object.keys(editedCars).length})` : ''}`}
+          </Button>
           {isAdmin && (
             <Button
               onClick={() => {
