@@ -367,12 +367,10 @@ export default function Cars() {
               )}
             </Button>
           )}
-          {isAdmin && (
-            <Button onClick={() => setViewCar(EMPTY_CAR)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Novo Carro
-            </Button>
-          )}
+          <Button onClick={() => setViewCar(EMPTY_CAR)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Novo Carro
+          </Button>
         </div>
       </div>
 
