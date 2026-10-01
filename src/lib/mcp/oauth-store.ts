@@ -194,8 +194,8 @@ export async function rotateRefreshToken(rawRefreshToken: string): Promise<McpTo
   return issueTokenPair({ clientId: existing.client_id, userId: existing.user_id, scope: existing.scope });
 }
 
-export async function getUserRole(userId: string): Promise<"master" | "admin" | "operador" | "leitura" | null> {
+export async function getUserRole(userId: string): Promise<"admin" | "user" | null> {
   const { data, error } = await supabaseAdmin.from("profiles").select("role").eq("user_id", userId).maybeSingle();
   if (error || !data) return null;
-  return data.role as "master" | "admin" | "operador" | "leitura";
+  return data.role as "admin" | "user";
 }

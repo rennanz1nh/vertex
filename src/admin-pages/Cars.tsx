@@ -65,7 +65,7 @@ export default function Cars() {
 
   const { profile } = useAuth();
   const { toast } = useToast();
-  const isAdmin = profile?.role === 'admin' || profile?.role === 'master';
+  const isAdmin = profile?.role === 'admin';
 
   useEffect(() => {
     fetchCars();

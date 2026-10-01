@@ -91,7 +91,7 @@ export default function Bookings() {
 
   const { profile } = useAuth();
   const { toast } = useToast();
-  const isAdmin = profile?.role === 'admin' || profile?.role === 'master';
+  const isAdmin = profile?.role === 'admin';
 
   const handleDownloadAgreement = useCallback(async (booking: BookingRow, car: CarOption | undefined) => {
     if (!booking.rental_agreement_signature_path) return;

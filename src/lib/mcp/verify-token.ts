@@ -3,7 +3,7 @@ import { getUserRole, verifyAccessToken } from "./oauth-store";
 
 export interface McpAuthExtra {
   userId: string;
-  role: "master" | "admin" | "operador" | "leitura";
+  role: "admin" | "user";
 }
 
 export async function verifyMcpToken(_req: Request, bearerToken?: string): Promise<AuthInfo | undefined> {

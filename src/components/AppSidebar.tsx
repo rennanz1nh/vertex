@@ -114,8 +114,9 @@ const socialMedia = [
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const { signOut } = useAuth();
+  const { signOut, profile } = useAuth();
   const { isMobile, setOpenMobile } = useSidebar();
+  const isAdmin = profile?.role === 'admin';
   const [unreadChats, setUnreadChats] = useState(0);
 
   // Mobile only: close the overlay after navigating (desktop keeps the sidebar exactly
@@ -208,6 +209,7 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
+        {isAdmin && (
         <Collapsible open={automationsOpen} onOpenChange={setAutomationsOpenOverride} className="group/automations">
         <SidebarGroup>
           <CollapsibleTrigger asChild>
@@ -224,9 +226,6 @@ export function AppSidebar() {
                 return (
                   <SidebarMenuItem key={automation.title}>
                     <SidebarMenuButton asChild className={resetButtonClass}>
-                      {/* Same row height as every other nav item (min-h-[40px] from navLinkClass) —
-                          just less vertical padding so the logo itself can be taller/more visible
-                          without growing the clickable row. */}
                       <Link href={automation.url} className={cn(navLinkClass(isActive), "py-1.5")} title={automation.title}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={automation.image} alt={automation.title} className="h-9 w-24 object-contain object-left" />
@@ -299,7 +298,9 @@ export function AppSidebar() {
           </CollapsibleContent>
         </SidebarGroup>
         </Collapsible>
+        )}
 
+        {isAdmin && (
         <Collapsible open={socialMediaOpen} onOpenChange={setSocialMediaOpenOverride} className="group/social-media">
         <SidebarGroup>
           <CollapsibleTrigger asChild>
@@ -329,6 +330,7 @@ export function AppSidebar() {
           </CollapsibleContent>
         </SidebarGroup>
         </Collapsible>
+        )}
 
       </SidebarContent>
 
@@ -356,6 +358,7 @@ export function AppSidebar() {
               </Badge>
             )}
           </Link>
+          {isAdmin && (
           <Link
             href="/admin/settings"
             className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center hover:text-foreground"
@@ -363,6 +366,7 @@ export function AppSidebar() {
             <Settings className="h-4 w-4 shrink-0 text-muted-foreground" />
             <span className="text-[13px] truncate flex-1 group-data-[collapsible=icon]:hidden">Configurações</span>
           </Link>
+          )}
           <Button
             variant="ghost"
             size="sm"

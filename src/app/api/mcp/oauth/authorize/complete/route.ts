@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
   }
 
   const requestedScope = parseScope(typeof scope === "string" ? scope : null);
-  if (requestedScope.includes("mcp:write") && role === "leitura") {
+  if (requestedScope.includes("mcp:write") && role === "user") {
     return NextResponse.json(
       { error: "access_denied", error_description: "This account does not have permission to authorize write access" },
       { status: 403 }
