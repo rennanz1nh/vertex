@@ -339,6 +339,7 @@ export function AppSidebar() {
           <p className="text-xs text-muted-foreground text-center group-data-[collapsible=icon]:hidden">
             Version {CURRENT_VERSION}
           </p>
+          {isAdmin && (
           <Link
             href="/admin/reports/daily"
             className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center hover:text-foreground"
@@ -346,6 +347,7 @@ export function AppSidebar() {
             <Newspaper className="h-4 w-4 shrink-0 text-muted-foreground" />
             <span className="text-[13px] truncate flex-1 group-data-[collapsible=icon]:hidden">Resumo Diário</span>
           </Link>
+          )}
           <Link
             href="/admin/chat"
             className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center hover:text-foreground"
