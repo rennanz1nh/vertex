@@ -3,18 +3,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
-import { Bell, Image as ImageIcon, Search, Mail, Ticket } from "lucide-react";
+import { Bell, Image as ImageIcon, Search, Mail, Ticket, Users } from "lucide-react";
 import { GoogleLogo, FacebookLogo } from "@/components/brand-logos";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 
 type Tab = {
   href: string;
   label: string;
   icon?: ComponentType<{ className?: string }>;
-  // When set, the tab shows this brand logo instead of an icon + text label.
   logo?: ComponentType<{ className?: string }>;
-  // Static brand asset (used where we have a real logo file rather than an inline mark).
   image?: string;
+  adminOnly?: boolean;
 };
 
 const TABS: Tab[] = [
@@ -25,13 +25,17 @@ const TABS: Tab[] = [
   { href: "/admin/settings/seo", label: "SEO", icon: Search },
   { href: "/admin/settings/google", label: "Google", logo: GoogleLogo },
   { href: "/admin/settings/facebook", label: "Facebook", logo: FacebookLogo },
+  { href: "/admin/settings/users", label: "Usuários", icon: Users, adminOnly: true },
 ];
 
 export function SettingsTabs() {
   const pathname = usePathname();
+  const { profile } = useAuth();
+  const isAdmin = profile?.role === "admin";
+  const visibleTabs = TABS.filter((t) => !t.adminOnly || isAdmin);
   return (
     <div className="flex gap-2 border-b pb-3 overflow-x-auto">
-      {TABS.map((t) => {
+      {visibleTabs.map((t) => {
         const active = pathname === t.href;
         const Icon = t.icon;
         const Logo = t.logo;
