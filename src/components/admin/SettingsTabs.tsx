@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
-import { Bell, Image as ImageIcon, Search, Mail, Ticket, Users } from "lucide-react";
+import { Bell, Image as ImageIcon, Search, Mail, Ticket, Users, Link2 } from "lucide-react";
 import { GoogleLogo, FacebookLogo } from "@/components/brand-logos";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -25,6 +25,7 @@ const TABS: Tab[] = [
   { href: "/admin/settings/seo", label: "SEO", icon: Search },
   { href: "/admin/settings/google", label: "Google", logo: GoogleLogo },
   { href: "/admin/settings/facebook", label: "Facebook", logo: FacebookLogo },
+  { href: "/admin/settings/link-bio", label: "Link na Bio", icon: Link2 },
   { href: "/admin/settings/users", label: "Usuários", icon: Users, adminOnly: true },
 ];
 
