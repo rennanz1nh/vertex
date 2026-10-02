@@ -58,7 +58,7 @@ type BioSettings = {
 };
 
 const ICON_OPTIONS = [
-  { value: "", label: "Nenhum" },
+  { value: "none", label: "Nenhum" },
   { value: "instagram", label: "Instagram" },
   { value: "whatsapp", label: "WhatsApp" },
   { value: "website", label: "Website" },
@@ -476,8 +476,8 @@ export default function LinkBioSettingsPage() {
             <div className="space-y-1.5">
               <Label>Ícone</Label>
               <Select
-                value={editingLink.icon ?? ""}
-                onValueChange={(v) => setEditingLink((f) => ({ ...f, icon: v || null }))}
+                value={editingLink.icon ?? "none"}
+                onValueChange={(v) => setEditingLink((f) => ({ ...f, icon: v === "none" ? null : v }))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione um ícone" />
