@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
   const { action } = body as { action: string };
 
   if (action === "upsert_link") {
-    const { id, title, url, icon, position, enabled } = body;
+    const { id, title, url, icon, thumbnail_url, position, enabled } = body;
     if (!title || !url) {
       return NextResponse.json({ error: "Título e URL são obrigatórios" }, { status: 400 });
     }
@@ -33,7 +33,15 @@ export async function POST(request: NextRequest) {
     if (id) {
       const { data, error } = await supabaseAdmin
         .from("bio_links")
-        .update({ title, url, icon: icon || null, position: position ?? 0, enabled: enabled ?? true, updated_at: new Date().toISOString() })
+        .update({
+          title,
+          url,
+          icon: icon || null,
+          thumbnail_url: thumbnail_url || null,
+          position: position ?? 0,
+          enabled: enabled ?? true,
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", id)
         .select()
         .single();
@@ -50,7 +58,14 @@ export async function POST(request: NextRequest) {
 
     const { data, error } = await supabaseAdmin
       .from("bio_links")
-      .insert({ title, url, icon: icon || null, position: (maxPos?.position ?? -1) + 1, enabled: enabled ?? true })
+      .insert({
+        title,
+        url,
+        icon: icon || null,
+        thumbnail_url: thumbnail_url || null,
+        position: (maxPos?.position ?? -1) + 1,
+        enabled: enabled ?? true,
+      })
       .select()
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
@@ -75,22 +90,34 @@ export async function POST(request: NextRequest) {
   }
 
   if (action === "update_settings") {
-    const { display_name, description, avatar_url, background_color, text_color, button_style } = body;
+    const {
+      display_name,
+      description,
+      avatar_url,
+      background_color,
+      background_image_url,
+      text_color,
+      accent_color,
+      button_style,
+    } = body;
+
+    const settingsData = {
+      display_name: display_name ?? "Vertex Rental Cars",
+      description: description ?? null,
+      avatar_url: avatar_url ?? null,
+      background_color: background_color ?? "#000000",
+      background_image_url: background_image_url || null,
+      text_color: text_color ?? "#ffffff",
+      accent_color: accent_color || null,
+      button_style: button_style ?? "rounded",
+    };
 
     const { data: existing } = await supabaseAdmin.from("bio_settings").select("id").limit(1).maybeSingle();
 
     if (existing) {
       const { data, error } = await supabaseAdmin
         .from("bio_settings")
-        .update({
-          display_name: display_name ?? "Vertex Rental Cars",
-          description: description ?? null,
-          avatar_url: avatar_url ?? null,
-          background_color: background_color ?? "#000000",
-          text_color: text_color ?? "#ffffff",
-          button_style: button_style ?? "rounded",
-          updated_at: new Date().toISOString(),
-        })
+        .update({ ...settingsData, updated_at: new Date().toISOString() })
         .eq("id", existing.id)
         .select()
         .single();
@@ -100,14 +127,7 @@ export async function POST(request: NextRequest) {
 
     const { data, error } = await supabaseAdmin
       .from("bio_settings")
-      .insert({
-        display_name: display_name ?? "Vertex Rental Cars",
-        description: description ?? null,
-        avatar_url: avatar_url ?? null,
-        background_color: background_color ?? "#000000",
-        text_color: text_color ?? "#ffffff",
-        button_style: button_style ?? "rounded",
-      })
+      .insert(settingsData)
       .select()
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });

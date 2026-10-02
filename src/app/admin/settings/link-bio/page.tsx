@@ -34,6 +34,7 @@ import {
   AlertCircle,
   Pencil,
   Copy,
+  ImageIcon,
 } from "lucide-react";
 import { SettingsHeader } from "@/components/admin/SettingsHeader";
 import { authedFetch } from "@/lib/admin-fetch";
@@ -43,6 +44,7 @@ type BioLink = {
   title: string;
   url: string;
   icon: string | null;
+  thumbnail_url: string | null;
   position: number;
   enabled: boolean;
 };
@@ -53,7 +55,9 @@ type BioSettings = {
   description: string | null;
   avatar_url: string | null;
   background_color: string;
+  background_image_url: string | null;
   text_color: string;
+  accent_color: string | null;
   button_style: string;
 };
 
@@ -297,14 +301,28 @@ export default function LinkBioSettingsPage() {
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label>Descrição</Label>
+            <Label>Descrição / Cargo</Label>
             <Input
-              placeholder="Uma frase curta sobre o negócio"
+              placeholder="Ex: CEO | Aluguel de carros premium"
               value={settings?.description ?? ""}
               onChange={(e) => setSettings((s) => s ? { ...s, description: e.target.value } : s)}
             />
           </div>
-          <div className="grid grid-cols-3 gap-4">
+
+          <div className="space-y-1.5">
+            <Label className="flex items-center gap-2">
+              <ImageIcon className="h-4 w-4" />
+              Imagem de Fundo (URL)
+            </Label>
+            <Input
+              placeholder="https://... (deixe vazio para cor sólida)"
+              value={settings?.background_image_url ?? ""}
+              onChange={(e) => setSettings((s) => s ? { ...s, background_image_url: e.target.value } : s)}
+            />
+            <p className="text-xs text-muted-foreground">Se preenchido, a imagem substitui a cor de fundo.</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div className="space-y-1.5">
               <Label>Cor de fundo</Label>
               <div className="flex items-center gap-2">
@@ -333,6 +351,22 @@ export default function LinkBioSettingsPage() {
                 <Input
                   value={settings?.text_color ?? "#ffffff"}
                   onChange={(e) => setSettings((s) => s ? { ...s, text_color: e.target.value } : s)}
+                  className="font-mono text-sm"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Cor de destaque</Label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={settings?.accent_color ?? "#3b82f6"}
+                  onChange={(e) => setSettings((s) => s ? { ...s, accent_color: e.target.value } : s)}
+                  className="h-9 w-12 rounded border cursor-pointer"
+                />
+                <Input
+                  value={settings?.accent_color ?? "#3b82f6"}
+                  onChange={(e) => setSettings((s) => s ? { ...s, accent_color: e.target.value } : s)}
                   className="font-mono text-sm"
                 />
               </div>
@@ -409,6 +443,15 @@ export default function LinkBioSettingsPage() {
                     </button>
                   </div>
 
+                  {link.thumbnail_url && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={link.thumbnail_url}
+                      alt=""
+                      className="w-10 h-10 rounded object-cover shrink-0"
+                    />
+                  )}
+
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-medium truncate">{link.title}</span>
@@ -454,7 +497,7 @@ export default function LinkBioSettingsPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{editingLink.id ? "Editar Link" : "Novo Link"}</DialogTitle>
-            <DialogDescription>Configure o título, URL e ícone do link.</DialogDescription>
+            <DialogDescription>Configure o título, URL, ícone e miniatura do link.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
@@ -473,24 +516,45 @@ export default function LinkBioSettingsPage() {
                 onChange={(e) => setEditingLink((f) => ({ ...f, url: e.target.value }))}
               />
             </div>
-            <div className="space-y-1.5">
-              <Label>Ícone</Label>
-              <Select
-                value={editingLink.icon ?? "none"}
-                onValueChange={(v) => setEditingLink((f) => ({ ...f, icon: v === "none" ? null : v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um ícone" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ICON_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Ícone</Label>
+                <Select
+                  value={editingLink.icon ?? "none"}
+                  onValueChange={(v) => setEditingLink((f) => ({ ...f, icon: v === "none" ? null : v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um ícone" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ICON_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Miniatura (URL da imagem)</Label>
+                <Input
+                  placeholder="https://..."
+                  value={editingLink.thumbnail_url ?? ""}
+                  onChange={(e) => setEditingLink((f) => ({ ...f, thumbnail_url: e.target.value || null }))}
+                />
+              </div>
             </div>
+            {editingLink.thumbnail_url && (
+              <div className="flex items-center gap-3 p-2 border rounded-lg bg-muted/20">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={editingLink.thumbnail_url}
+                  alt="Preview"
+                  className="w-16 h-16 rounded object-cover"
+                />
+                <span className="text-sm text-muted-foreground">Preview da miniatura</span>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEditor(false)}>
