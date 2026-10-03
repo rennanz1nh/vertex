@@ -35,3 +35,10 @@ ALTER TABLE vertex.bio_settings ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "bio_links_public_read" ON vertex.bio_links FOR SELECT USING (true);
 CREATE POLICY "bio_settings_public_read" ON vertex.bio_settings FOR SELECT USING (true);
+
+-- Grant schema usage and table permissions to Supabase roles
+GRANT USAGE ON SCHEMA vertex TO anon, authenticated;
+GRANT SELECT ON vertex.bio_links TO anon, authenticated;
+GRANT SELECT ON vertex.bio_settings TO anon, authenticated;
+GRANT INSERT, UPDATE, DELETE ON vertex.bio_links TO authenticated;
+GRANT INSERT, UPDATE, DELETE ON vertex.bio_settings TO authenticated;
