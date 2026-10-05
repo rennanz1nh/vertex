@@ -38,9 +38,93 @@ import {
   Palette,
   Sparkles,
   Type,
+  Upload,
+  X,
 } from "lucide-react";
 import { SettingsHeader } from "@/components/admin/SettingsHeader";
 import { authedFetch } from "@/lib/admin-fetch";
+
+function ImageUploadField({
+  label,
+  value,
+  onChange,
+  hint,
+}: {
+  label: string;
+  value: string | null;
+  onChange: (url: string | null) => void;
+  hint?: string;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setUploadError("");
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await authedFetch("/api/admin/bio-links/upload", {
+        method: "POST",
+        body: form,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      onChange(data.url);
+    } catch (err: any) {
+      setUploadError(err.message || "Falha no upload");
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <Label className="flex items-center gap-2">
+        <ImageIcon className="h-4 w-4" />
+        {label}
+      </Label>
+      <div className="flex items-center gap-2">
+        <label className="cursor-pointer">
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
+            className="hidden"
+            onChange={handleUpload}
+            disabled={uploading}
+          />
+          <span className="inline-flex items-center gap-2 px-3 py-2 text-sm border rounded-md hover:bg-muted transition-colors">
+            {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            {uploading ? "Enviando..." : "Enviar imagem"}
+          </span>
+        </label>
+        {value && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-destructive hover:text-destructive"
+            onClick={() => onChange(null)}
+          >
+            <X className="h-4 w-4 mr-1" />
+            Remover
+          </Button>
+        )}
+      </div>
+      {value && (
+        <div className="flex items-center gap-3 p-2 border rounded-lg bg-muted/20">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={value} alt="Preview" className="w-16 h-16 rounded object-cover" />
+          <span className="text-xs text-muted-foreground truncate flex-1">{value}</span>
+        </div>
+      )}
+      {uploadError && <p className="text-xs text-destructive">{uploadError}</p>}
+      {hint && !uploadError && <p className="text-xs text-muted-foreground">{hint}</p>}
+    </div>
+  );
+}
 
 type BioLink = {
   id: string;
@@ -349,23 +433,19 @@ export default function LinkBioSettingsPage() {
           <CardDescription>Nome, descrição e subtítulo exibidos na página.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label>Nome exibido</Label>
-              <Input
-                value={settings?.display_name ?? ""}
-                onChange={(e) => setSettings((s) => s ? { ...s, display_name: e.target.value } : s)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>URL do Avatar</Label>
-              <Input
-                placeholder="https://..."
-                value={settings?.avatar_url ?? ""}
-                onChange={(e) => setSettings((s) => s ? { ...s, avatar_url: e.target.value } : s)}
-              />
-            </div>
+          <div className="space-y-1.5">
+            <Label>Nome exibido</Label>
+            <Input
+              value={settings?.display_name ?? ""}
+              onChange={(e) => setSettings((s) => s ? { ...s, display_name: e.target.value } : s)}
+            />
           </div>
+          <ImageUploadField
+            label="Foto de Perfil (Avatar)"
+            value={settings?.avatar_url ?? null}
+            onChange={(url) => setSettings((s) => s ? { ...s, avatar_url: url ?? "" } : s)}
+            hint="JPG, PNG ou WebP. Máximo 5MB."
+          />
           <div className="space-y-1.5">
             <Label>Subtítulo / Cargo</Label>
             <Input
@@ -395,18 +475,12 @@ export default function LinkBioSettingsPage() {
           <CardDescription>Cor sólida, gradiente ou imagem de fundo. O gradiente tem prioridade sobre a cor sólida.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-1.5">
-            <Label className="flex items-center gap-2">
-              <ImageIcon className="h-4 w-4" />
-              Imagem de Fundo (URL)
-            </Label>
-            <Input
-              placeholder="https://... (prioridade máxima se preenchido)"
-              value={settings?.background_image_url ?? ""}
-              onChange={(e) => setSettings((s) => s ? { ...s, background_image_url: e.target.value } : s)}
-            />
-            <p className="text-xs text-muted-foreground">Se preenchido, a imagem substitui cor e gradiente.</p>
-          </div>
+          <ImageUploadField
+            label="Imagem de Fundo"
+            value={settings?.background_image_url ?? null}
+            onChange={(url) => setSettings((s) => s ? { ...s, background_image_url: url ?? "" } : s)}
+            hint="Se preenchido, a imagem substitui cor e gradiente. Máximo 5MB."
+          />
 
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div className="space-y-1.5">
@@ -774,34 +848,31 @@ export default function LinkBioSettingsPage() {
                 onChange={(e) => setEditingLink((f) => ({ ...f, description: e.target.value || null }))}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Ícone</Label>
-                <Select
-                  value={editingLink.icon ?? "none"}
-                  onValueChange={(v) => setEditingLink((f) => ({ ...f, icon: v === "none" ? null : v }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione um ícone" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ICON_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Miniatura (URL da imagem)</Label>
-                <Input
-                  placeholder="https://..."
-                  value={editingLink.thumbnail_url ?? ""}
-                  onChange={(e) => setEditingLink((f) => ({ ...f, thumbnail_url: e.target.value || null }))}
-                />
-              </div>
+            <div className="space-y-1.5">
+              <Label>Ícone</Label>
+              <Select
+                value={editingLink.icon ?? "none"}
+                onValueChange={(v) => setEditingLink((f) => ({ ...f, icon: v === "none" ? null : v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um ícone" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ICON_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+
+            <ImageUploadField
+              label="Miniatura do link"
+              value={editingLink.thumbnail_url ?? null}
+              onChange={(url) => setEditingLink((f) => ({ ...f, thumbnail_url: url ?? null }))}
+              hint="Imagem exibida ao lado do título. Máximo 5MB."
+            />
 
             {/* Per-link colors */}
             <div className="border rounded-lg p-3 space-y-3">
@@ -869,17 +940,6 @@ export default function LinkBioSettingsPage() {
               )}
             </div>
 
-            {editingLink.thumbnail_url && (
-              <div className="flex items-center gap-3 p-2 border rounded-lg bg-muted/20">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={editingLink.thumbnail_url}
-                  alt="Preview"
-                  className="w-16 h-16 rounded object-cover"
-                />
-                <span className="text-sm text-muted-foreground">Preview da miniatura</span>
-              </div>
-            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEditor(false)}>
