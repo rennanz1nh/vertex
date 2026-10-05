@@ -35,6 +35,9 @@ import {
   Pencil,
   Copy,
   ImageIcon,
+  Palette,
+  Sparkles,
+  Type,
 } from "lucide-react";
 import { SettingsHeader } from "@/components/admin/SettingsHeader";
 import { authedFetch } from "@/lib/admin-fetch";
@@ -45,6 +48,9 @@ type BioLink = {
   url: string;
   icon: string | null;
   thumbnail_url: string | null;
+  description: string | null;
+  button_color: string | null;
+  button_text_color: string | null;
   position: number;
   enabled: boolean;
 };
@@ -53,12 +59,20 @@ type BioSettings = {
   id: string;
   display_name: string;
   description: string | null;
+  subtitle: string | null;
   avatar_url: string | null;
   background_color: string;
   background_image_url: string | null;
   text_color: string;
   accent_color: string | null;
   button_style: string;
+  gradient_start: string | null;
+  gradient_end: string | null;
+  gradient_direction: string;
+  button_shadow: string;
+  button_animation: string;
+  font_family: string;
+  social_position: string;
 };
 
 const ICON_OPTIONS = [
@@ -75,6 +89,51 @@ const ICON_OPTIONS = [
   { value: "map", label: "Mapa" },
   { value: "store", label: "Loja" },
   { value: "link", label: "Link genérico" },
+];
+
+const SHADOW_OPTIONS = [
+  { value: "none", label: "Nenhuma" },
+  { value: "soft", label: "Suave" },
+  { value: "medium", label: "Média" },
+  { value: "hard", label: "Forte" },
+  { value: "neon", label: "Neon (Brilho)" },
+  { value: "floating", label: "Flutuante" },
+];
+
+const ANIMATION_OPTIONS = [
+  { value: "none", label: "Nenhuma" },
+  { value: "fade-in", label: "Fade In" },
+  { value: "slide-up", label: "Deslizar para cima" },
+  { value: "scale", label: "Escala" },
+  { value: "bounce", label: "Quicar" },
+];
+
+const FONT_OPTIONS = [
+  { value: "Inter", label: "Inter (Moderno)" },
+  { value: "Poppins", label: "Poppins (Clean)" },
+  { value: "Montserrat", label: "Montserrat (Elegante)" },
+  { value: "Raleway", label: "Raleway (Sofisticado)" },
+  { value: "Playfair Display", label: "Playfair Display (Serif)" },
+  { value: "Space Grotesk", label: "Space Grotesk (Tech)" },
+  { value: "DM Sans", label: "DM Sans (Minimalista)" },
+  { value: "Outfit", label: "Outfit (Geométrico)" },
+  { value: "Sora", label: "Sora (Futurista)" },
+  { value: "Nunito", label: "Nunito (Arredondado)" },
+];
+
+const GRADIENT_DIRECTIONS = [
+  { value: "to bottom", label: "Cima → Baixo" },
+  { value: "to top", label: "Baixo → Cima" },
+  { value: "to right", label: "Esquerda → Direita" },
+  { value: "to left", label: "Direita → Esquerda" },
+  { value: "to bottom right", label: "Diagonal ↘" },
+  { value: "to bottom left", label: "Diagonal ↙" },
+];
+
+const SOCIAL_POSITION_OPTIONS = [
+  { value: "top", label: "Topo (acima dos links)" },
+  { value: "bottom", label: "Rodapé" },
+  { value: "hidden", label: "Oculto (mostrar como link)" },
 ];
 
 export default function LinkBioSettingsPage() {
@@ -221,6 +280,10 @@ export default function LinkBioSettingsPage() {
     setTimeout(() => setCopied(false), 2000);
   }
 
+  const gradientPreview = settings?.gradient_start && settings?.gradient_end
+    ? `linear-gradient(${settings.gradient_direction || "to bottom"}, ${settings.gradient_start}, ${settings.gradient_end})`
+    : null;
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -276,11 +339,14 @@ export default function LinkBioSettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Page settings */}
+      {/* Page settings - Profile */}
       <Card className="max-w-3xl">
         <CardHeader>
-          <CardTitle>Aparência da Página</CardTitle>
-          <CardDescription>Personalize como a página de links aparece para os visitantes.</CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            <Type className="h-5 w-5" />
+            Perfil & Textos
+          </CardTitle>
+          <CardDescription>Nome, descrição e subtítulo exibidos na página.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -301,25 +367,45 @@ export default function LinkBioSettingsPage() {
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label>Descrição / Cargo</Label>
+            <Label>Subtítulo / Cargo</Label>
             <Input
               placeholder="Ex: CEO | Aluguel de carros premium"
+              value={settings?.subtitle ?? ""}
+              onChange={(e) => setSettings((s) => s ? { ...s, subtitle: e.target.value } : s)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Descrição da página (SEO)</Label>
+            <Input
+              placeholder="Ex: Links oficiais da Vertex Rental Cars"
               value={settings?.description ?? ""}
               onChange={(e) => setSettings((s) => s ? { ...s, description: e.target.value } : s)}
             />
           </div>
+        </CardContent>
+      </Card>
 
+      {/* Background & Gradient */}
+      <Card className="max-w-3xl">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Palette className="h-5 w-5" />
+            Fundo & Cores
+          </CardTitle>
+          <CardDescription>Cor sólida, gradiente ou imagem de fundo. O gradiente tem prioridade sobre a cor sólida.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
           <div className="space-y-1.5">
             <Label className="flex items-center gap-2">
               <ImageIcon className="h-4 w-4" />
               Imagem de Fundo (URL)
             </Label>
             <Input
-              placeholder="https://... (deixe vazio para cor sólida)"
+              placeholder="https://... (prioridade máxima se preenchido)"
               value={settings?.background_image_url ?? ""}
               onChange={(e) => setSettings((s) => s ? { ...s, background_image_url: e.target.value } : s)}
             />
-            <p className="text-xs text-muted-foreground">Se preenchido, a imagem substitui a cor de fundo.</p>
+            <p className="text-xs text-muted-foreground">Se preenchido, a imagem substitui cor e gradiente.</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -371,6 +457,92 @@ export default function LinkBioSettingsPage() {
                 />
               </div>
             </div>
+          </div>
+
+          {/* Gradient */}
+          <div className="border rounded-lg p-4 space-y-3">
+            <Label className="text-sm font-semibold">Gradiente (opcional)</Label>
+            <p className="text-xs text-muted-foreground">Preencha ambas as cores para ativar o gradiente.</p>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Cor inicial</Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={settings?.gradient_start ?? "#1a1a2e"}
+                    onChange={(e) => setSettings((s) => s ? { ...s, gradient_start: e.target.value } : s)}
+                    className="h-9 w-12 rounded border cursor-pointer"
+                  />
+                  <Input
+                    placeholder="#1a1a2e"
+                    value={settings?.gradient_start ?? ""}
+                    onChange={(e) => setSettings((s) => s ? { ...s, gradient_start: e.target.value } : s)}
+                    className="font-mono text-xs"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Cor final</Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={settings?.gradient_end ?? "#16213e"}
+                    onChange={(e) => setSettings((s) => s ? { ...s, gradient_end: e.target.value } : s)}
+                    className="h-9 w-12 rounded border cursor-pointer"
+                  />
+                  <Input
+                    placeholder="#16213e"
+                    value={settings?.gradient_end ?? ""}
+                    onChange={(e) => setSettings((s) => s ? { ...s, gradient_end: e.target.value } : s)}
+                    className="font-mono text-xs"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Direção</Label>
+                <Select
+                  value={settings?.gradient_direction ?? "to bottom"}
+                  onValueChange={(v) => setSettings((s) => s ? { ...s, gradient_direction: v } : s)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {GRADIENT_DIRECTIONS.map((d) => (
+                      <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {gradientPreview && (
+              <div className="h-12 rounded-lg border" style={{ background: gradientPreview }} />
+            )}
+            {(settings?.gradient_start || settings?.gradient_end) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs"
+                onClick={() => setSettings((s) => s ? { ...s, gradient_start: null as any, gradient_end: null as any } : s)}
+              >
+                Limpar gradiente
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Visual Effects */}
+      <Card className="max-w-3xl">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5" />
+            Efeitos Visuais
+          </CardTitle>
+          <CardDescription>Estilo dos botões, sombras, animações e tipografia.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <div className="space-y-1.5">
               <Label>Estilo dos botões</Label>
               <Select
@@ -388,7 +560,74 @@ export default function LinkBioSettingsPage() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-1.5">
+              <Label>Sombra dos botões</Label>
+              <Select
+                value={settings?.button_shadow ?? "soft"}
+                onValueChange={(v) => setSettings((s) => s ? { ...s, button_shadow: v } : s)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SHADOW_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Animação de entrada</Label>
+              <Select
+                value={settings?.button_animation ?? "fade-in"}
+                onValueChange={(v) => setSettings((s) => s ? { ...s, button_animation: v } : s)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ANIMATION_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Fonte</Label>
+              <Select
+                value={settings?.font_family ?? "Inter"}
+                onValueChange={(v) => setSettings((s) => s ? { ...s, font_family: v } : s)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {FONT_OPTIONS.map((f) => (
+                    <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Barra de redes sociais</Label>
+              <Select
+                value={settings?.social_position ?? "bottom"}
+                onValueChange={(v) => setSettings((s) => s ? { ...s, social_position: v } : s)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SOCIAL_POSITION_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           <div className="flex justify-end pt-2">
             <Button onClick={handleSaveSettings} disabled={savingSettings} className="bg-black hover:bg-black/80 text-white">
               {savingSettings ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
@@ -404,7 +643,7 @@ export default function LinkBioSettingsPage() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Links</CardTitle>
-              <CardDescription>Adicione, edite e organize seus links.</CardDescription>
+              <CardDescription>Adicione, edite e organize seus links. Cada link pode ter cores individuais.</CardDescription>
             </div>
             <Button
               onClick={() => { setEditingLink({}); setShowEditor(true); }}
@@ -443,6 +682,14 @@ export default function LinkBioSettingsPage() {
                     </button>
                   </div>
 
+                  {link.button_color && (
+                    <div
+                      className="w-4 h-10 rounded shrink-0"
+                      style={{ backgroundColor: link.button_color }}
+                      title={`Cor: ${link.button_color}`}
+                    />
+                  )}
+
                   {link.thumbnail_url && (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -461,7 +708,10 @@ export default function LinkBioSettingsPage() {
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground truncate">{link.url}</p>
+                    {link.description && (
+                      <p className="text-xs text-muted-foreground truncate">{link.description}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground truncate opacity-60">{link.url}</p>
                   </div>
 
                   <Switch
@@ -494,12 +744,12 @@ export default function LinkBioSettingsPage() {
 
       {/* Link editor dialog */}
       <Dialog open={showEditor} onOpenChange={setShowEditor}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>{editingLink.id ? "Editar Link" : "Novo Link"}</DialogTitle>
-            <DialogDescription>Configure o título, URL, ícone e miniatura do link.</DialogDescription>
+            <DialogDescription>Configure título, URL, ícone, descrição e cores individuais.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto">
             <div className="space-y-1.5">
               <Label>Título</Label>
               <Input
@@ -514,6 +764,14 @@ export default function LinkBioSettingsPage() {
                 placeholder="https://..."
                 value={editingLink.url ?? ""}
                 onChange={(e) => setEditingLink((f) => ({ ...f, url: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Descrição (opcional)</Label>
+              <Input
+                placeholder="Ex: Siga-nos para novidades e promoções"
+                value={editingLink.description ?? ""}
+                onChange={(e) => setEditingLink((f) => ({ ...f, description: e.target.value || null }))}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -544,6 +802,73 @@ export default function LinkBioSettingsPage() {
                 />
               </div>
             </div>
+
+            {/* Per-link colors */}
+            <div className="border rounded-lg p-3 space-y-3">
+              <Label className="text-sm font-semibold flex items-center gap-2">
+                <Palette className="h-4 w-4" />
+                Cores individuais (opcional)
+              </Label>
+              <p className="text-xs text-muted-foreground">Se vazio, usa a cor de destaque padrão.</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Cor do botão</Label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={editingLink.button_color ?? "#3b82f6"}
+                      onChange={(e) => setEditingLink((f) => ({ ...f, button_color: e.target.value }))}
+                      className="h-9 w-12 rounded border cursor-pointer"
+                    />
+                    <Input
+                      placeholder="Ex: #ff6b35"
+                      value={editingLink.button_color ?? ""}
+                      onChange={(e) => setEditingLink((f) => ({ ...f, button_color: e.target.value || null }))}
+                      className="font-mono text-xs"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Cor do texto</Label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={editingLink.button_text_color ?? "#ffffff"}
+                      onChange={(e) => setEditingLink((f) => ({ ...f, button_text_color: e.target.value }))}
+                      className="h-9 w-12 rounded border cursor-pointer"
+                    />
+                    <Input
+                      placeholder="Ex: #ffffff"
+                      value={editingLink.button_text_color ?? ""}
+                      onChange={(e) => setEditingLink((f) => ({ ...f, button_text_color: e.target.value || null }))}
+                      className="font-mono text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+              {editingLink.button_color && (
+                <div
+                  className="h-10 rounded-lg flex items-center justify-center text-sm font-medium"
+                  style={{
+                    backgroundColor: editingLink.button_color,
+                    color: editingLink.button_text_color || "#ffffff",
+                  }}
+                >
+                  Preview do botão
+                </div>
+              )}
+              {(editingLink.button_color || editingLink.button_text_color) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => setEditingLink((f) => ({ ...f, button_color: null, button_text_color: null }))}
+                >
+                  Limpar cores individuais
+                </Button>
+              )}
+            </div>
+
             {editingLink.thumbnail_url && (
               <div className="flex items-center gap-3 p-2 border rounded-lg bg-muted/20">
                 {/* eslint-disable-next-line @next/next/no-img-element */}

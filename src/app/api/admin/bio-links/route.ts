@@ -25,23 +25,30 @@ export async function POST(request: NextRequest) {
   const { action } = body as { action: string };
 
   if (action === "upsert_link") {
-    const { id, title, url, icon, thumbnail_url, position, enabled } = body;
+    const {
+      id, title, url, icon, thumbnail_url, position, enabled,
+      description, button_color, button_text_color,
+    } = body;
     if (!title || !url) {
       return NextResponse.json({ error: "Título e URL são obrigatórios" }, { status: 400 });
     }
 
+    const linkData = {
+      title,
+      url,
+      icon: icon || null,
+      thumbnail_url: thumbnail_url || null,
+      enabled: enabled ?? true,
+      description: description || null,
+      button_color: button_color || null,
+      button_text_color: button_text_color || null,
+      updated_at: new Date().toISOString(),
+    };
+
     if (id) {
       const { data, error } = await supabaseAdmin
         .from("bio_links")
-        .update({
-          title,
-          url,
-          icon: icon || null,
-          thumbnail_url: thumbnail_url || null,
-          position: position ?? 0,
-          enabled: enabled ?? true,
-          updated_at: new Date().toISOString(),
-        })
+        .update({ ...linkData, position: position ?? 0 })
         .eq("id", id)
         .select()
         .single();
@@ -58,14 +65,7 @@ export async function POST(request: NextRequest) {
 
     const { data, error } = await supabaseAdmin
       .from("bio_links")
-      .insert({
-        title,
-        url,
-        icon: icon || null,
-        thumbnail_url: thumbnail_url || null,
-        position: (maxPos?.position ?? -1) + 1,
-        enabled: enabled ?? true,
-      })
+      .insert({ ...linkData, position: (maxPos?.position ?? -1) + 1 })
       .select()
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
@@ -91,14 +91,12 @@ export async function POST(request: NextRequest) {
 
   if (action === "update_settings") {
     const {
-      display_name,
-      description,
-      avatar_url,
-      background_color,
-      background_image_url,
-      text_color,
-      accent_color,
-      button_style,
+      display_name, description, avatar_url,
+      background_color, background_image_url, text_color,
+      accent_color, button_style,
+      gradient_start, gradient_end, gradient_direction,
+      button_shadow, button_animation, font_family,
+      social_position, subtitle,
     } = body;
 
     const settingsData = {
@@ -110,6 +108,14 @@ export async function POST(request: NextRequest) {
       text_color: text_color ?? "#ffffff",
       accent_color: accent_color || null,
       button_style: button_style ?? "rounded",
+      gradient_start: gradient_start || null,
+      gradient_end: gradient_end || null,
+      gradient_direction: gradient_direction ?? "to bottom",
+      button_shadow: button_shadow ?? "soft",
+      button_animation: button_animation ?? "fade-in",
+      font_family: font_family ?? "Inter",
+      social_position: social_position ?? "bottom",
+      subtitle: subtitle || null,
     };
 
     const { data: existing } = await supabaseAdmin.from("bio_settings").select("id").limit(1).maybeSingle();

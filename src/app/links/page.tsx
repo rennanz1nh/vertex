@@ -15,6 +15,9 @@ type BioLink = {
   url: string;
   icon: string | null;
   thumbnail_url: string | null;
+  description: string | null;
+  button_color: string | null;
+  button_text_color: string | null;
   position: number;
   enabled: boolean;
 };
@@ -22,12 +25,20 @@ type BioLink = {
 type BioSettings = {
   display_name: string;
   description: string | null;
+  subtitle: string | null;
   avatar_url: string | null;
   background_color: string;
   background_image_url: string | null;
   text_color: string;
   accent_color: string | null;
   button_style: string;
+  gradient_start: string | null;
+  gradient_end: string | null;
+  gradient_direction: string;
+  button_shadow: string;
+  button_animation: string;
+  font_family: string;
+  social_position: string;
 };
 
 const ICON_SVG: Record<string, { viewBox: string; path: string }> = {
@@ -81,6 +92,38 @@ const ICON_SVG: Record<string, { viewBox: string; path: string }> = {
   },
 };
 
+const SOCIAL_ICONS = ["instagram", "facebook", "tiktok", "youtube", "twitter"];
+
+function getBorderRadius(style: string) {
+  switch (style) {
+    case "pill": return "9999px";
+    case "square": return "4px";
+    case "outline": return "12px";
+    default: return "16px";
+  }
+}
+
+function getShadow(style: string, accentColor: string) {
+  switch (style) {
+    case "soft": return "0 4px 14px rgba(0,0,0,0.15)";
+    case "medium": return "0 6px 20px rgba(0,0,0,0.25)";
+    case "hard": return "0 8px 30px rgba(0,0,0,0.4)";
+    case "neon": return `0 0 20px ${accentColor}66, 0 0 40px ${accentColor}33`;
+    case "floating": return "0 12px 40px rgba(0,0,0,0.2), 0 4px 12px rgba(0,0,0,0.1)";
+    default: return "none";
+  }
+}
+
+function getAnimation(style: string) {
+  switch (style) {
+    case "fade-in": return "bio-fade-in";
+    case "slide-up": return "bio-slide-up";
+    case "scale": return "bio-scale-in";
+    case "bounce": return "bio-bounce-in";
+    default: return "";
+  }
+}
+
 export async function generateMetadata(): Promise<Metadata> {
   const { data: settings } = await supabase.from("bio_settings").select("*").limit(1).maybeSingle();
   const name = settings?.display_name || "Vertex Rental Cars";
@@ -99,32 +142,33 @@ export default async function LinksPage() {
   const s: BioSettings = {
     display_name: settings?.display_name || "Vertex Rental Cars",
     description: settings?.description || null,
+    subtitle: settings?.subtitle || null,
     avatar_url: settings?.avatar_url || null,
     background_color: settings?.background_color || "#0f172a",
     background_image_url: settings?.background_image_url || null,
     text_color: settings?.text_color || "#ffffff",
     accent_color: settings?.accent_color || "#3b82f6",
     button_style: settings?.button_style || "rounded",
+    gradient_start: settings?.gradient_start || null,
+    gradient_end: settings?.gradient_end || null,
+    gradient_direction: settings?.gradient_direction || "to bottom",
+    button_shadow: settings?.button_shadow || "soft",
+    button_animation: settings?.button_animation || "fade-in",
+    font_family: settings?.font_family || "Inter",
+    social_position: settings?.social_position || "bottom",
   };
 
   const enabledLinks = (links as BioLink[] | null) ?? [];
 
-  const contactLinks = enabledLinks.filter(
-    (l) => l.icon === "whatsapp" || l.icon === "phone" || l.icon === "email"
-  );
-  const socialLinks = enabledLinks.filter(
-    (l) =>
-      l.icon === "instagram" ||
-      l.icon === "facebook" ||
-      l.icon === "tiktok" ||
-      l.icon === "youtube" ||
-      l.icon === "twitter"
-  );
-  const otherLinks = enabledLinks.filter(
-    (l) =>
-      !contactLinks.includes(l) && !socialLinks.includes(l)
-  );
+  const socialLinks = enabledLinks.filter((l) => l.icon && SOCIAL_ICONS.includes(l.icon));
+  const mainLinks = s.social_position === "hidden"
+    ? enabledLinks
+    : enabledLinks.filter((l) => !socialLinks.includes(l));
 
+  const borderRadius = getBorderRadius(s.button_style);
+  const animClass = getAnimation(s.button_animation);
+
+  const hasGradient = s.gradient_start && s.gradient_end;
   const bgStyle: React.CSSProperties = s.background_image_url
     ? {
         backgroundImage: `url(${s.background_image_url})`,
@@ -132,213 +176,279 @@ export default async function LinksPage() {
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
       }
+    : hasGradient
+    ? { background: `linear-gradient(${s.gradient_direction}, ${s.gradient_start}, ${s.gradient_end})` }
     : { backgroundColor: s.background_color };
 
+  const fontUrl = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(s.font_family)}:wght@400;500;600;700&display=swap`;
+
+  const SocialBar = () =>
+    socialLinks.length > 0 ? (
+      <div className="flex items-center justify-center gap-3 flex-wrap">
+        {socialLinks.map((link) => {
+          const iconData = link.icon ? ICON_SVG[link.icon] : null;
+          if (!iconData) return null;
+          return (
+            <a
+              key={link.id}
+              href={link.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={link.title}
+              className="bio-social-icon"
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: link.button_color || `${s.text_color}15`,
+                color: link.button_text_color || s.text_color,
+                border: `1px solid ${s.text_color}20`,
+                transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+              }}
+            >
+              <svg className="w-5 h-5 fill-current" viewBox={iconData.viewBox}>
+                <path d={iconData.path} />
+              </svg>
+            </a>
+          );
+        })}
+      </div>
+    ) : null;
+
   return (
-    <div className="min-h-screen" style={bgStyle}>
-      {s.background_image_url && (
-        <div
-          className="fixed inset-0"
-          style={{ backgroundColor: `${s.background_color}cc` }}
-        />
-      )}
+    <>
+      {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+      <link rel="stylesheet" href={fontUrl} />
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes bio-fade-in {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes bio-slide-up {
+          from { opacity: 0; transform: translateY(30px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes bio-scale-in {
+          from { opacity: 0; transform: scale(0.9); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes bio-bounce-in {
+          0% { opacity: 0; transform: translateY(20px); }
+          60% { opacity: 1; transform: translateY(-5px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes bio-avatar-in {
+          from { opacity: 0; transform: scale(0.8); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes bio-glow {
+          0%, 100% { box-shadow: 0 0 20px ${s.accent_color}44; }
+          50% { box-shadow: 0 0 30px ${s.accent_color}88; }
+        }
+        .bio-link-btn {
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .bio-link-btn:hover {
+          transform: translateY(-2px) scale(1.02);
+          filter: brightness(1.1);
+        }
+        .bio-link-btn:active {
+          transform: scale(0.98);
+        }
+        .bio-social-icon:hover {
+          transform: scale(1.15);
+          filter: brightness(1.2);
+        }
+        .bio-social-icon:active {
+          transform: scale(0.95);
+        }
+        ${s.button_shadow === "neon" ? `.bio-link-btn:hover { animation: bio-glow 2s ease-in-out infinite; }` : ""}
+      `}} />
 
       <div
-        className="relative min-h-screen flex flex-col items-center px-4 py-10"
-        style={{ color: s.text_color }}
+        className="min-h-screen"
+        style={{
+          ...bgStyle,
+          fontFamily: `'${s.font_family}', system-ui, sans-serif`,
+        }}
       >
-        <div className="w-full max-w-md flex flex-col items-center gap-5">
-          {/* Profile Section */}
-          <div className="flex flex-col items-center gap-3 pt-4">
-            {s.avatar_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={s.avatar_url}
-                alt={s.display_name}
-                className="w-28 h-28 rounded-full object-cover shadow-xl"
-                style={{
-                  border: `3px solid ${s.accent_color || s.text_color}`,
-                }}
-              />
-            ) : (
-              <div
-                className="w-28 h-28 rounded-full flex items-center justify-center text-4xl font-bold shadow-xl"
-                style={{
-                  backgroundColor: `${s.text_color}15`,
-                  border: `3px solid ${s.accent_color || s.text_color}`,
-                  color: s.text_color,
-                }}
-              >
-                {s.display_name.charAt(0).toUpperCase()}
+        {s.background_image_url && (
+          <div
+            className="fixed inset-0"
+            style={{ backgroundColor: `${s.background_color}cc` }}
+          />
+        )}
+
+        <div
+          className="relative min-h-screen flex flex-col items-center px-5 py-10 sm:py-14"
+          style={{ color: s.text_color }}
+        >
+          <div className="w-full max-w-md flex flex-col items-center gap-6">
+            {/* Profile Section */}
+            <div
+              className="flex flex-col items-center gap-3 pt-2"
+              style={{ animation: "bio-avatar-in 0.6s ease-out" }}
+            >
+              {s.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={s.avatar_url}
+                  alt={s.display_name}
+                  className="w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover"
+                  style={{
+                    border: `3px solid ${s.accent_color || s.text_color}`,
+                    boxShadow: `0 0 30px ${s.accent_color || s.text_color}33`,
+                  }}
+                />
+              ) : (
+                <div
+                  className="w-24 h-24 sm:w-28 sm:h-28 rounded-full flex items-center justify-center text-4xl font-bold"
+                  style={{
+                    backgroundColor: `${s.text_color}12`,
+                    border: `3px solid ${s.accent_color || s.text_color}`,
+                    color: s.text_color,
+                    boxShadow: `0 0 30px ${s.accent_color || s.text_color}33`,
+                  }}
+                >
+                  {s.display_name.charAt(0).toUpperCase()}
+                </div>
+              )}
+
+              <div className="text-center">
+                <h1
+                  className="text-2xl sm:text-3xl font-bold tracking-tight"
+                  style={{ letterSpacing: "-0.02em" }}
+                >
+                  {s.display_name}
+                </h1>
+                {s.subtitle && (
+                  <p className="mt-1.5 text-sm sm:text-base opacity-70 font-medium">
+                    {s.subtitle}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Social Bar - Top */}
+            {s.social_position === "top" && <SocialBar />}
+
+            {/* Main Links */}
+            {mainLinks.length > 0 && (
+              <div className="w-full flex flex-col gap-3">
+                {mainLinks.map((link, index) => {
+                  const iconData = link.icon ? ICON_SVG[link.icon] : null;
+                  const btnBg = link.button_color || s.accent_color || "#3b82f6";
+                  const btnText = link.button_text_color || "#ffffff";
+                  const isOutline = s.button_style === "outline";
+                  const shadow = getShadow(s.button_shadow, btnBg);
+
+                  return (
+                    <a
+                      key={link.id}
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`bio-link-btn flex items-center gap-4 w-full p-4 ${animClass ? animClass : ""}`}
+                      style={{
+                        backgroundColor: isOutline ? "transparent" : btnBg,
+                        color: isOutline ? s.text_color : btnText,
+                        borderRadius,
+                        border: isOutline ? `2px solid ${btnBg}` : `1px solid ${btnBg}22`,
+                        boxShadow: shadow,
+                        animation: animClass ? `${animClass} 0.5s ease-out ${index * 0.08}s both` : undefined,
+                        backdropFilter: isOutline ? "blur(10px)" : undefined,
+                      }}
+                    >
+                      {link.thumbnail_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={link.thumbnail_url}
+                          alt=""
+                          className="w-12 h-12 rounded-xl object-cover shrink-0"
+                        />
+                      ) : iconData ? (
+                        <div
+                          className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+                          style={{
+                            backgroundColor: isOutline ? `${btnBg}20` : "rgba(255,255,255,0.18)",
+                          }}
+                        >
+                          <svg
+                            className="w-6 h-6"
+                            viewBox={iconData.viewBox}
+                            style={{ fill: isOutline ? btnBg : btnText }}
+                          >
+                            <path d={iconData.path} />
+                          </svg>
+                        </div>
+                      ) : (
+                        <div
+                          className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+                          style={{
+                            backgroundColor: isOutline ? `${btnBg}20` : "rgba(255,255,255,0.18)",
+                          }}
+                        >
+                          <svg
+                            className="w-6 h-6"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke={isOutline ? btnBg : btnText}
+                            strokeWidth="2"
+                          >
+                            <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" />
+                          </svg>
+                        </div>
+                      )}
+
+                      <div className="flex-1 min-w-0">
+                        <span className="font-semibold text-base block truncate">
+                          {link.title}
+                        </span>
+                        {link.description && (
+                          <span
+                            className="text-xs block truncate mt-0.5"
+                            style={{ opacity: 0.7 }}
+                          >
+                            {link.description}
+                          </span>
+                        )}
+                      </div>
+
+                      <svg
+                        className="w-5 h-5 shrink-0"
+                        style={{ opacity: 0.5 }}
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <path d="M9 18l6-6-6-6" />
+                      </svg>
+                    </a>
+                  );
+                })}
               </div>
             )}
 
-            <div className="text-center">
-              <h1 className="text-2xl font-bold tracking-tight">{s.display_name}</h1>
-              {s.description && (
-                <p className="mt-1 text-sm opacity-75">{s.description}</p>
-              )}
+            {enabledLinks.length === 0 && (
+              <p className="text-center opacity-50 py-12">Nenhum link disponivel.</p>
+            )}
+
+            {/* Social Bar - Bottom */}
+            {s.social_position === "bottom" && <SocialBar />}
+
+            {/* Footer */}
+            <div className="mt-6 pb-6 text-center">
+              <p className="text-xs opacity-25">
+                Vertex Rental Cars
+              </p>
             </div>
-          </div>
-
-          {/* Contact Buttons */}
-          {contactLinks.length > 0 && (
-            <div className="w-full flex flex-col gap-3 mt-2">
-              {contactLinks.map((link) => {
-                const iconData = link.icon ? ICON_SVG[link.icon] : null;
-                return (
-                  <a
-                    key={link.id}
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-4 w-full p-4 rounded-2xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-lg"
-                    style={{
-                      backgroundColor: s.accent_color || "#3b82f6",
-                      color: "#ffffff",
-                    }}
-                  >
-                    {link.thumbnail_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={link.thumbnail_url}
-                        alt=""
-                        className="w-12 h-12 rounded-xl object-cover shrink-0"
-                      />
-                    ) : iconData ? (
-                      <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: "rgba(255,255,255,0.2)" }}>
-                        <svg className="w-6 h-6 fill-current" viewBox={iconData.viewBox}>
-                          <path d={iconData.path} />
-                        </svg>
-                      </div>
-                    ) : null}
-                    <div className="flex-1 min-w-0">
-                      <span className="font-semibold text-base">{link.title}</span>
-                    </div>
-                    <svg className="w-5 h-5 opacity-60 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M5 12h14M12 5l7 7-7 7" />
-                    </svg>
-                  </a>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Social Links */}
-          {socialLinks.length > 0 && (
-            <div className="w-full flex flex-col gap-3">
-              {socialLinks.map((link) => {
-                const iconData = link.icon ? ICON_SVG[link.icon] : null;
-                return (
-                  <a
-                    key={link.id}
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-4 w-full p-4 rounded-2xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                    style={{
-                      backgroundColor: `${s.text_color}12`,
-                      backdropFilter: "blur(10px)",
-                      border: `1px solid ${s.text_color}20`,
-                    }}
-                  >
-                    {link.thumbnail_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={link.thumbnail_url}
-                        alt=""
-                        className="w-12 h-12 rounded-xl object-cover shrink-0"
-                      />
-                    ) : iconData ? (
-                      <div
-                        className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
-                        style={{ backgroundColor: `${s.text_color}10` }}
-                      >
-                        <svg className="w-6 h-6 fill-current" viewBox={iconData.viewBox}>
-                          <path d={iconData.path} />
-                        </svg>
-                      </div>
-                    ) : null}
-                    <div className="flex-1 min-w-0">
-                      <span className="font-semibold text-base">{link.title}</span>
-                    </div>
-                    <svg className="w-5 h-5 opacity-40 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" />
-                    </svg>
-                  </a>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Other Links / Service Cards */}
-          {otherLinks.length > 0 && (
-            <div className="w-full flex flex-col gap-3">
-              {otherLinks.map((link) => {
-                const iconData = link.icon ? ICON_SVG[link.icon] : null;
-                return (
-                  <a
-                    key={link.id}
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-4 w-full p-4 rounded-2xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                    style={{
-                      backgroundColor: `${s.text_color}10`,
-                      backdropFilter: "blur(10px)",
-                      border: `1px solid ${s.text_color}15`,
-                    }}
-                  >
-                    {link.thumbnail_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={link.thumbnail_url}
-                        alt=""
-                        className="w-14 h-14 rounded-xl object-cover shrink-0"
-                      />
-                    ) : iconData ? (
-                      <div
-                        className="w-14 h-14 rounded-xl flex items-center justify-center shrink-0"
-                        style={{ backgroundColor: `${s.text_color}10` }}
-                      >
-                        <svg className="w-7 h-7 fill-current opacity-70" viewBox={iconData.viewBox}>
-                          <path d={iconData.path} />
-                        </svg>
-                      </div>
-                    ) : (
-                      <div
-                        className="w-14 h-14 rounded-xl flex items-center justify-center shrink-0"
-                        style={{ backgroundColor: `${s.text_color}10` }}
-                      >
-                        <svg className="w-7 h-7 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" />
-                        </svg>
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <span className="font-semibold text-base block">{link.title}</span>
-                    </div>
-                    <svg className="w-5 h-5 opacity-40 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M9 18l6-6-6-6" />
-                    </svg>
-                  </a>
-                );
-              })}
-            </div>
-          )}
-
-          {enabledLinks.length === 0 && (
-            <p className="text-center opacity-50 py-12">Nenhum link disponível.</p>
-          )}
-
-          {/* Footer */}
-          <div className="mt-8 pb-6 text-center">
-            <p className="text-xs opacity-30">
-              Vertex Rental Cars
-            </p>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
