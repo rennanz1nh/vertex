@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,65 +12,44 @@ const logo = "/images/admin-logo.png";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
-  const { toast } = useToast();
-  const [ready, setReady] = useState(false);
-  const [invalidLink, setInvalidLink] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    let becameReady = false;
-
-    // The recovery link lands here with the token in the URL hash; supabase-js
-    // picks it up automatically and fires PASSWORD_RECOVERY once the session
-    // from it is established — only then is it safe to call updateUser.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") {
-        becameReady = true;
-        setReady(true);
-      }
-    });
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        becameReady = true;
-        setReady(true);
-      }
-    });
-
-    const timeout = setTimeout(() => {
-      if (!becameReady) setInvalidLink(true);
-    }, 2000);
-
-    return () => {
-      clearTimeout(timeout);
-      subscription.unsubscribe();
-    };
-  }, []);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+
     if (password !== confirmPassword) {
-      toast({ title: "As senhas não coincidem", variant: "destructive" });
+      setError("As senhas não coincidem.");
       return;
     }
     if (password.length < 6) {
-      toast({ title: "A senha precisa ter pelo menos 6 caracteres", variant: "destructive" });
+      setError("A senha precisa ter pelo menos 6 caracteres.");
       return;
     }
 
     setLoading(true);
-    const { error } = await supabase.auth.updateUser({ password });
+    // supabase-js already tried to turn the recovery link's URL hash into a
+    // session on page load — we don't gate on that detection (it can race or
+    // silently miss); just attempt the update and surface whatever error
+    // comes back (e.g. an expired/already-used link has no valid session).
+    const { error: updateError } = await supabase.auth.updateUser({ password });
     setLoading(false);
 
-    if (error) {
-      toast({ title: "Erro ao redefinir senha", description: error.message, variant: "destructive" });
+    if (updateError) {
+      setError(
+        updateError.message === "Auth session missing!"
+          ? "Esse link é inválido ou expirou. Peça um novo link na tela de login."
+          : updateError.message
+      );
       return;
     }
 
-    toast({ title: "Senha redefinida com sucesso!" });
-    router.push("/admin");
+    setSuccess(true);
+    setTimeout(() => router.push("/admin"), 1500);
   };
 
   return (
@@ -81,12 +59,10 @@ export default function ResetPasswordPage() {
           <img src={logo} alt="Logo" className="w-16 h-16 mb-3" />
           <CardTitle>Redefinir senha</CardTitle>
           <CardDescription>
-            {invalidLink
-              ? "Esse link é inválido ou expirou. Peça um novo link na tela de login."
-              : "Escolha sua nova senha de acesso."}
+            {success ? "Senha redefinida com sucesso! Entrando..." : "Escolha sua nova senha de acesso."}
           </CardDescription>
         </CardHeader>
-        {!invalidLink && (
+        {!success && (
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
@@ -97,7 +73,6 @@ export default function ResetPasswordPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  disabled={!ready}
                 />
               </div>
               <div className="space-y-2">
@@ -108,10 +83,10 @@ export default function ResetPasswordPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
-                  disabled={!ready}
                 />
               </div>
-              <Button type="submit" className="w-full" disabled={!ready || loading}>
+              {error && <p className="text-sm text-destructive">{error}</p>}
+              <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? "Salvando..." : "Salvar nova senha"}
               </Button>
             </form>
