@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
+import { authedFetch } from '@/lib/admin-fetch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CurrencyInput } from '@/components/ui/currency-input';
@@ -145,23 +146,22 @@ export default function Cars() {
 
   const handleImageUpload = async (carId: string, file: File) => {
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${carId}-${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("carId", carId);
 
-      const { error: uploadError } = await supabase.storage.from('vertex-product-images').upload(filePath, file, { upsert: true });
-      if (uploadError) throw uploadError;
+      const res = await authedFetch("/api/admin/cars/upload", { method: "POST", body: formData });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Erro no upload");
 
-      const { data: { publicUrl } } = supabase.storage.from('vertex-product-images').getPublicUrl(filePath);
-
-      const { error: updateError } = await supabase.from('products').update({ image_url: publicUrl }).eq('id', carId);
+      const { error: updateError } = await supabase.from('products').update({ image_url: json.url }).eq('id', carId);
       if (updateError) throw updateError;
 
       toast({ title: "Sucesso!", description: "Imagem enviada com sucesso." });
       fetchCars();
     } catch (error) {
       console.error('Error uploading image:', error);
-      toast({ title: "Erro ao enviar imagem", description: "Ocorreu um erro ao enviar a imagem.", variant: "destructive" });
+      toast({ title: "Erro no upload", description: error instanceof Error ? error.message : "Ocorreu um erro ao enviar a imagem.", variant: "destructive" });
     }
   };
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { authedFetch } from "@/lib/admin-fetch";
 import type { TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -181,7 +182,7 @@ export default function CarModal({ car, open, onClose, onChanged }: Props) {
     ? (form.gallery_urls as string[])
     : [];
 
-  // Compress (medium quality) + upload one image file, returning its public URL.
+  // Compress (medium quality) + upload one image file via server API, returning its public URL.
   // Videos skip compression entirely — uploaded as-is (gallery only, never the cover).
   async function uploadToStorage(file: File): Promise<string> {
     const isVideo = file.type.startsWith("video/");
@@ -189,13 +190,14 @@ export default function CarModal({ car, open, onClose, onChanged }: Props) {
       throw new Error(`Envie um vídeo de até ${MAX_VIDEO_MB}MB.`);
     }
     const blob = isVideo ? file : await compressImage(file);
-    const ext = isVideo ? (file.name.split(".").pop() || "mp4") : "jpg";
-    const path = `${id || "new"}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
-    const { error } = await supabase.storage
-      .from("vertex-product-images")
-      .upload(path, blob, { upsert: true, contentType: isVideo ? file.type : "image/jpeg" });
-    if (error) throw error;
-    return supabase.storage.from("vertex-product-images").getPublicUrl(path).data.publicUrl;
+    const uploadFile = new File([blob], file.name, { type: isVideo ? file.type : "image/jpeg" });
+    const formData = new FormData();
+    formData.append("file", uploadFile);
+    if (id) formData.append("carId", id);
+    const res = await authedFetch("/api/admin/cars/upload", { method: "POST", body: formData });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error ?? "Erro no upload");
+    return json.url as string;
   }
 
   // Primary/cover image — applied to the form, persisted on Save.
