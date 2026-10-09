@@ -56,6 +56,14 @@ export async function POST(request: NextRequest) {
 
   if (!uploadRes.ok) {
     const errBody = await uploadRes.json().catch(() => ({}));
+    console.error("[cars/upload] storage error", {
+      status: uploadRes.status,
+      fileName,
+      bucket: BUCKET,
+      hasUserToken: !!userToken,
+      supabaseUrl,
+      errBody,
+    });
     return NextResponse.json(
       { error: (errBody as { message?: string }).message ?? "Erro no upload" },
       { status: 500 }
