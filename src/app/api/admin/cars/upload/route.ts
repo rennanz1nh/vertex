@@ -49,7 +49,6 @@ export async function POST(request: NextRequest) {
       Authorization: `Bearer ${userToken ?? supabaseAnonKey}`,
       apikey: supabaseAnonKey,
       "Content-Type": file.type,
-      "x-upsert": "true",
     },
     body: buffer,
   });
