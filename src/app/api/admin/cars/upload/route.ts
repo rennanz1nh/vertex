@@ -4,7 +4,6 @@ import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get("authorization") ?? "";
@@ -37,14 +36,12 @@ export async function POST(request: NextRequest) {
   const prefix = carId ? `${carId}-` : "";
   const fileName = `${prefix}${Date.now()}.${ext}`;
 
-  // Use service role key when available; otherwise use the user's own JWT.
-  // The storage policy must allow authenticated users when falling back to JWT.
-  const supabase = serviceRoleKey
-    ? createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } })
-    : createClient(supabaseUrl, supabaseAnonKey, {
-        auth: { persistSession: false },
-        global: { headers: { Authorization: `Bearer ${userToken}` } },
-      });
+  // Use the authenticated user's own JWT for storage so the request is
+  // scoped to their identity and the storage RLS policy can verify their role.
+  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: { persistSession: false },
+    global: { headers: { Authorization: `Bearer ${userToken}` } },
+  });
 
   const buffer = Buffer.from(await file.arrayBuffer());
 
