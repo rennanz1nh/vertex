@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { authedFetch } from "@/lib/admin-fetch";
 import type { TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,6 +53,8 @@ type Props = {
 
 export default function CarModal({ car, open, onClose, onChanged }: Props) {
   const { toast } = useToast();
+  const { profile } = useAuth();
+  const isAdmin = profile?.role === 'admin';
   const [form, setForm] = useState<Record<string, unknown>>({});
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -139,8 +142,9 @@ export default function CarModal({ car, open, onClose, onChanged }: Props) {
   async function handleDelete() {
     setBusy(true);
     try {
-      const { error } = await supabase.from("products").delete().eq("id", id);
+      const { error, count } = await supabase.from("products").delete({ count: "exact" }).eq("id", id);
       if (error) throw error;
+      if (!count || count === 0) throw new Error("Sem permissão para excluir este carro.");
       toast({ title: "Excluído", description: "Carro removido da frota." });
       onChanged();
       onClose();
@@ -650,14 +654,16 @@ export default function CarModal({ car, open, onClose, onChanged }: Props) {
               >
                 <Copy className="mr-2 h-4 w-4" /> Duplicar Carro
               </Button>
-              <Button
-                variant="ghost"
-                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                onClick={() => setConfirmDelete(true)}
-                disabled={busy || saving}
-              >
-                <Trash2 className="mr-2 h-4 w-4" /> Excluir carro
-              </Button>
+              {isAdmin && (
+                <Button
+                  variant="ghost"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => setConfirmDelete(true)}
+                  disabled={busy || saving}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" /> Excluir carro
+                </Button>
+              )}
             </div>
           ) : (
             <div className="flex items-center gap-2">
