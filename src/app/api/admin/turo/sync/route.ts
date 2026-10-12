@@ -11,12 +11,17 @@ function adminClient() {
 }
 
 async function fetchTuroFeed(url: string, token: string) {
+  // Turo uses cookie-based auth internally — send the access_token both as Bearer
+  // header and as a cookie (same value), which covers both auth paths their API accepts.
   const res = await fetch(url, {
     headers: {
       Authorization: `Bearer ${token}`,
+      Cookie: `access_token=${token}`,
       Accept: "application/json",
-      "User-Agent": "Mozilla/5.0 (compatible)",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
       "turo-country": "US",
+      Referer: "https://turo.com/",
+      Origin: "https://turo.com",
     },
   });
   if (!res.ok) {

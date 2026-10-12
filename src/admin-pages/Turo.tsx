@@ -181,13 +181,15 @@ export default function TuroPage() {
               </div>
               <ol className="text-sm text-amber-700 space-y-1 list-decimal list-inside ml-4">
                 <li>Acesse <strong>turo.com</strong> e faça login na sua conta de host</li>
-                <li>Abra as Ferramentas do Desenvolvedor (F12 ou Cmd+Option+I)</li>
+                <li>Abra as Ferramentas do Desenvolvedor (<strong>F12</strong> ou Cmd+Option+I no Mac)</li>
                 <li>Vá na aba <strong>Network</strong> (Rede)</li>
-                <li>Recarregue a página ou clique em qualquer coisa</li>
                 <li>Clique em qualquer requisição para <strong>turo.com/api/</strong></li>
-                <li>Em <strong>Request Headers</strong>, copie o valor de <strong>Authorization</strong> (começa com "Bearer ")</li>
-                <li>Cole apenas a parte após "Bearer " no campo abaixo</li>
+                <li>Em <strong>Request Headers</strong>, role até encontrar <strong>cookie</strong></li>
+                <li>Dentro do valor de cookie, procure <strong>access_token=eyJ...</strong></li>
+                <li>Copie apenas o valor após <strong>access_token=</strong> (o JWT longo que começa com <code>eyJ</code>)</li>
+                <li>Cole no campo abaixo</li>
               </ol>
+              <p className="text-xs text-amber-600 mt-1">⚠️ O token expira em ~30 minutos. Quando parar de sincronizar, repita o processo.</p>
             </div>
 
             <form onSubmit={handleConnect} className="space-y-3">
