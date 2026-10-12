@@ -37,6 +37,65 @@ function turoHeaders(stored: string) {
   };
 }
 
+function isTokenExpiredOrSoon(accessToken: string, marginSeconds = 300): boolean {
+  try {
+    const payload = JSON.parse(Buffer.from(accessToken.split(".")[1], "base64url").toString());
+    const exp = Number(payload.exp ?? 0);
+    return exp === 0 || Date.now() / 1000 > exp - marginSeconds;
+  } catch {
+    return true;
+  }
+}
+
+function replaceCookieValue(cookieStr: string, name: string, newValue: string): string {
+  const regex = new RegExp(`(^|;\\s*)${name}=[^;]*`, "g");
+  if (regex.test(cookieStr)) {
+    return cookieStr.replace(new RegExp(`(^|;\\s*)${name}=[^;]*`), `$1${name}=${newValue}`);
+  }
+  return `${cookieStr}; ${name}=${newValue}`;
+}
+
+// Uses refresh_token (valid 1 year) to get a new access_token without user interaction.
+// Returns the updated cookie string to store, or null on failure.
+async function refreshAccessToken(stored: string): Promise<string | null> {
+  const refreshMatch = stored.match(/refresh_token=([^;]+)/);
+  if (!refreshMatch) return null;
+  const refreshToken = refreshMatch[1].trim();
+
+  const res = await fetch("https://turo.com/api/v2/token", {
+    method: "POST",
+    headers: {
+      Cookie: stored,
+      "Content-Type": "application/x-www-form-urlencoded",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
+      Referer: "https://turo.com/us/en/host",
+      Origin: "https://turo.com",
+    },
+    body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(refreshToken)}&client_id=web`,
+  });
+
+  // Parse Set-Cookie headers for new values
+  // Node 18+ supports getSetCookie(); fall back to get('set-cookie')
+  const setCookies: string[] = (res.headers as { getSetCookie?: () => string[] }).getSetCookie?.()
+    ?? res.headers.get("set-cookie")?.split(/,\s*(?=[a-zA-Z_-]+=)/) ?? [];
+
+  let updated = stored;
+  for (const sc of setCookies) {
+    const m = sc.match(/^([^=]+)=([^;]*)/);
+    if (!m) continue;
+    const [, name, value] = m;
+    if (["access_token", "__cf_bm", "JSESSIONID"].includes(name) && value) {
+      updated = replaceCookieValue(updated, name, value);
+    }
+  }
+
+  // Verify we got a new non-empty access_token
+  const newToken = extractAccessToken(updated);
+  if (!newToken || isTokenExpiredOrSoon(newToken, 60)) return null;
+
+  return updated;
+}
+
 async function fetchJson(url: string, stored: string): Promise<Record<string, unknown>> {
   const res = await fetch(url, { headers: turoHeaders(stored) });
   if (!res.ok) {
@@ -114,14 +173,37 @@ export async function POST(request: NextRequest) {
   const { data: tokenRow, error: tokenErr } = await supabase
     .from("turo_tokens")
     .select("bearer_token, id")
+    .order("updated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
   if (tokenErr) return NextResponse.json({ error: tokenErr.message }, { status: 500 });
   if (!tokenRow) return NextResponse.json({ error: "Turo não está conectado" }, { status: 400 });
 
-  const stored = tokenRow.bearer_token;
+  let stored = tokenRow.bearer_token;
   const errors: string[] = [];
+  let tokenRefreshed = false;
+
+  // Auto-refresh access_token if expired or expiring within 5 min
+  const currentAccess = extractAccessToken(stored);
+  if (isTokenExpiredOrSoon(currentAccess)) {
+    const refreshed = await refreshAccessToken(stored).catch((e: Error) => {
+      errors.push(`refresh: ${e.message}`);
+      return null;
+    });
+    if (refreshed) {
+      stored = refreshed;
+      tokenRefreshed = true;
+      // Persist the refreshed token to DB so next call benefits too
+      await supabase
+        .from("turo_tokens")
+        .update({ bearer_token: stored, updated_at: new Date().toISOString() })
+        .eq("id", tokenRow.id);
+    } else {
+      errors.push("Token expirado e refresh falhou — cole os cookies novamente no painel.");
+    }
+  }
+
   const seen = new Set<string>();
   const rows: ReturnType<typeof parseUpcomingItem>[] = [];
 
@@ -132,8 +214,7 @@ export async function POST(request: NextRequest) {
   ).catch((e: Error) => { errors.push(e.message); return null; });
 
   if (upcomingData) {
-    const items = (upcomingData.upcomingTripItems as RawTrip[]) ?? [];
-    for (const item of items) {
+    for (const item of (upcomingData.upcomingTripItems as RawTrip[]) ?? []) {
       const row = parseUpcomingItem(item);
       if (!row.turo_trip_id || seen.has(row.turo_trip_id)) continue;
       seen.add(row.turo_trip_id);
@@ -151,12 +232,11 @@ export async function POST(request: NextRequest) {
     const feedsList = (
       Array.isArray(historyData.tripHistoryFeeds)
         ? historyData.tripHistoryFeeds
-        : (historyData.tripHistoryFeeds as Record<string, unknown>)?.list ?? []
+        : ((historyData.tripHistoryFeeds as Record<string, unknown>)?.list ?? [])
     ) as RawTrip[];
 
     for (const monthGroup of feedsList) {
-      const trips = (monthGroup.trips as RawTrip[]) ?? [];
-      for (const trip of trips) {
+      for (const trip of (monthGroup.trips as RawTrip[]) ?? []) {
         const row = parseHistoryTrip(trip);
         if (!row.turo_trip_id || seen.has(row.turo_trip_id)) continue;
         seen.add(row.turo_trip_id);
@@ -179,5 +259,5 @@ export async function POST(request: NextRequest) {
     .update({ last_synced_at: new Date().toISOString() })
     .eq("id", tokenRow.id);
 
-  return NextResponse.json({ ok: true, synced, errors, totalFetched: rows.length });
+  return NextResponse.json({ ok: true, synced, errors, totalFetched: rows.length, tokenRefreshed });
 }
