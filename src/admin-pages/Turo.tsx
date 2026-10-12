@@ -110,15 +110,45 @@ export default function TuroPage() {
   async function handleSync() {
     setSyncing(true);
     try {
-      const res = await authedFetch("/api/admin/turo/sync", { method: "POST" });
+      // Get the stored access_token so the browser can call Turo directly
+      // (server-side calls are blocked by Cloudflare; browser calls work fine)
+      const tokenRes = await authedFetch("/api/admin/turo/token");
+      if (!tokenRes.ok) throw new Error("Token não disponível");
+      const { access_token } = await tokenRes.json() as { access_token: string };
+
+      const turoHeaders = {
+        Authorization: `Bearer ${access_token}`,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      };
+
+      const [upcomingRes, historyRes] = await Promise.allSettled([
+        fetch("https://turo.com/api/v2/feeds/upcoming-trips?appMode=HOST", { headers: turoHeaders, credentials: "include" }),
+        fetch("https://turo.com/api/v2/feeds/trip-history?driverRoles=HOST", { headers: turoHeaders, credentials: "include" }),
+      ]);
+
+      const upcomingData = upcomingRes.status === "fulfilled" && upcomingRes.value.ok
+        ? await upcomingRes.value.json()
+        : null;
+      const historyData = historyRes.status === "fulfilled" && historyRes.value.ok
+        ? await historyRes.value.json()
+        : null;
+
+      if (!upcomingData && !historyData) {
+        const upErr = upcomingRes.status === "rejected" ? upcomingRes.reason : (upcomingRes.value?.status ?? "?");
+        throw new Error(`Não foi possível buscar dados do Turo (${upErr}). Verifique se está logado em turo.com.`);
+      }
+
+      const res = await authedFetch("/api/admin/turo/browser-sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ upcomingData, historyData }),
+      });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Erro na sincronização");
+      if (!res.ok) throw new Error(data.error ?? "Erro ao salvar");
+
       if (data.synced === 0 && data.errors?.length) {
-        toast({
-          title: "Sync sem viagens",
-          description: `Erro: ${data.errors[0].slice(0, 120)}`,
-          variant: "destructive",
-        });
+        toast({ title: "Sync sem viagens", description: `Erro: ${String(data.errors[0]).slice(0, 120)}`, variant: "destructive" });
       } else {
         toast({ title: "Sincronizado!", description: `${data.synced} viagem(ns) importada(s).` });
       }
