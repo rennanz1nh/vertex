@@ -3,7 +3,7 @@
 // money data; that requires the per-reservation receipt endpoint (see probe).
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { requireAdmin } from "@/lib/admin-auth";
+import { requireMasterAdmin } from "@/lib/admin-auth";
 
 function adminClient() {
   return createClient(
@@ -40,7 +40,7 @@ function overlapDays(pickup: string, ret: string, winStart: number, winEnd: numb
 }
 
 export async function GET(request: NextRequest) {
-  const auth = await requireAdmin(request);
+  const auth = await requireMasterAdmin(request);
   if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const supabase = adminClient();

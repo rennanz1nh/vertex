@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { requireAdmin } from "@/lib/admin-auth";
+import { requireMasterAdmin } from "@/lib/admin-auth";
 import { randomUUID } from "crypto";
 
 function adminClient() {
@@ -12,7 +12,7 @@ function adminClient() {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAdmin(request);
+  const auth = await requireMasterAdmin(request);
   if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const supabase = adminClient();

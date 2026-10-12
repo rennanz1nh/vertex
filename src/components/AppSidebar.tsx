@@ -10,6 +10,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
+import { isMasterAdminEmail } from "@/lib/master-admin";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { CURRENT_VERSION } from "@/data/updates";
@@ -116,9 +117,12 @@ const socialMedia = [
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const { signOut, profile } = useAuth();
+  const { signOut, profile, user } = useAuth();
   const { isMobile, setOpenMobile } = useSidebar();
   const isAdmin = profile?.role === 'admin';
+  const isMaster = isMasterAdminEmail(user?.email);
+  // Turo is locked to the master-admin account for now.
+  const visibleNav = navigation.filter((item) => item.url !== "/admin/turo" || isMaster);
   const [unreadChats, setUnreadChats] = useState(0);
 
   // Mobile only: close the overlay after navigating (desktop keeps the sidebar exactly
@@ -194,7 +198,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Menu Principal</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-2">
-              {navigation.map((item) => {
+              {visibleNav.map((item) => {
                 const isActive = item.url === "/admin" ? pathname === item.url : pathname.startsWith(item.url);
                 return (
                   <SidebarMenuItem key={item.url}>

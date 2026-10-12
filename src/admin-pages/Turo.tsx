@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { isMasterAdminEmail } from "@/lib/master-admin";
 import { authedFetch } from "@/lib/admin-fetch";
 import { RefreshCw, Link2, Link2Off, Car, Calendar, DollarSign, AlertCircle, Copy, Check, Terminal } from "lucide-react";
 
@@ -91,6 +93,8 @@ function fmtDate(iso: string | null) {
 
 export default function TuroPage() {
   const { toast } = useToast();
+  const { user, loading: authLoading } = useAuth();
+  const isMaster = isMasterAdminEmail(user?.email);
   const [connected, setConnected] = useState(false);
   const [config, setConfig] = useState<TuroConfig | null>(null);
   const [token, setToken] = useState("");
@@ -129,9 +133,9 @@ export default function TuroPage() {
     if (res.ok) setStats(await res.json() as TuroStats);
   }
 
-  useEffect(() => { loadConfig(); }, []);
-  useEffect(() => { if (connected) loadTrips(tab); }, [connected, tab]);
-  useEffect(() => { if (connected) loadStats(); }, [connected]);
+  useEffect(() => { if (isMaster) loadConfig(); }, [isMaster]);
+  useEffect(() => { if (isMaster && connected) loadTrips(tab); }, [isMaster, connected, tab]);
+  useEffect(() => { if (isMaster && connected) loadStats(); }, [isMaster, connected]);
 
   async function handleConnect(e: React.FormEvent) {
     e.preventDefault();
@@ -223,6 +227,17 @@ export default function TuroPage() {
   const history = trips.filter(t => !t.pickup_date || new Date(t.pickup_date) < new Date());
   const displayTrips = tab === "upcoming" ? upcoming : history;
   const totalEarnings = trips.reduce((sum, t) => sum + (t.earnings_amount ?? 0), 0);
+
+  // Locked to the master-admin account for now.
+  if (!authLoading && !isMaster) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <AlertCircle className="h-10 w-10 text-muted-foreground mb-3" />
+        <h1 className="text-xl font-bold">Acesso restrito</h1>
+        <p className="text-sm text-muted-foreground mt-1">Esta página está disponível apenas para o administrador master.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

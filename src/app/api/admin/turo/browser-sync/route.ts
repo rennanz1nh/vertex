@@ -4,7 +4,7 @@
 // so a console script running on turo.com can POST here cross-origin.
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { requireAdmin } from "@/lib/admin-auth";
+import { requireMasterAdmin } from "@/lib/admin-auth";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "https://turo.com",
@@ -184,7 +184,7 @@ export async function POST(request: NextRequest) {
 
   if (!syncKey && !request.headers.get("X-Sync-Token")) {
     // Fall back to admin JWT auth (for browser-side fetch from our domain)
-    const auth = await requireAdmin(request);
+    const auth = await requireMasterAdmin(request);
     if (!auth.ok) {
       return new NextResponse(
         JSON.stringify({ error: "Unauthorized" }),
