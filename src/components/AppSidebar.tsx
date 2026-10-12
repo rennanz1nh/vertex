@@ -39,6 +39,7 @@ const navigation = [
   { title: "Calendário", url: "/admin/calendar", icon: CalendarClock },
   { title: "Clientes", url: "/admin/clients", icon: Users },
   { title: "Reservas", url: "/admin/bookings", icon: ClipboardList },
+  { title: "Turo", url: "/admin/turo", icon: Car },
 ];
 
 // Each platform is a single link straight into its main page — the sub-pages that used
