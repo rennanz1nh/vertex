@@ -11,15 +11,24 @@ function adminClient() {
   );
 }
 
-function buildCookieHeader(stored: string): string {
-  if (stored.includes("access_token=")) return stored;
-  return `access_token=${stored}`;
+// Cloudflare cookies are browser-specific and don't transfer to server-side requests.
+// We strip them and rely solely on the access_token JWT for server calls.
+function buildServerCookie(stored: string): string {
+  const accessToken = extractAccessToken(stored);
+  // Keep only non-Cloudflare Turo cookies
+  const allowed = ["access_token", "JSESSIONID", "td_dv_uid", "rr_u_cid", "SPRING_SECURITY_REMEMBER_ME_COOKIE", "refresh_token"];
+  const parts: string[] = [`access_token=${accessToken}`];
+  for (const name of allowed.slice(1)) {
+    const m = stored.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));
+    if (m) parts.push(`${name}=${m[1]}`);
+  }
+  return parts.join("; ");
 }
 
 function turoHeaders(stored: string) {
   const accessToken = extractAccessToken(stored);
   return {
-    Cookie: buildCookieHeader(stored),
+    Cookie: buildServerCookie(stored),
     Authorization: `Bearer ${accessToken}`,
     Accept: "application/json",
     "Content-Type": "application/json",
