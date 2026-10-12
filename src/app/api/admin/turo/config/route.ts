@@ -10,13 +10,29 @@ function adminClient() {
   );
 }
 
+// bearer_token column stores either:
+// - a bare JWT (starts with "eyJ")
+// - the full cookie header string (contains "access_token=eyJ")
+export function extractAccessToken(stored: string): string {
+  if (stored.includes("access_token=")) {
+    const match = stored.match(/access_token=([^;]+)/);
+    return match ? match[1].trim() : stored.trim();
+  }
+  return stored.trim();
+}
+
 export async function GET(request: NextRequest) {
   const auth = await requireAdmin(request);
   if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const supabase = adminClient();
-  const { data } = await supabase.from("turo_tokens").select("id, host_id, host_name, last_synced_at, updated_at").limit(1).maybeSingle();
+  const { data, error } = await supabase
+    .from("turo_tokens")
+    .select("id, host_id, host_name, last_synced_at, updated_at")
+    .limit(1)
+    .maybeSingle();
 
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ connected: !!data, config: data ?? null });
 }
 
@@ -25,39 +41,41 @@ export async function POST(request: NextRequest) {
   if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json();
-  const { bearer_token } = body as { bearer_token: string };
-  if (!bearer_token?.trim()) return NextResponse.json({ error: "Token é obrigatório" }, { status: 400 });
+  // Accept either full cookie string or bare bearer token
+  const raw = ((body as Record<string, string>).bearer_token ?? (body as Record<string, string>).cookie_string ?? "").trim();
+  if (!raw) return NextResponse.json({ error: "Token é obrigatório" }, { status: 400 });
 
-  // Test the token by calling Turo's API
+  // Try to identify host from JWT (skip Cloudflare-gated API call)
+  const accessToken = extractAccessToken(raw);
   let host_id: string | null = null;
-  let host_name: string | null = null;
   try {
-    const res = await fetch("https://turo.com/api/v2/hosts/me", {
-      headers: {
-        Authorization: `Bearer ${bearer_token.trim()}`,
-        "Accept": "application/json",
-        "User-Agent": "Mozilla/5.0 (compatible)",
-      },
-    });
-    if (res.ok) {
-      const data = await res.json();
-      host_id = String(data.id ?? data.userId ?? "");
-      host_name = data.name ?? data.displayName ?? null;
-    }
-  } catch {
-    // continue even if host info fails — token might still work for trips
-  }
+    const payload = JSON.parse(Buffer.from(accessToken.split(".")[1], "base64url").toString());
+    host_id = String(payload.driver_id ?? payload.sub ?? "");
+  } catch { /* ignore */ }
 
   const supabase = adminClient();
-  const { data: existing } = await supabase.from("turo_tokens").select("id").limit(1).maybeSingle();
+  const { data: existing, error: selectErr } = await supabase
+    .from("turo_tokens")
+    .select("id")
+    .limit(1)
+    .maybeSingle();
+
+  if (selectErr) return NextResponse.json({ error: selectErr.message }, { status: 500 });
 
   if (existing) {
-    await supabase.from("turo_tokens").update({ bearer_token: bearer_token.trim(), host_id, host_name, updated_at: new Date().toISOString() }).eq("id", existing.id);
+    const { error: updateErr } = await supabase
+      .from("turo_tokens")
+      .update({ bearer_token: raw, host_id, host_name: null, updated_at: new Date().toISOString() })
+      .eq("id", existing.id);
+    if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
   } else {
-    await supabase.from("turo_tokens").insert({ bearer_token: bearer_token.trim(), host_id, host_name });
+    const { error: insertErr } = await supabase
+      .from("turo_tokens")
+      .insert({ bearer_token: raw, host_id, host_name: null });
+    if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, host_id, host_name });
+  return NextResponse.json({ ok: true, host_id });
 }
 
 export async function DELETE(request: NextRequest) {
@@ -66,6 +84,5 @@ export async function DELETE(request: NextRequest) {
 
   const supabase = adminClient();
   await supabase.from("turo_tokens").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-
   return NextResponse.json({ ok: true });
 }

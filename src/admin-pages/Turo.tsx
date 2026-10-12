@@ -112,8 +112,15 @@ export default function TuroPage() {
       const res = await authedFetch("/api/admin/turo/sync", { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Erro na sincronização");
-      const errMsg = data.errors?.length ? ` (${data.errors.length} aviso(s))` : "";
-      toast({ title: "Sincronizado!", description: `${data.synced} viagem(ns) importada(s)${errMsg}.` });
+      if (data.synced === 0 && data.errors?.length) {
+        toast({
+          title: "Sync sem viagens",
+          description: `Erro: ${data.errors[0].slice(0, 120)}`,
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: "Sincronizado!", description: `${data.synced} viagem(ns) importada(s).` });
+      }
       await loadConfig();
       await loadTrips(tab);
     } catch (e) {
@@ -177,28 +184,27 @@ export default function TuroPage() {
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-2">
               <div className="flex items-start gap-2">
                 <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-                <p className="text-sm font-medium text-amber-800">Como obter o token do Turo:</p>
+                <p className="text-sm font-medium text-amber-800">Como obter os cookies do Turo:</p>
               </div>
               <ol className="text-sm text-amber-700 space-y-1 list-decimal list-inside ml-4">
                 <li>Acesse <strong>turo.com</strong> e faça login na sua conta de host</li>
                 <li>Abra as Ferramentas do Desenvolvedor (<strong>F12</strong> ou Cmd+Option+I no Mac)</li>
-                <li>Vá na aba <strong>Network</strong> (Rede)</li>
+                <li>Vá na aba <strong>Network</strong> (Rede) e recarregue a página</li>
                 <li>Clique em qualquer requisição para <strong>turo.com/api/</strong></li>
-                <li>Em <strong>Request Headers</strong>, role até encontrar <strong>cookie</strong></li>
-                <li>Dentro do valor de cookie, procure <strong>access_token=eyJ...</strong></li>
-                <li>Copie apenas o valor após <strong>access_token=</strong> (o JWT longo que começa com <code>eyJ</code>)</li>
-                <li>Cole no campo abaixo</li>
+                <li>Em <strong>Request Headers</strong>, encontre o campo <strong>cookie</strong></li>
+                <li>Clique com o botão direito no valor e escolha <strong>"Copy value"</strong></li>
+                <li>Cole o <strong>valor completo</strong> no campo abaixo (inclui cf_clearance, access_token, etc.)</li>
               </ol>
-              <p className="text-xs text-amber-600 mt-1">⚠️ O token expira em ~30 minutos. Quando parar de sincronizar, repita o processo.</p>
+              <p className="text-xs text-amber-600 mt-1">⚠️ Os cookies expiram em ~30 minutos. Quando a sincronização parar de funcionar, repita o processo.</p>
             </div>
 
             <form onSubmit={handleConnect} className="space-y-3">
               <div className="space-y-1">
-                <label className="text-sm font-medium">Bearer Token</label>
+                <label className="text-sm font-medium">Cookie Header completo</label>
                 <Input
                   value={token}
                   onChange={e => setToken(e.target.value)}
-                  placeholder="Cole o token aqui..."
+                  placeholder="cf_clearance=xxx; access_token=eyJ..."
                   className="font-mono text-xs"
                   required
                 />
