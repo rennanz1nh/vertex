@@ -196,7 +196,7 @@ export default function TuroPage() {
                 <li>Clique com o botão direito no valor e escolha <strong>"Copy value"</strong></li>
                 <li>Cole o <strong>valor completo</strong> no campo abaixo (inclui cf_clearance, access_token, etc.)</li>
               </ol>
-              <p className="text-xs text-amber-600 mt-1">⚠️ Os cookies expiram em ~30 minutos. Quando a sincronização parar de funcionar, repita o processo.</p>
+              <p className="text-xs text-amber-600 mt-1">💡 Cole <strong>uma única vez</strong> — o sistema renova o token automaticamente. Só será necessário repetir se o Cloudflare bloquear (raro).</p>
             </div>
 
             <form onSubmit={handleConnect} className="space-y-3">
