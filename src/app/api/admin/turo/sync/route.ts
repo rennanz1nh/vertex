@@ -11,8 +11,6 @@ function adminClient() {
   );
 }
 
-// Build Cookie header: if stored value is a full cookie string, use directly;
-// otherwise wrap the JWT as access_token=<jwt>
 function buildCookieHeader(stored: string): string {
   if (stored.includes("access_token=")) return stored;
   return `access_token=${stored}`;
@@ -39,16 +37,7 @@ function turoHeaders(stored: string) {
   };
 }
 
-function decodeDriverId(accessToken: string): string | null {
-  try {
-    const payload = JSON.parse(Buffer.from(accessToken.split(".")[1], "base64url").toString());
-    return String(payload.driver_id ?? payload.sub ?? "");
-  } catch {
-    return null;
-  }
-}
-
-async function fetchTuroFeed(url: string, stored: string): Promise<Record<string, unknown>> {
+async function fetchJson(url: string, stored: string): Promise<Record<string, unknown>> {
   const res = await fetch(url, { headers: turoHeaders(stored) });
   if (!res.ok) {
     const body = await res.text();
@@ -57,75 +46,60 @@ async function fetchTuroFeed(url: string, stored: string): Promise<Record<string
   return res.json();
 }
 
-async function tryFetchTrips(stored: string, driverId: string | null): Promise<{ data: Record<string, unknown>[]; errors: string[] }> {
-  const errors: string[] = [];
-  const results: Record<string, unknown>[] = [];
+type RawTrip = Record<string, unknown>;
 
-  const endpoints = [
-    // Current / upcoming
-    ...(driverId ? [
-      `https://turo.com/api/v2/hosts/${driverId}/reservations?page=1&pageSize=50&status=CONFIRMED,ACTIVE`,
-      `https://turo.com/api/v2/hosts/${driverId}/reservations?page=1&pageSize=50`,
-      `https://turo.com/api/v2/hosts/${driverId}/trips?page=1&pageSize=50`,
-    ] : []),
-    "https://turo.com/api/v2/feeds/upcoming-trips",
-    "https://turo.com/api/v2/feeds/trip-history",
-    "https://turo.com/api/me/trips?page=1&pageSize=50",
-  ];
-
-  for (const url of endpoints) {
-    const data = await fetchTuroFeed(url, stored).catch((e: Error) => {
-      errors.push(e.message);
-      return null;
-    });
-    if (!data) continue;
-
-    const items =
-      data.trips ?? data.reservations ?? data.events ?? data.items ??
-      data.content ?? data.results ?? data.data ?? data;
-    const arr = Array.isArray(items) ? items : [];
-    if (arr.length > 0) results.push(...arr);
-  }
-
-  return { data: results, errors };
+function epochToIso(ms: unknown): string | null {
+  if (typeof ms !== "number" || !ms) return null;
+  return new Date(ms).toISOString();
 }
 
-function parseTrip(trip: Record<string, unknown>) {
-  const id = String(trip.id ?? trip.tripId ?? "");
-  const status = String(trip.status ?? trip.statusCode ?? "");
-  const guest = (trip.driver as Record<string, unknown>) ?? (trip.guest as Record<string, unknown>) ?? {};
-  const guestName = String((guest.name as string) ?? (guest.displayName as string) ?? (trip.driverName as string) ?? "");
-  const vehicle = (trip.vehicle as Record<string, unknown>) ?? {};
-  const vehicleMake = String((vehicle.make as string) ?? "");
-  const vehicleModel = String((vehicle.model as string) ?? "");
-  const vehicleYear = Number((vehicle.year as number) ?? 0) || null;
-  const vehicleId = String((vehicle.id as string) ?? (trip.vehicleId as string) ?? "");
-
-  const pickup = (trip.scheduledPickup as string) ?? (trip.startTime as string) ?? (trip.pickupTime as string) ?? null;
-  const ret = (trip.scheduledReturn as string) ?? (trip.endTime as string) ?? (trip.returnTime as string) ?? null;
-
-  const earnings = (trip.hostEarnings as Record<string, unknown>) ?? (trip.earnings as Record<string, unknown>) ?? {};
-  const earningsAmount = Number((earnings.amount as number) ?? (trip.earningsAmount as number) ?? 0) || null;
-  const earningsCurrency = String((earnings.currency as string) ?? "USD");
-
-  const loc = (trip.location as Record<string, unknown>) ?? (trip.pickupLocation as Record<string, unknown>) ?? {};
-  const city = String((loc.city as string) ?? "");
-  const state = String((loc.state as string) ?? "");
-
+function parseUpcomingItem(item: RawTrip) {
+  const vehicle = (item.vehicle as RawTrip) ?? {};
+  const actor = (item.actor as RawTrip) ?? {};
+  const interval = (item.interval as RawTrip) ?? {};
+  const start = (interval.start as RawTrip) ?? {};
+  const end = (interval.end as RawTrip) ?? {};
+  const loc = (item.location as RawTrip) ?? {};
   return {
-    turo_trip_id: id,
-    status,
-    guest_name: guestName,
-    vehicle_make: vehicleMake,
-    vehicle_model: vehicleModel,
-    vehicle_year: vehicleYear,
-    vehicle_id: vehicleId,
-    pickup_date: pickup,
-    return_date: ret,
-    earnings_amount: earningsAmount,
-    earnings_currency: earningsCurrency,
-    location_city: city,
-    location_state: state,
+    turo_trip_id: String(item.reservationId ?? ""),
+    status: String(item.tripItemStatus ?? ""),
+    guest_name: String(actor.name ?? ""),
+    vehicle_make: String(vehicle.make ?? ""),
+    vehicle_model: String(vehicle.model ?? ""),
+    vehicle_year: Number(vehicle.year) || null,
+    vehicle_id: String(vehicle.id ?? ""),
+    pickup_date: epochToIso(start.epochMillis),
+    return_date: epochToIso(end.epochMillis),
+    earnings_amount: null as number | null,
+    earnings_currency: "USD",
+    location_city: String(loc.city ?? ""),
+    location_state: String(loc.state ?? ""),
+    raw_data: item,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function parseHistoryTrip(trip: RawTrip) {
+  const interval = (trip.interval as RawTrip) ?? {};
+  const start = (interval.start as RawTrip) ?? {};
+  const end = (interval.end as RawTrip) ?? {};
+  const loc = (trip.location as RawTrip) ?? {};
+  const vehicle = (trip.vehicle as RawTrip) ?? {};
+  const driver = (trip.driver as RawTrip) ?? {};
+  return {
+    turo_trip_id: String(trip.id ?? ""),
+    status: String(trip.status ?? trip.statusCode ?? "COMPLETED"),
+    guest_name: String((driver.name as string) ?? (driver.displayName as string) ?? ""),
+    vehicle_make: String(vehicle.make ?? ""),
+    vehicle_model: String(vehicle.model ?? ""),
+    vehicle_year: Number(vehicle.year) || null,
+    vehicle_id: String(vehicle.id ?? (trip.vehicleId as string) ?? ""),
+    pickup_date: epochToIso(start.epochMillis),
+    return_date: epochToIso(end.epochMillis),
+    earnings_amount: null as number | null,
+    earnings_currency: "USD",
+    location_city: String((loc.city as string) ?? ""),
+    location_state: String((loc.state as string) ?? ""),
     raw_data: trip,
     updated_at: new Date().toISOString(),
   };
@@ -147,27 +121,57 @@ export async function POST(request: NextRequest) {
   if (!tokenRow) return NextResponse.json({ error: "Turo não está conectado" }, { status: 400 });
 
   const stored = tokenRow.bearer_token;
-  const accessToken = extractAccessToken(stored);
-  const driverId = decodeDriverId(accessToken);
-
-  const { data: allTrips, errors } = await tryFetchTrips(stored, driverId);
-  let synced = 0;
-
+  const errors: string[] = [];
   const seen = new Set<string>();
-  const uniqueTrips = allTrips.filter((t) => {
-    const id = String((t as Record<string, unknown>).id ?? (t as Record<string, unknown>).tripId ?? "");
-    if (!id || seen.has(id)) return false;
-    seen.add(id);
-    return true;
-  });
+  const rows: ReturnType<typeof parseUpcomingItem>[] = [];
 
-  for (const trip of uniqueTrips) {
-    try {
-      const row = parseTrip(trip as Record<string, unknown>);
-      if (!row.turo_trip_id) continue;
-      const { error: upsertErr } = await supabase.from("turo_trips").upsert(row, { onConflict: "turo_trip_id" });
-      if (!upsertErr) synced++;
-    } catch { /* skip malformed */ }
+  // Fetch upcoming trips
+  const upcomingData = await fetchJson(
+    "https://turo.com/api/v2/feeds/upcoming-trips?appMode=HOST",
+    stored
+  ).catch((e: Error) => { errors.push(e.message); return null; });
+
+  if (upcomingData) {
+    const items = (upcomingData.upcomingTripItems as RawTrip[]) ?? [];
+    for (const item of items) {
+      const row = parseUpcomingItem(item);
+      if (!row.turo_trip_id || seen.has(row.turo_trip_id)) continue;
+      seen.add(row.turo_trip_id);
+      rows.push(row);
+    }
+  }
+
+  // Fetch trip history
+  const historyData = await fetchJson(
+    "https://turo.com/api/v2/feeds/trip-history?driverRoles=HOST",
+    stored
+  ).catch((e: Error) => { errors.push(e.message); return null; });
+
+  if (historyData) {
+    const feedsList = (
+      Array.isArray(historyData.tripHistoryFeeds)
+        ? historyData.tripHistoryFeeds
+        : (historyData.tripHistoryFeeds as Record<string, unknown>)?.list ?? []
+    ) as RawTrip[];
+
+    for (const monthGroup of feedsList) {
+      const trips = (monthGroup.trips as RawTrip[]) ?? [];
+      for (const trip of trips) {
+        const row = parseHistoryTrip(trip);
+        if (!row.turo_trip_id || seen.has(row.turo_trip_id)) continue;
+        seen.add(row.turo_trip_id);
+        rows.push(row);
+      }
+    }
+  }
+
+  let synced = 0;
+  for (const row of rows) {
+    const { error: upsertErr } = await supabase
+      .from("turo_trips")
+      .upsert(row, { onConflict: "turo_trip_id" });
+    if (!upsertErr) synced++;
+    else errors.push(`upsert ${row.turo_trip_id}: ${upsertErr.message}`);
   }
 
   await supabase
@@ -175,5 +179,5 @@ export async function POST(request: NextRequest) {
     .update({ last_synced_at: new Date().toISOString() })
     .eq("id", tokenRow.id);
 
-  return NextResponse.json({ ok: true, synced, errors, driverId, totalFetched: allTrips.length });
+  return NextResponse.json({ ok: true, synced, errors, totalFetched: rows.length });
 }
