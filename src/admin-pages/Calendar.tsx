@@ -9,6 +9,7 @@ import {
   type TimelineBooking as Booking,
   TimelineView,
   STATUS_COLOR,
+  TURO_COLOR,
   TODAY_COLOR,
   CarPhoto,
   carLabel,
@@ -24,10 +25,57 @@ function startOfDay(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
+type TuroTripRow = {
+  id: string;
+  product_id: string | null;
+  status: string;
+  guest_name: string | null;
+  vehicle_id: string | null;
+  vehicle_make: string | null;
+  vehicle_model: string | null;
+  vehicle_year: number | null;
+  vehicle_image_url: string | null;
+  pickup_date: string | null;
+  return_date: string | null;
+  location_timezone: string | null;
+};
+
+// turo_trips lives in the vertex schema but isn't in the generated Database types,
+// so query it through a minimal untyped view of the client.
+type TuroQuery = {
+  select: (cols: string) => {
+    order: (col: string, opts?: { ascending?: boolean }) => Promise<{ data: TuroTripRow[] | null; error: unknown }>;
+  };
+};
+function turoTable() {
+  return (supabase as unknown as { from: (t: string) => TuroQuery }).from('turo_trips');
+}
+
+// Turo stores pickup/return as UTC timestamptz; the timeline positions by local
+// calendar date, so convert to the trip's own timezone (FL cars → America/New_York).
+function tzDateISO(iso: string | null, tz?: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  return new Intl.DateTimeFormat('en-CA', { timeZone: tz || 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+}
+function tzTime(iso: string | null, tz?: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  return new Intl.DateTimeFormat('en-US', { timeZone: tz || 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false }).format(d);
+}
+
+function turoLabel(t: TuroTripRow): string {
+  return [t.vehicle_year, t.vehicle_make, t.vehicle_model].filter(Boolean).join(' ') || 'Turo Vehicle';
+}
+
 export default function CalendarPage() {
   const [view, setView] = useState<'timeline' | 'month'>('timeline');
   const [cars, setCars] = useState<Car[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [turoTrips, setTuroTrips] = useState<TuroTripRow[]>([]);
+  const [showTuro, setShowTuro] = useState(true);
   const [loading, setLoading] = useState(true);
   const today = useMemo(() => startOfDay(new Date()), []);
   const [timelineStart, setTimelineStart] = useState(() => addDays(today, -1));
@@ -36,21 +84,74 @@ export default function CalendarPage() {
 
   useEffect(() => {
     (async () => {
-      const [carsRes, bookingsRes] = await Promise.all([
+      const [carsRes, bookingsRes, turoRes] = await Promise.all([
         supabase.from('products').select('id, name, make, model, year, image_url, store_categories').order('name'),
         supabase
           .from('bookings')
           .select('id, car_id, status, pickup_date, pickup_time, return_date, return_time, driver_full_name, customer_name')
           .neq('status', 'cancelled')
           .order('pickup_date'),
+        turoTable()
+          .select('id, product_id, status, guest_name, vehicle_id, vehicle_make, vehicle_model, vehicle_year, vehicle_image_url, pickup_date, return_date, location_timezone')
+          .order('pickup_date'),
       ]);
       setCars((carsRes.data as Car[] | null) ?? []);
       setBookings((bookingsRes.data as Booking[] | null) ?? []);
+      setTuroTrips((turoRes.data as TuroTripRow[] | null) ?? []);
       setLoading(false);
     })();
   }, []);
 
-  const carById = useMemo(() => new Map(cars.map((c) => [c.id, c])), [cars]);
+  // Turo trips as timeline bookings. Matched trips (product_id) ride their car's
+  // row; unmatched trips get synthetic rows so Turo-only vehicles still show.
+  const turoBookings = useMemo<Booking[]>(() => {
+    if (!showTuro) return [];
+    const out: Booking[] = [];
+    for (const t of turoTrips) {
+      const pd = tzDateISO(t.pickup_date, t.location_timezone);
+      const rd = tzDateISO(t.return_date, t.location_timezone);
+      if (!pd || !rd) continue;
+      out.push({
+        id: `turo:${t.id}`,
+        car_id: t.product_id ?? `turo:${t.vehicle_id ?? t.id}`,
+        status: t.status,
+        pickup_date: pd,
+        pickup_time: tzTime(t.pickup_date, t.location_timezone),
+        return_date: rd,
+        return_time: tzTime(t.return_date, t.location_timezone),
+        driver_full_name: t.guest_name,
+        customer_name: t.guest_name,
+        source: 'turo',
+      });
+    }
+    return out;
+  }, [turoTrips, showTuro]);
+
+  // Synthetic cars for Turo vehicles not registered in our fleet (no product match).
+  const turoOnlyCars = useMemo<Car[]>(() => {
+    if (!showTuro) return [];
+    const byVehicle = new Map<string, Car>();
+    for (const t of turoTrips) {
+      if (t.product_id) continue;
+      const key = `turo:${t.vehicle_id ?? t.id}`;
+      if (byVehicle.has(key)) continue;
+      byVehicle.set(key, {
+        id: key,
+        name: `${turoLabel(t)} (Turo)`,
+        make: t.vehicle_make,
+        model: t.vehicle_model,
+        year: t.vehicle_year,
+        image_url: t.vehicle_image_url,
+        store_categories: null,
+      });
+    }
+    return [...byVehicle.values()];
+  }, [turoTrips, showTuro]);
+
+  const allCars = useMemo(() => [...cars, ...turoOnlyCars], [cars, turoOnlyCars]);
+  const allBookings = useMemo(() => [...bookings, ...turoBookings], [bookings, turoBookings]);
+
+  const carById = useMemo(() => new Map(allCars.map((c) => [c.id, c])), [allCars]);
 
   const upcoming = useMemo(() => {
     type Event = { kind: 'Pickup' | 'Return'; date: Date; time: string; booking: Booking; car: Car };
@@ -82,27 +183,40 @@ export default function CalendarPage() {
           <h1 className="text-3xl font-bold tracking-tight">Calendário</h1>
           <p className="text-muted-foreground font-bold">Reservas da frota, por carro ou por mês</p>
         </div>
-        <div className="inline-flex bg-muted rounded-lg p-1 gap-1">
-          <Button
-            size="sm"
-            variant={view === 'timeline' ? 'default' : 'ghost'}
-            className={view === 'timeline' ? '' : 'text-muted-foreground'}
-            onClick={() => setView('timeline')}
-          >
-            Timeline por carro
-          </Button>
-          <Button
-            size="sm"
-            variant={view === 'month' ? 'default' : 'ghost'}
-            className={view === 'month' ? '' : 'text-muted-foreground'}
-            onClick={() => setView('month')}
-          >
-            Grade do mês
-          </Button>
+        <div className="flex items-center gap-3">
+          {turoTrips.length > 0 && (
+            <Button
+              size="sm"
+              variant={showTuro ? 'default' : 'outline'}
+              onClick={() => setShowTuro((v) => !v)}
+              style={showTuro ? { background: TURO_COLOR.fg, borderColor: TURO_COLOR.fg } : { color: TURO_COLOR.fg, borderColor: TURO_COLOR.border }}
+            >
+              <span className="w-2 h-2 rounded-full mr-2" style={{ background: showTuro ? '#fff' : TURO_COLOR.fg }} />
+              Turo ({turoTrips.length})
+            </Button>
+          )}
+          <div className="inline-flex bg-muted rounded-lg p-1 gap-1">
+            <Button
+              size="sm"
+              variant={view === 'timeline' ? 'default' : 'ghost'}
+              className={view === 'timeline' ? '' : 'text-muted-foreground'}
+              onClick={() => setView('timeline')}
+            >
+              Timeline por carro
+            </Button>
+            <Button
+              size="sm"
+              variant={view === 'month' ? 'default' : 'ghost'}
+              className={view === 'month' ? '' : 'text-muted-foreground'}
+              onClick={() => setView('month')}
+            >
+              Grade do mês
+            </Button>
+          </div>
         </div>
       </div>
 
-      {cars.length === 0 ? (
+      {allCars.length === 0 ? (
         <Card>
           <CardContent className="py-16 text-center text-muted-foreground font-bold">
             Nenhum carro cadastrado ainda. Adicione carros na página Carros primeiro.
@@ -110,8 +224,8 @@ export default function CalendarPage() {
         </Card>
       ) : view === 'timeline' ? (
         <TimelineView
-          cars={cars}
-          bookings={bookings}
+          cars={allCars}
+          bookings={allBookings}
           today={today}
           rangeStart={timelineStart}
           days={TL_DAYS}
@@ -121,8 +235,8 @@ export default function CalendarPage() {
         />
       ) : (
         <MonthView
-          cars={cars}
-          bookings={bookings}
+          cars={allCars}
+          bookings={allBookings}
           today={today}
           cursor={monthCursor}
           onPrev={() => setMonthCursor((c) => new Date(c.getFullYear(), c.getMonth() - 1, 1))}
@@ -229,6 +343,10 @@ function MonthView({
               <i className="inline-block w-2 h-2 rounded-sm" style={{ background: STATUS_COLOR.pending_payment.fg }} />
               Aguardando pagamento
             </span>
+            <span className="inline-flex items-center gap-1">
+              <i className="inline-block w-2 h-2 rounded-sm" style={{ background: TURO_COLOR.fg }} />
+              Turo
+            </span>
           </div>
         </div>
         <div className="flex gap-1">
@@ -265,7 +383,7 @@ function MonthView({
                 </span>
                 {shown.map((b) => {
                   const car = carById.get(b.car_id)!;
-                  const status = STATUS_COLOR[b.status] ?? STATUS_COLOR.pending_payment;
+                  const status = b.source === 'turo' ? TURO_COLOR : (STATUS_COLOR[b.status] ?? STATUS_COLOR.pending_payment);
                   const renter = (b.customer_name || b.driver_full_name || 'Guest').split(' ')[0];
                   return (
                     <div

@@ -31,53 +31,93 @@ function epochToIso(ms: unknown): string | null {
   return new Date(ms).toISOString();
 }
 
-function parseUpcomingItem(item: RawTrip) {
+function str(v: unknown): string | null {
+  return typeof v === "string" && v ? v : null;
+}
+
+function vehicleFields(vehicle: RawTrip) {
+  const reg = (vehicle.registration as RawTrip) ?? {};
+  const img = (vehicle.image as RawTrip) ?? {};
+  return {
+    vehicle_make: String(vehicle.make ?? ""),
+    vehicle_model: String(vehicle.model ?? ""),
+    vehicle_year: Number(vehicle.year) || null,
+    vehicle_id: String(vehicle.id ?? ""),
+    vehicle_vin: str(vehicle.vin),
+    vehicle_license_plate: str(reg.licensePlate),
+    vehicle_type: str(vehicle.type),
+    vehicle_trim: str(vehicle.trim),
+    vehicle_image_url: str(img.originalImageUrl),
+  };
+}
+
+function locationFields(loc: RawTrip) {
+  return {
+    location_city: String(loc.city ?? ""),
+    location_state: String(loc.state ?? ""),
+    location_lat: loc.latitude != null ? Number(loc.latitude) : null,
+    location_lng: loc.longitude != null ? Number(loc.longitude) : null,
+    location_timezone: str(loc.timeZone),
+  };
+}
+
+type TripRow = {
+  turo_trip_id: string;
+  status: string;
+  guest_name: string;
+  pickup_date: string | null;
+  return_date: string | null;
+  earnings_amount: number | null;
+  earnings_currency: string;
+  renter_id: string | null;
+  product_id: string | null;
+  raw_data: RawTrip;
+  updated_at: string;
+} & ReturnType<typeof vehicleFields> & ReturnType<typeof locationFields>;
+
+function parseUpcomingItem(item: RawTrip): TripRow {
   const vehicle = (item.vehicle as RawTrip) ?? {};
-  const actor = (item.actor as RawTrip) ?? {};
+  const actor = (item.actor as RawTrip) ?? (item.renter as RawTrip) ?? {};
   const interval = (item.interval as RawTrip) ?? {};
   const start = (interval.start as RawTrip) ?? {};
   const end = (interval.end as RawTrip) ?? {};
   const loc = (item.location as RawTrip) ?? {};
   return {
-    turo_trip_id: String(item.reservationId ?? ""),
-    status: String(item.tripItemStatus ?? ""),
-    guest_name: String(actor.name ?? ""),
-    vehicle_make: String(vehicle.make ?? ""),
-    vehicle_model: String(vehicle.model ?? ""),
-    vehicle_year: Number(vehicle.year) || null,
-    vehicle_id: String(vehicle.id ?? ""),
+    turo_trip_id: String(item.reservationId ?? item.id ?? ""),
+    status: String(item.tripItemStatus ?? item.statusCode ?? item.status ?? ""),
+    guest_name: String(actor.name ?? [actor.firstName, actor.lastName].filter(Boolean).join(" ") ?? ""),
+    ...vehicleFields(vehicle),
     pickup_date: epochToIso(start.epochMillis),
     return_date: epochToIso(end.epochMillis),
-    earnings_amount: null as number | null,
+    earnings_amount: null,
     earnings_currency: "USD",
-    location_city: String(loc.city ?? ""),
-    location_state: String(loc.state ?? ""),
+    ...locationFields(loc),
+    renter_id: str(actor.id) ?? (actor.id != null ? String(actor.id) : null),
+    product_id: null,
     raw_data: item,
     updated_at: new Date().toISOString(),
   };
 }
 
-function parseHistoryTrip(trip: RawTrip) {
+function parseHistoryTrip(trip: RawTrip): TripRow {
   const interval = (trip.interval as RawTrip) ?? {};
   const start = (interval.start as RawTrip) ?? {};
   const end = (interval.end as RawTrip) ?? {};
   const loc = (trip.location as RawTrip) ?? {};
   const vehicle = (trip.vehicle as RawTrip) ?? {};
-  const driver = (trip.driver as RawTrip) ?? {};
+  const renter = (trip.renter as RawTrip) ?? (trip.driver as RawTrip) ?? {};
   return {
     turo_trip_id: String(trip.id ?? ""),
     status: String(trip.status ?? trip.statusCode ?? "COMPLETED"),
-    guest_name: String((driver.name as string) ?? (driver.displayName as string) ?? ""),
-    vehicle_make: String(vehicle.make ?? ""),
-    vehicle_model: String(vehicle.model ?? ""),
-    vehicle_year: Number(vehicle.year) || null,
-    vehicle_id: String(vehicle.id ?? (trip.vehicleId as string) ?? ""),
+    guest_name: String(renter.name ?? [renter.firstName, renter.lastName].filter(Boolean).join(" ") ?? ""),
+    ...vehicleFields(vehicle),
     pickup_date: epochToIso(start.epochMillis),
     return_date: epochToIso(end.epochMillis),
-    earnings_amount: null as number | null,
+    earnings_amount: null,
     earnings_currency: "USD",
-    location_city: String((loc.city as string) ?? ""),
-    location_state: String((loc.state as string) ?? ""),
+    ...locationFields(loc),
+    renter_id: renter.id != null ? String(renter.id) : null,
+    product_id: null,
     raw_data: trip,
     updated_at: new Date().toISOString(),
   };
@@ -153,10 +193,10 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const body = await request.json() as { upcomingData?: unknown; historyData?: unknown };
+  const body = await request.json() as { upcomingData?: unknown; historyData?: unknown; probe?: unknown };
   const errors: string[] = [];
   const seen = new Set<string>();
-  const rows: ReturnType<typeof parseUpcomingItem>[] = [];
+  const rows: TripRow[] = [];
 
   if (body.upcomingData) {
     const upcoming = body.upcomingData as RawTrip;
@@ -185,6 +225,22 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Auto-match each trip to a registered car by VIN (case-insensitive)
+  const vins = [...new Set(rows.map(r => r.vehicle_vin).filter((v): v is string => !!v))];
+  if (vins.length) {
+    const { data: products } = await supabase
+      .from("products")
+      .select("id, vin")
+      .not("vin", "is", null);
+    const vinToId = new Map<string, string>();
+    for (const p of (products ?? []) as { id: string; vin: string | null }[]) {
+      if (p.vin) vinToId.set(p.vin.toLowerCase(), p.id);
+    }
+    for (const row of rows) {
+      if (row.vehicle_vin) row.product_id = vinToId.get(row.vehicle_vin.toLowerCase()) ?? null;
+    }
+  }
+
   let synced = 0;
   for (const row of rows) {
     const { error: upsertErr } = await supabase
@@ -204,10 +260,9 @@ export async function POST(request: NextRequest) {
     .then(r => r.data?.id as string | null));
 
   if (rowId) {
-    await supabase
-      .from("turo_tokens")
-      .update({ last_synced_at: new Date().toISOString() })
-      .eq("id", rowId);
+    const update: Record<string, unknown> = { last_synced_at: new Date().toISOString() };
+    if (body.probe) update.probe_data = body.probe;
+    await supabase.from("turo_tokens").update(update).eq("id", rowId);
   }
 
   return new NextResponse(

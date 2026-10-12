@@ -38,6 +38,43 @@ interface TuroTrip {
   updated_at: string;
 }
 
+interface TuroStats {
+  summary: {
+    totalTrips: number;
+    completed: number;
+    upcoming: number;
+    active: number;
+    distinctVehicles: number;
+    distinctGuests: number;
+    avgDurationDays: number;
+    fleetSize: number;
+    matchedCars: number;
+    occupancy30: number;
+    repeatGuests: number;
+  };
+  months: { month: string; trips: number }[];
+  topVehicles: { label: string; vehicle_id: string; trips: number; days: number; matched: boolean }[];
+  topGuests: { name: string; trips: number }[];
+}
+
+const MONTH_ABBR = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+function monthLabel(key: string) {
+  const [, m] = key.split("-");
+  return MONTH_ABBR[Number(m) - 1] ?? key;
+}
+
+function StatTile({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <Card>
+      <CardContent className="pt-4 pb-3">
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="text-2xl font-bold tabular-nums">{value}</p>
+        {hint && <p className="text-[11px] text-muted-foreground mt-0.5">{hint}</p>}
+      </CardContent>
+    </Card>
+  );
+}
+
 function statusBadge(status: string) {
   const s = status.toLowerCase();
   if (s.includes("active") || s.includes("ongoing")) return <Badge className="bg-green-100 text-green-800 border-green-200">Ativo</Badge>;
@@ -66,6 +103,7 @@ export default function TuroPage() {
   const [syncScript, setSyncScript] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [copiedBookmark, setCopiedBookmark] = useState(false);
+  const [stats, setStats] = useState<TuroStats | null>(null);
 
   async function loadConfig() {
     const res = await authedFetch("/api/admin/turo/config");
@@ -86,8 +124,14 @@ export default function TuroPage() {
     setLoadingTrips(false);
   }
 
+  async function loadStats() {
+    const res = await authedFetch("/api/admin/turo/stats");
+    if (res.ok) setStats(await res.json() as TuroStats);
+  }
+
   useEffect(() => { loadConfig(); }, []);
   useEffect(() => { if (connected) loadTrips(tab); }, [connected, tab]);
+  useEffect(() => { if (connected) loadStats(); }, [connected]);
 
   async function handleConnect(e: React.FormEvent) {
     e.preventDefault();
@@ -111,8 +155,12 @@ export default function TuroPage() {
     }
   }
 
+  // The script probes a few candidate reservation-detail endpoints for one trip id
+  // so we can discover where Turo exposes earnings (the feeds carry none).
+  const PROBE = `let tid=null;try{const ff=(h.tripHistoryFeeds&&(h.tripHistoryFeeds.list||h.tripHistoryFeeds))||[];for(const m of ff){if(m.trips&&m.trips[0]){tid=m.trips[0].id;break;}}}catch(e){}let probe={tripId:tid,results:{}};if(tid){for(const pu of ['/api/reservation/'+tid,'/api/v2/reservation/'+tid,'/api/reservations/'+tid+'/receipt','/api/v2/reservations/'+tid,'/api/trips/'+tid]){try{const rr=await fetch(pu);probe.results[pu]=rr.ok?await rr.json():rr.status;}catch(e){probe.results[pu]=String(e);}}}`;
+
   function buildBookmarklet(syncKey: string) {
-    return `javascript:(async()=>{try{const[u,h]=await Promise.all([fetch('/api/v2/feeds/upcoming-trips?appMode=HOST').then(r=>r.json()),fetch('/api/v2/feeds/trip-history?driverRoles=HOST').then(r=>r.json())]);const r=await fetch('https://vertexrentalcar.com/api/admin/turo/browser-sync',{method:'POST',headers:{'Content-Type':'application/json','X-Sync-Key':'${syncKey}'},body:JSON.stringify({upcomingData:u,historyData:h})});const d=await r.json();alert(d.synced>0?'✅ '+d.synced+' viagens sincronizadas!':'⚠️ '+JSON.stringify(d));}catch(e){alert('❌ '+e);}})();`;
+    return `javascript:(async()=>{try{const[u,h]=await Promise.all([fetch('/api/v2/feeds/upcoming-trips?appMode=HOST').then(r=>r.json()),fetch('/api/v2/feeds/trip-history?driverRoles=HOST').then(r=>r.json())]);${PROBE}const r=await fetch('https://vertexrentalcar.com/api/admin/turo/browser-sync',{method:'POST',headers:{'Content-Type':'application/json','X-Sync-Key':'${syncKey}'},body:JSON.stringify({upcomingData:u,historyData:h,probe:probe})});const d=await r.json();alert(d.synced>0?'✅ '+d.synced+' viagens sincronizadas!':'⚠️ '+JSON.stringify(d));}catch(e){alert('❌ '+e);}})();`;
   }
 
   async function handleSync() {
@@ -128,7 +176,7 @@ export default function TuroPage() {
       const tokenRes = await authedFetch("/api/admin/turo/sync-token", { method: "POST" });
       if (!tokenRes.ok) throw new Error("Não foi possível gerar token de sync");
       const { token } = await tokenRes.json() as { token: string };
-      const script = `(async()=>{try{const[u,h]=await Promise.all([fetch('/api/v2/feeds/upcoming-trips?appMode=HOST').then(r=>r.json()),fetch('/api/v2/feeds/trip-history?driverRoles=HOST').then(r=>r.json())]);const r=await fetch('https://vertexrentalcar.com/api/admin/turo/browser-sync',{method:'POST',headers:{'Content-Type':'application/json','X-Sync-Token':'${token}'},body:JSON.stringify({upcomingData:u,historyData:h})});const d=await r.json();alert(d.synced>0?'✅ '+d.synced+' viagens sincronizadas!':'⚠️ '+JSON.stringify(d));}catch(e){alert('❌ '+e);}})();`;
+      const script = `(async()=>{try{const[u,h]=await Promise.all([fetch('/api/v2/feeds/upcoming-trips?appMode=HOST').then(r=>r.json()),fetch('/api/v2/feeds/trip-history?driverRoles=HOST').then(r=>r.json())]);${PROBE}const r=await fetch('https://vertexrentalcar.com/api/admin/turo/browser-sync',{method:'POST',headers:{'Content-Type':'application/json','X-Sync-Token':'${token}'},body:JSON.stringify({upcomingData:u,historyData:h,probe:probe})});const d=await r.json();alert(d.synced>0?'✅ '+d.synced+' viagens sincronizadas!':'⚠️ '+JSON.stringify(d));}catch(e){alert('❌ '+e);}})();`;
       setSyncScript(script);
     } catch (e) {
       toast({ title: "Erro", description: String((e as Error).message), variant: "destructive" });
@@ -153,8 +201,7 @@ export default function TuroPage() {
 
   async function handleSyncDone() {
     setSyncScript(null);
-    await loadConfig();
-    await loadTrips(tab);
+    await Promise.all([loadConfig(), loadTrips(tab), loadStats()]);
     toast({ title: "Dados atualizados!" });
   }
 
@@ -285,22 +332,110 @@ export default function TuroPage() {
                   <div>
                     <p className="text-sm text-muted-foreground">Ganhos totais</p>
                     <p className="font-semibold">
-                      {totalEarnings > 0
-                        ? `$${totalEarnings.toFixed(2)}`
-                        : "—"
-                      }
+                      {totalEarnings > 0 ? `$${totalEarnings.toFixed(2)}` : "Em breve"}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {config?.last_synced_at
-                        ? `Sync: ${fmtDate(config.last_synced_at)}`
-                        : "Nunca sincronizado"
-                      }
+                      {config?.last_synced_at ? `Sync: ${fmtDate(config.last_synced_at)}` : "Nunca sincronizado"}
                     </p>
                   </div>
                 </div>
               </CardContent>
             </Card>
           </div>
+
+          {/* Analytics dashboard */}
+          {stats && stats.summary.totalTrips > 0 && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <StatTile label="Ocupação (30d)" value={`${stats.summary.occupancy30}%`} hint={`${stats.summary.matchedCars}/${stats.summary.fleetSize} carros ativos`} />
+                <StatTile label="Viagens" value={String(stats.summary.totalTrips)} hint={`${stats.summary.active} ativas · ${stats.summary.upcoming} futuras`} />
+                <StatTile label="Duração média" value={`${stats.summary.avgDurationDays}d`} hint={`${stats.summary.distinctVehicles} veículos`} />
+                <StatTile label="Hóspedes" value={String(stats.summary.distinctGuests)} hint={`${stats.summary.repeatGuests} recorrentes`} />
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Monthly volume */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-semibold">Viagens por mês (12 meses)</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {(() => {
+                      const max = Math.max(1, ...stats.months.map(m => m.trips));
+                      return (
+                        <div className="flex items-end gap-1.5 h-32">
+                          {stats.months.map(m => (
+                            <div key={m.month} className="flex-1 flex flex-col items-center gap-1 min-w-0">
+                              <span className="text-[10px] font-semibold text-muted-foreground tabular-nums">{m.trips || ""}</span>
+                              <div
+                                className="w-full rounded-t"
+                                style={{ height: `${(m.trips / max) * 100}%`, minHeight: m.trips ? 4 : 0, background: "#4338ca" }}
+                                title={`${m.month}: ${m.trips}`}
+                              />
+                              <span className="text-[9px] text-muted-foreground">{monthLabel(m.month)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </CardContent>
+                </Card>
+
+                {/* Top vehicles */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-semibold">Veículos por volume</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {(() => {
+                      const max = Math.max(1, ...stats.topVehicles.map(v => v.trips));
+                      return stats.topVehicles.slice(0, 6).map(v => (
+                        <div key={v.vehicle_id} className="space-y-0.5">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="truncate font-medium flex items-center gap-1.5">
+                              {v.label}
+                              {!v.matched && <Badge variant="outline" className="text-[9px] px-1 py-0 h-4">não cadastrado</Badge>}
+                            </span>
+                            <span className="tabular-nums text-muted-foreground shrink-0 ml-2">{v.trips} · {v.days}d</span>
+                          </div>
+                          <div className="h-2 rounded-full bg-muted overflow-hidden">
+                            <div className="h-full rounded-full" style={{ width: `${(v.trips / max) * 100}%`, background: v.matched ? "#1b8f6b" : "#94a3b8" }} />
+                          </div>
+                        </div>
+                      ));
+                    })()}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Top guests */}
+              {stats.topGuests.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-semibold">Hóspedes mais frequentes</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-wrap gap-2">
+                      {stats.topGuests.map(g => (
+                        <span key={g.name} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted text-xs">
+                          {g.name}
+                          <span className="font-semibold tabular-nums text-muted-foreground">{g.trips}×</span>
+                        </span>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              <div className="flex items-start gap-2 text-xs text-muted-foreground bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                <p>
+                  <strong>Ganhos ($) ainda não disponíveis:</strong> os feeds de viagem do Turo não trazem valores.
+                  Estou sondando o endpoint de recibo por reserva no próximo sync para habilitar o painel financeiro.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Bookmarklet setup card — always visible when connected */}
           {config?.sync_key && (
@@ -316,7 +451,6 @@ export default function TuroPage() {
               <CardContent className="space-y-2">
                 <div className="flex items-center gap-3 flex-wrap">
                   {/* Draggable bookmarklet link */}
-                  {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
                   <a
                     href={buildBookmarklet(config.sync_key)}
                     onClick={e => e.preventDefault()}

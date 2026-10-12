@@ -23,13 +23,14 @@ export type TimelineCar = {
 export type TimelineBooking = {
   id: string;
   car_id: string;
-  status: 'pending_payment' | 'confirmed' | 'cancelled' | 'completed';
+  status: string;
   pickup_date: string;
   pickup_time: string;
   return_date: string;
   return_time: string;
   driver_full_name: string | null;
   customer_name: string | null;
+  source?: 'internal' | 'turo';
 };
 
 export const STATUS_COLOR: Record<string, { fg: string; bg: string; border: string; label: string }> = {
@@ -37,6 +38,9 @@ export const STATUS_COLOR: Record<string, { fg: string; bg: string; border: stri
   pending_payment: { fg: '#c07a12', bg: '#fbecd4', border: '#c07a1259', label: 'Pending payment' },
   completed: { fg: '#64748b', bg: '#eef1f6', border: '#64748b59', label: 'Completed' },
 };
+// Turo trips render in a single distinct color so they read as "external / Turo"
+// regardless of the trip's own status wording.
+export const TURO_COLOR = { fg: '#4338ca', bg: '#e7e9fd', border: '#4338ca59', label: 'Turo' };
 export const TODAY_COLOR = '#e0475a';
 
 function carClass(car: TimelineCar): VehicleClass | null {
@@ -249,12 +253,13 @@ export function TimelineView({
                     {items.map((b) => {
                       const start = Math.max(0, b.startOffset);
                       const end = Math.min(days, b.endOffset);
-                      const status = STATUS_COLOR[b.status] ?? STATUS_COLOR.pending_payment;
+                      const isTuro = b.source === 'turo';
+                      const status = isTuro ? TURO_COLOR : (STATUS_COLOR[b.status] ?? STATUS_COLOR.pending_payment);
                       const renter = b.customer_name || b.driver_full_name || 'Guest';
                       return (
                         <div
                           key={b.id}
-                          title={`${renter} — ${status.label}`}
+                          title={`${isTuro ? 'Turo · ' : ''}${renter} — ${status.label}`}
                           className="absolute h-[30px] rounded-lg flex items-center gap-1.5 px-2 text-[11px] font-bold overflow-hidden whitespace-nowrap border"
                           style={{
                             top: 8 + b.lane * 36,
@@ -263,6 +268,7 @@ export function TimelineView({
                             color: status.fg,
                             background: status.bg,
                             borderColor: status.border,
+                            borderStyle: isTuro ? 'dashed' : 'solid',
                           }}
                         >
                           <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: status.fg }} />
