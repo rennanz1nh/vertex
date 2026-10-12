@@ -10,25 +10,68 @@ function adminClient() {
   );
 }
 
+function turoHeaders(token: string) {
+  return {
+    Authorization: `Bearer ${token}`,
+    Cookie: `access_token=${token}`,
+    Accept: "application/json",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
+    "turo-country": "US",
+    Referer: "https://turo.com/",
+    Origin: "https://turo.com",
+  };
+}
+
+function decodeDriverId(token: string): string | null {
+  try {
+    const payload = JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString());
+    return String(payload.driver_id ?? payload.sub ?? "");
+  } catch {
+    return null;
+  }
+}
+
 async function fetchTuroFeed(url: string, token: string) {
-  // Turo uses cookie-based auth internally — send the access_token both as Bearer
-  // header and as a cookie (same value), which covers both auth paths their API accepts.
-  const res = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Cookie: `access_token=${token}`,
-      Accept: "application/json",
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
-      "turo-country": "US",
-      Referer: "https://turo.com/",
-      Origin: "https://turo.com",
-    },
-  });
+  const res = await fetch(url, { headers: turoHeaders(token) });
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`Turo API ${res.status}: ${body.slice(0, 200)}`);
+    throw new Error(`Turo API ${res.status} ${url}: ${body.slice(0, 300)}`);
   }
   return res.json();
+}
+
+async function tryFetchTrips(token: string, driverId: string | null): Promise<{ data: Record<string, unknown>[]; errors: string[] }> {
+  const errors: string[] = [];
+  const results: Record<string, unknown>[] = [];
+
+  const endpoints = [
+    // Feed endpoints (discovered via community reverse-engineering)
+    "https://turo.com/api/v2/feeds/upcoming-trips",
+    "https://turo.com/api/v2/feeds/trip-history",
+    // Host-scoped endpoints using driver_id from JWT
+    ...(driverId ? [
+      `https://turo.com/api/v2/hosts/${driverId}/trips?page=1&pageSize=50`,
+      `https://turo.com/api/v2/hosts/${driverId}/reservations?page=1&pageSize=50`,
+    ] : []),
+    // /api/me style
+    "https://turo.com/api/me/trips?page=1&pageSize=50",
+  ];
+
+  for (const url of endpoints) {
+    const data = await fetchTuroFeed(url, token).catch((e: Error) => {
+      errors.push(e.message);
+      return null;
+    });
+    if (!data) continue;
+
+    const items =
+      data.trips ?? data.reservations ?? data.events ?? data.items ??
+      data.content ?? data.results ?? data.data ?? data;
+    const arr = Array.isArray(items) ? items : [];
+    results.push(...arr);
+  }
+
+  return { data: results, errors };
 }
 
 function parseTrip(trip: Record<string, unknown>) {
@@ -87,34 +130,10 @@ export async function POST(request: NextRequest) {
   if (!tokenRow) return NextResponse.json({ error: "Turo não está conectado" }, { status: 400 });
 
   const token = tokenRow.bearer_token;
-  const errors: string[] = [];
+  const driverId = decodeDriverId(token);
+
+  const { data: allTrips, errors } = await tryFetchTrips(token, driverId);
   let synced = 0;
-
-  // Fetch upcoming trips
-  const upcomingData = await fetchTuroFeed(
-    "https://turo.com/api/v2/feeds/upcoming-trips",
-    token
-  ).catch((e: Error) => { errors.push(`upcoming: ${e.message}`); return null; });
-
-  // Fetch trip history
-  const historyData = await fetchTuroFeed(
-    "https://turo.com/api/v2/feeds/trip-history",
-    token
-  ).catch((e: Error) => { errors.push(`history: ${e.message}`); return null; });
-
-  const allTrips: Record<string, unknown>[] = [];
-
-  if (upcomingData) {
-    const items = upcomingData.events ?? upcomingData.trips ?? upcomingData.items ?? upcomingData ?? [];
-    const arr = Array.isArray(items) ? items : [];
-    allTrips.push(...arr);
-  }
-
-  if (historyData) {
-    const items = historyData.events ?? historyData.trips ?? historyData.items ?? historyData ?? [];
-    const arr = Array.isArray(items) ? items : [];
-    allTrips.push(...arr);
-  }
 
   // Deduplicate by trip id
   const seen = new Set<string>();
@@ -139,5 +158,5 @@ export async function POST(request: NextRequest) {
   // Update last synced timestamp
   await supabase.from("turo_tokens").update({ last_synced_at: new Date().toISOString() }).eq("id", tokenRow.id);
 
-  return NextResponse.json({ ok: true, synced, errors });
+  return NextResponse.json({ ok: true, synced, errors, driverId });
 }
