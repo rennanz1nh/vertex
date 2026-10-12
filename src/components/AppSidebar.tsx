@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, Users, LogOut, Settings, MessageCircle, ChevronRight, Newspaper, Video, ClipboardCheck, ClipboardList, CalendarDays, CalendarClock, CheckCircle2, BarChart3, Zap, Car } from "lucide-react";
 import { HubIcon } from "@/components/icons/HubIcon";
@@ -39,8 +40,8 @@ const navigation = [
   { title: "Calendário", url: "/admin/calendar", icon: CalendarClock },
   { title: "Clientes", url: "/admin/clients", icon: Users },
   { title: "Reservas", url: "/admin/bookings", icon: ClipboardList },
-  { title: "Turo", url: "/admin/turo", icon: Car },
-];
+  { title: "", url: "/admin/turo", icon: null, logoSrc: "/turo-logo.png" },
+] as { title: string; url: string; icon: React.ComponentType<{ className?: string }> | null; logoSrc?: string }[];
 
 // Each platform is a single link straight into its main page — the sub-pages that used
 // to be separate sidebar entries are now tabs at the top of that page (same pattern as
@@ -194,13 +195,19 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu className="gap-2">
               {navigation.map((item) => {
-                const isActive = pathname === item.url;
+                const isActive = item.url === "/admin" ? pathname === item.url : pathname.startsWith(item.url);
                 return (
-                  <SidebarMenuItem key={item.title}>
+                  <SidebarMenuItem key={item.url}>
                     <SidebarMenuButton asChild className={resetButtonClass}>
                       <Link href={item.url} className={navLinkClass(isActive)}>
-                        <item.icon className="h-4 w-4 shrink-0" />
-                        <span className="flex-1">{item.title}</span>
+                        {item.logoSrc ? (
+                          <Image src={item.logoSrc} alt="Turo" width={56} height={20} className="object-contain" />
+                        ) : (
+                          <>
+                            {item.icon && <item.icon className="h-4 w-4 shrink-0" />}
+                            <span className="flex-1">{item.title}</span>
+                          </>
+                        )}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
