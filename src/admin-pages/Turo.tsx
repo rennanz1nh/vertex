@@ -17,6 +17,7 @@ interface TuroConfig {
   host_name: string | null;
   last_synced_at: string | null;
   updated_at: string;
+  sync_key: string | null;
 }
 
 interface TuroTrip {
@@ -64,6 +65,7 @@ export default function TuroPage() {
   const [tab, setTab] = useState("upcoming");
   const [syncScript, setSyncScript] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copiedBookmark, setCopiedBookmark] = useState(false);
 
   async function loadConfig() {
     const res = await authedFetch("/api/admin/turo/config");
@@ -109,16 +111,24 @@ export default function TuroPage() {
     }
   }
 
+  function buildBookmarklet(syncKey: string) {
+    return `javascript:(async()=>{try{const[u,h]=await Promise.all([fetch('/api/v2/feeds/upcoming-trips?appMode=HOST').then(r=>r.json()),fetch('/api/v2/feeds/trip-history?driverRoles=HOST').then(r=>r.json())]);const r=await fetch('https://vertexrentalcar.com/api/admin/turo/browser-sync',{method:'POST',headers:{'Content-Type':'application/json','X-Sync-Key':'${syncKey}'},body:JSON.stringify({upcomingData:u,historyData:h})});const d=await r.json();alert(d.synced>0?'✅ '+d.synced+' viagens sincronizadas!':'⚠️ '+JSON.stringify(d));}catch(e){alert('❌ '+e);}})();`;
+  }
+
   async function handleSync() {
+    // If we have a sync_key, show the bookmarklet (no need to generate a token)
+    if (config?.sync_key) {
+      setSyncScript(buildBookmarklet(config.sync_key));
+      return;
+    }
+    // Fallback: generate a one-time token
     setSyncing(true);
     setSyncScript(null);
     try {
       const tokenRes = await authedFetch("/api/admin/turo/sync-token", { method: "POST" });
       if (!tokenRes.ok) throw new Error("Não foi possível gerar token de sync");
       const { token } = await tokenRes.json() as { token: string };
-
-      const script = `(async()=>{try{const[u,h]=await Promise.all([fetch('/api/v2/feeds/upcoming-trips?appMode=HOST').then(r=>r.json()),fetch('/api/v2/feeds/trip-history?driverRoles=HOST').then(r=>r.json())]);const r=await fetch('https://vertexrentalcar.com/api/admin/turo/browser-sync',{method:'POST',headers:{'Content-Type':'application/json','X-Sync-Token':'${token}'},body:JSON.stringify({upcomingData:u,historyData:h})});const d=await r.json();console.log(d.synced>0?'✅ Sync OK: '+d.synced+' viagens importadas':'⚠️ Resultado: '+JSON.stringify(d));}catch(e){console.error('❌ Erro:',e);}})();`;
-
+      const script = `(async()=>{try{const[u,h]=await Promise.all([fetch('/api/v2/feeds/upcoming-trips?appMode=HOST').then(r=>r.json()),fetch('/api/v2/feeds/trip-history?driverRoles=HOST').then(r=>r.json())]);const r=await fetch('https://vertexrentalcar.com/api/admin/turo/browser-sync',{method:'POST',headers:{'Content-Type':'application/json','X-Sync-Token':'${token}'},body:JSON.stringify({upcomingData:u,historyData:h})});const d=await r.json();alert(d.synced>0?'✅ '+d.synced+' viagens sincronizadas!':'⚠️ '+JSON.stringify(d));}catch(e){alert('❌ '+e);}})();`;
       setSyncScript(script);
     } catch (e) {
       toast({ title: "Erro", description: String((e as Error).message), variant: "destructive" });
@@ -132,6 +142,13 @@ export default function TuroPage() {
     await navigator.clipboard.writeText(syncScript);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  async function handleCopyBookmark() {
+    if (!config?.sync_key) return;
+    await navigator.clipboard.writeText(buildBookmarklet(config.sync_key));
+    setCopiedBookmark(true);
+    setTimeout(() => setCopiedBookmark(false), 2000);
   }
 
   async function handleSyncDone() {
@@ -285,23 +302,56 @@ export default function TuroPage() {
             </Card>
           </div>
 
-          {/* Console script card — shown after clicking Sincronizar */}
+          {/* Bookmarklet setup card — always visible when connected */}
+          {config?.sync_key && (
+            <Card className="border-indigo-200 bg-indigo-50">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-indigo-900 text-sm font-semibold">
+                  <Terminal className="h-4 w-4" /> Sincronização via Bookmarklet
+                </CardTitle>
+                <CardDescription className="text-indigo-700 text-xs">
+                  Arraste o botão abaixo para sua barra de favoritos. Quando quiser sincronizar, vá ao turo.com e clique nele.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="flex items-center gap-3 flex-wrap">
+                  {/* Draggable bookmarklet link */}
+                  {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
+                  <a
+                    href={buildBookmarklet(config.sync_key)}
+                    onClick={e => e.preventDefault()}
+                    draggable
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-md cursor-grab select-none"
+                    title="Arraste para a barra de favoritos"
+                  >
+                    <Image src="/turo-logo.png" alt="" width={32} height={12} className="object-contain brightness-0 invert" />
+                    Sync Turo
+                  </a>
+                  <span className="text-xs text-indigo-600">← arraste para os favoritos</span>
+                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={handleCopyBookmark}>
+                    {copiedBookmark ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                    {copiedBookmark ? "Copiado!" : "Copiar link"}
+                  </Button>
+                </div>
+                <p className="text-xs text-indigo-500">
+                  Precisa estar logado em turo.com. O token é permanente — não expira nem precisa ser renovado.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* One-time script fallback — shown when bookmarklet not used yet */}
           {syncScript && (
             <Card className="border-blue-200 bg-blue-50">
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-blue-900 text-base">
-                  <Terminal className="h-5 w-5" /> Script de Sincronização
+                  <Terminal className="h-5 w-5" /> Executar Sync Agora
                 </CardTitle>
                 <CardDescription className="text-blue-700">
-                  O Cloudflare bloqueia requisições diretas ao Turo. Execute este script no console do turo.com:
+                  Cole este script no console do turo.com (F12 → Console):
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
-                  <li>Abra uma aba com <strong>turo.com</strong> (já logado)</li>
-                  <li>Pressione <strong>F12</strong> → aba <strong>Console</strong></li>
-                  <li>Copie o script abaixo, cole e pressione <strong>Enter</strong></li>
-                </ol>
                 <div className="relative">
                   <pre className="bg-gray-900 text-green-300 text-xs p-3 rounded-lg overflow-x-auto whitespace-pre-wrap break-all font-mono leading-relaxed">
                     {syncScript}
@@ -316,9 +366,6 @@ export default function TuroPage() {
                     <span className="ml-1">{copied ? "Copiado!" : "Copiar"}</span>
                   </Button>
                 </div>
-                <p className="text-xs text-blue-600">
-                  ⏱ Token válido por 10 minutos. Após executar o script, clique em:
-                </p>
                 <Button onClick={handleSyncDone} size="sm">
                   <Check className="mr-2 h-4 w-4" /> Já executei — Atualizar dados
                 </Button>

@@ -98,26 +98,51 @@ async function verifySyncToken(supabase: ReturnType<typeof adminClient>, token: 
   return data.id as string;
 }
 
+// Permanent sync key (UUID stored in DB): no expiry, used for bookmarklet
+async function verifySyncKey(supabase: ReturnType<typeof adminClient>, key: string): Promise<string | null> {
+  const { data } = await supabase
+    .from("turo_tokens")
+    .select("id, sync_key")
+    .eq("sync_key", key)
+    .limit(1)
+    .maybeSingle();
+  return data ? (data.id as string) : null;
+}
+
 export async function POST(request: NextRequest) {
   const supabase = adminClient();
   let tokenRowId: string | null = null;
 
-  // Check sync token first (for console script on turo.com)
-  const syncToken = request.headers.get("X-Sync-Token");
-  if (syncToken) {
-    tokenRowId = await verifySyncToken(supabase, syncToken);
+  // Check permanent sync key first (bookmarklet)
+  const syncKey = request.headers.get("X-Sync-Key");
+  if (syncKey) {
+    tokenRowId = await verifySyncKey(supabase, syncKey);
     if (!tokenRowId) {
       return new NextResponse(
-        JSON.stringify({ error: "Sync token inválido ou expirado" }),
+        JSON.stringify({ error: "Sync key inválida" }),
         { status: 401, headers: { "Content-Type": "application/json", ...CORS_HEADERS } }
       );
     }
-    // Invalidate the one-time token
-    await supabase
-      .from("turo_tokens")
-      .update({ sync_token: null, sync_token_expires_at: null })
-      .eq("id", tokenRowId);
   } else {
+    // Check one-time sync token (console script fallback)
+    const syncToken = request.headers.get("X-Sync-Token");
+    if (syncToken) {
+      tokenRowId = await verifySyncToken(supabase, syncToken);
+      if (!tokenRowId) {
+        return new NextResponse(
+          JSON.stringify({ error: "Sync token inválido ou expirado" }),
+          { status: 401, headers: { "Content-Type": "application/json", ...CORS_HEADERS } }
+        );
+      }
+      // Invalidate the one-time token
+      await supabase
+        .from("turo_tokens")
+        .update({ sync_token: null, sync_token_expires_at: null })
+        .eq("id", tokenRowId);
+    }
+  }
+
+  if (!syncKey && !request.headers.get("X-Sync-Token")) {
     // Fall back to admin JWT auth (for browser-side fetch from our domain)
     const auth = await requireAdmin(request);
     if (!auth.ok) {
