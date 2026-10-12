@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { authedFetch } from "@/lib/admin-fetch";
-import { RefreshCw, Link2, Link2Off, Car, Calendar, DollarSign, AlertCircle } from "lucide-react";
+import { RefreshCw, Link2, Link2Off, Car, Calendar, DollarSign, AlertCircle, Copy, Check, Terminal } from "lucide-react";
 
 interface TuroConfig {
   id: string;
@@ -62,6 +62,8 @@ export default function TuroPage() {
   const [trips, setTrips] = useState<TuroTrip[]>([]);
   const [loadingTrips, setLoadingTrips] = useState(false);
   const [tab, setTab] = useState("upcoming");
+  const [syncScript, setSyncScript] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   async function loadConfig() {
     const res = await authedFetch("/api/admin/turo/config");
@@ -109,56 +111,34 @@ export default function TuroPage() {
 
   async function handleSync() {
     setSyncing(true);
+    setSyncScript(null);
     try {
-      // Get the stored access_token so the browser can call Turo directly
-      // (server-side calls are blocked by Cloudflare; browser calls work fine)
-      const tokenRes = await authedFetch("/api/admin/turo/token");
-      if (!tokenRes.ok) throw new Error("Token não disponível");
-      const { access_token } = await tokenRes.json() as { access_token: string };
+      const tokenRes = await authedFetch("/api/admin/turo/sync-token", { method: "POST" });
+      if (!tokenRes.ok) throw new Error("Não foi possível gerar token de sync");
+      const { token } = await tokenRes.json() as { token: string };
 
-      const turoHeaders = {
-        Authorization: `Bearer ${access_token}`,
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      };
+      const script = `(async()=>{try{const[u,h]=await Promise.all([fetch('/api/v2/feeds/upcoming-trips?appMode=HOST').then(r=>r.json()),fetch('/api/v2/feeds/trip-history?driverRoles=HOST').then(r=>r.json())]);const r=await fetch('https://vertexrentalcar.com/api/admin/turo/browser-sync',{method:'POST',headers:{'Content-Type':'application/json','X-Sync-Token':'${token}'},body:JSON.stringify({upcomingData:u,historyData:h})});const d=await r.json();console.log(d.synced>0?'✅ Sync OK: '+d.synced+' viagens importadas':'⚠️ Resultado: '+JSON.stringify(d));}catch(e){console.error('❌ Erro:',e);}})();`;
 
-      const [upcomingRes, historyRes] = await Promise.allSettled([
-        fetch("https://turo.com/api/v2/feeds/upcoming-trips?appMode=HOST", { headers: turoHeaders, credentials: "include" }),
-        fetch("https://turo.com/api/v2/feeds/trip-history?driverRoles=HOST", { headers: turoHeaders, credentials: "include" }),
-      ]);
-
-      const upcomingData = upcomingRes.status === "fulfilled" && upcomingRes.value.ok
-        ? await upcomingRes.value.json()
-        : null;
-      const historyData = historyRes.status === "fulfilled" && historyRes.value.ok
-        ? await historyRes.value.json()
-        : null;
-
-      if (!upcomingData && !historyData) {
-        const upErr = upcomingRes.status === "rejected" ? upcomingRes.reason : (upcomingRes.value?.status ?? "?");
-        throw new Error(`Não foi possível buscar dados do Turo (${upErr}). Verifique se está logado em turo.com.`);
-      }
-
-      const res = await authedFetch("/api/admin/turo/browser-sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ upcomingData, historyData }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Erro ao salvar");
-
-      if (data.synced === 0 && data.errors?.length) {
-        toast({ title: "Sync sem viagens", description: `Erro: ${String(data.errors[0]).slice(0, 120)}`, variant: "destructive" });
-      } else {
-        toast({ title: "Sincronizado!", description: `${data.synced} viagem(ns) importada(s).` });
-      }
-      await loadConfig();
-      await loadTrips(tab);
+      setSyncScript(script);
     } catch (e) {
-      toast({ title: "Erro ao sincronizar", description: String((e as Error).message), variant: "destructive" });
+      toast({ title: "Erro", description: String((e as Error).message), variant: "destructive" });
     } finally {
       setSyncing(false);
     }
+  }
+
+  async function handleCopyScript() {
+    if (!syncScript) return;
+    await navigator.clipboard.writeText(syncScript);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  async function handleSyncDone() {
+    setSyncScript(null);
+    await loadConfig();
+    await loadTrips(tab);
+    toast({ title: "Dados atualizados!" });
   }
 
   async function handleDisconnect() {
@@ -304,6 +284,47 @@ export default function TuroPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Console script card — shown after clicking Sincronizar */}
+          {syncScript && (
+            <Card className="border-blue-200 bg-blue-50">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-blue-900 text-base">
+                  <Terminal className="h-5 w-5" /> Script de Sincronização
+                </CardTitle>
+                <CardDescription className="text-blue-700">
+                  O Cloudflare bloqueia requisições diretas ao Turo. Execute este script no console do turo.com:
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+                  <li>Abra uma aba com <strong>turo.com</strong> (já logado)</li>
+                  <li>Pressione <strong>F12</strong> → aba <strong>Console</strong></li>
+                  <li>Copie o script abaixo, cole e pressione <strong>Enter</strong></li>
+                </ol>
+                <div className="relative">
+                  <pre className="bg-gray-900 text-green-300 text-xs p-3 rounded-lg overflow-x-auto whitespace-pre-wrap break-all font-mono leading-relaxed">
+                    {syncScript}
+                  </pre>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="absolute top-2 right-2"
+                    onClick={handleCopyScript}
+                  >
+                    {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                    <span className="ml-1">{copied ? "Copiado!" : "Copiar"}</span>
+                  </Button>
+                </div>
+                <p className="text-xs text-blue-600">
+                  ⏱ Token válido por 10 minutos. Após executar o script, clique em:
+                </p>
+                <Button onClick={handleSyncDone} size="sm">
+                  <Check className="mr-2 h-4 w-4" /> Já executei — Atualizar dados
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Trips table */}
           <Card>
