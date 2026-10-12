@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -174,7 +175,7 @@ export default function TuroPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Link2 className="h-5 w-5" /> Conectar conta Turo
+              <Image src="/turo-logo.png" alt="Turo" width={56} height={20} className="object-contain" /> Conectar conta Turo
             </CardTitle>
             <CardDescription>
               Para conectar, você precisa do seu Bearer Token do Turo. Siga os passos:
@@ -223,8 +224,8 @@ export default function TuroPage() {
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <Link2 className="h-5 w-5 text-green-600" />
+                  <div className="p-1 rounded-lg bg-black">
+                    <Image src="/turo-logo.png" alt="Turo" width={60} height={22} className="object-contain" />
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Status</p>
