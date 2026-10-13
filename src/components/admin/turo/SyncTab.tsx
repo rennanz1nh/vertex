@@ -13,10 +13,10 @@ import { TuroConfig, fmtDateTime } from "./shared";
 // browser-sync, which stores them for the Ganhos / Avaliações / Métodos tabs.
 const FETCH_EXTRAS = `let hid=null;try{const ff=(h.tripHistoryFeeds&&(h.tripHistoryFeeds.list||h.tripHistoryFeeds))||[];for(const m of ff){if(m.trips&&m.trips[0]){hid=m.trips[0].owner&&m.trips[0].owner.id;break;}}}catch(e){}const yr=new Date().getFullYear();const gj=async(u)=>{try{const r=await fetch(u);return r.ok?await r.json():{_status:r.status};}catch(e){return {_error:String(e)};}};const earnings={hostId:hid,years:{}};earnings.years[yr]=await gj('/api/me/earnings/summaries/list?year='+yr);earnings.years[yr-1]=await gj('/api/me/earnings/summaries/list?year='+(yr-1));if(hid){earnings.scorecard=await gj('/api/drivers/'+hid+'/owner-scorecard/earnings');}const payout=await gj('/api/me/payout/method');const reviews=hid?await gj('/api/drivers/'+hid+'/host-feedback?days=365&itemsPerPage=50&page=1&sortOrder=MOST_RECENT'):null;const feedback=hid?await gj('/api/drivers/'+hid+'/host-scorecard/structured-feedback?days=365&sortOrder=MOST_RECENT'):null;`;
 
-function buildScript(auth: { key?: string; token?: string }) {
+function buildScript(auth: { key?: string; token?: string }, asBookmarklet = false) {
   const header = auth.key ? `'X-Sync-Key':'${auth.key}'` : `'X-Sync-Token':'${auth.token}'`;
-  const prefix = auth.key ? "javascript:" : "";
-  return `${prefix}(async()=>{try{const[u,h]=await Promise.all([fetch('/api/v2/feeds/upcoming-trips?appMode=HOST').then(r=>r.json()),fetch('/api/v2/feeds/trip-history?driverRoles=HOST').then(r=>r.json())]);${FETCH_EXTRAS}const r=await fetch('https://vertexrentalcar.com/api/admin/turo/browser-sync',{method:'POST',headers:{'Content-Type':'application/json',${header}},body:JSON.stringify({upcomingData:u,historyData:h,earnings:earnings,reviews:reviews,feedback:feedback,payout:payout})});const d=await r.json();alert(d.synced>0?'✅ '+d.synced+' viagens + ganhos/avaliações sincronizados!':'⚠️ '+JSON.stringify(d));}catch(e){alert('❌ '+e);}})();`;
+  const body = `(async()=>{try{const[u,h]=await Promise.all([fetch('/api/v2/feeds/upcoming-trips?appMode=HOST').then(r=>r.json()),fetch('/api/v2/feeds/trip-history?driverRoles=HOST').then(r=>r.json())]);${FETCH_EXTRAS}const r=await fetch('https://vertexrentalcar.com/api/admin/turo/browser-sync',{method:'POST',headers:{'Content-Type':'application/json',${header}},body:JSON.stringify({upcomingData:u,historyData:h,earnings:earnings,reviews:reviews,feedback:feedback,payout:payout})});const d=await r.json();alert(d.synced>0?'✅ '+d.synced+' viagens + ganhos/avaliações sincronizados!':'⚠️ '+JSON.stringify(d));}catch(e){alert('❌ '+e);}})();`;
+  return asBookmarklet ? `javascript:${body}` : body;
 }
 
 export function SyncTab({ config, connected, onChanged }: { config: TuroConfig | null; connected: boolean; onChanged: () => void }) {
@@ -29,7 +29,7 @@ export function SyncTab({ config, connected, onChanged }: { config: TuroConfig |
   const [copiedBookmark, setCopiedBookmark] = useState(false);
   const [generating, setGenerating] = useState(false);
 
-  const bookmarklet = config?.sync_key ? buildScript({ key: config.sync_key }) : null;
+  const bookmarklet = config?.sync_key ? buildScript({ key: config.sync_key }, true) : null;
 
   async function handleConnect(e: React.FormEvent) {
     e.preventDefault();
@@ -54,13 +54,15 @@ export function SyncTab({ config, connected, onChanged }: { config: TuroConfig |
   }
 
   async function handleSyncClick() {
-    if (bookmarklet) { setScript(bookmarklet); return; }
+    // Console script (no javascript: prefix) — the reliable path, since turo.com's
+    // CSP blocks javascript: bookmarklets.
+    if (config?.sync_key) { setScript(buildScript({ key: config.sync_key }, false)); return; }
     setGenerating(true);
     try {
       const res = await authedFetch("/api/admin/turo/sync-token", { method: "POST" });
       if (!res.ok) throw new Error("Não foi possível gerar token de sync");
       const { token: t } = await res.json() as { token: string };
-      setScript(buildScript({ token: t }));
+      setScript(buildScript({ token: t }, false));
     } catch (e) {
       toast({ title: "Erro", description: String((e as Error).message), variant: "destructive" });
     } finally {
@@ -139,8 +141,8 @@ export function SyncTab({ config, connected, onChanged }: { config: TuroConfig |
       {bookmarklet && (
         <Card className="border-indigo-200 bg-indigo-50">
           <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-indigo-900 text-sm font-semibold"><Terminal className="h-4 w-4" /> Bookmarklet</CardTitle>
-            <CardDescription className="text-indigo-700 text-xs">Arraste para os favoritos. No turo.com (logado), clique para sincronizar.</CardDescription>
+            <CardTitle className="flex items-center gap-2 text-indigo-900 text-sm font-semibold"><Terminal className="h-4 w-4" /> Bookmarklet (opcional)</CardTitle>
+            <CardDescription className="text-indigo-700 text-xs">Arraste para os favoritos e clique no turo.com. ⚠️ O turo.com às vezes bloqueia bookmarklets — se clicar e nada acontecer, use o botão <strong>Sincronizar</strong> acima (cola no console, sempre funciona).</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
             <div className="flex items-center gap-3 flex-wrap">
@@ -161,7 +163,7 @@ export function SyncTab({ config, connected, onChanged }: { config: TuroConfig |
         <Card className="border-blue-200 bg-blue-50">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-blue-900 text-base"><Terminal className="h-5 w-5" /> Executar Sync Agora</CardTitle>
-            <CardDescription className="text-blue-700">Cole no console do turo.com (F12 → Console):</CardDescription>
+            <CardDescription className="text-blue-700">Copie, abra o turo.com (logado), aperte <strong>F12 → Console</strong>, cole e <strong>Enter</strong>. Deve aparecer um alerta de sucesso.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="relative">
