@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Search, ExternalLink, MapPin, Car as CarIcon, User } from "lucide-react";
 import { authedFetch } from "@/lib/admin-fetch";
-import { TuroTrip, StatusBadge, vehicleLabel, fmtDateTime, fmtDate, durationDays } from "./shared";
+import { TuroTrip, TuroExtras, StatusBadge, vehicleLabel, fmtDateTime, fmtDate, durationDays, fmtMoney, buildFinanceIndex } from "./shared";
 
 type RawObj = Record<string, unknown>;
 function get(obj: unknown, ...path: string[]): unknown {
@@ -42,7 +42,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
-function DetailSheet({ tripId, onClose }: { tripId: string | null; onClose: () => void }) {
+function DetailSheet({ tripId, earned, onClose }: { tripId: string | null; earned?: number; onClose: () => void }) {
   const [detail, setDetail] = useState<TuroTrip & { raw_data?: RawObj } | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -86,7 +86,9 @@ function DetailSheet({ tripId, onClose }: { tripId: string | null; onClose: () =
                 <Row label="Retirada">{fmtDateTime(detail.pickup_date)}</Row>
                 <Row label="Devolução">{fmtDateTime(detail.return_date)}</Row>
                 <Row label="Duração">{durationDays(detail.pickup_date, detail.return_date)} dia(s)</Row>
-                {detail.earnings_amount != null && <Row label="Ganhos">{`$${detail.earnings_amount.toFixed(2)}`}</Row>}
+                {earned != null && earned > 0 && (
+                  <Row label="Ganhos"><span className="text-emerald-700 font-semibold">{fmtMoney(earned)}</span></Row>
+                )}
               </section>
 
               <section>
@@ -137,13 +139,14 @@ function DetailSheet({ tripId, onClose }: { tripId: string | null; onClose: () =
   );
 }
 
-export function ReservationsTab({ trips }: { trips: TuroTrip[] }) {
+export function ReservationsTab({ trips, extras }: { trips: TuroTrip[]; extras: TuroExtras | null }) {
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [period, setPeriod] = useState("all");
   const [openId, setOpenId] = useState<string | null>(null);
 
   const now = Date.now();
+  const fin = useMemo(() => buildFinanceIndex(extras), [extras]);
   const statuses = useMemo(() => {
     const set = new Set(trips.map((t) => t.status).filter(Boolean));
     return [...set].sort();
@@ -191,7 +194,14 @@ export function ReservationsTab({ trips }: { trips: TuroTrip[] }) {
         </Select>
       </div>
 
-      <p className="text-xs text-muted-foreground">{filtered.length} de {trips.length} reserva(s)</p>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <p className="text-xs text-muted-foreground">{filtered.length} de {trips.length} reserva(s)</p>
+        {fin.byReservation.size > 0 && (
+          <p className="text-xs text-muted-foreground">
+            Receita listada: <span className="text-emerald-700 font-semibold">{fmtMoney(filtered.reduce((s, t) => s + (fin.byReservation.get(t.turo_trip_id) ?? 0), 0))}</span>
+          </p>
+        )}
+      </div>
 
       <div className="overflow-x-auto rounded-lg border">
         <table className="w-full text-sm">
@@ -203,37 +213,40 @@ export function ReservationsTab({ trips }: { trips: TuroTrip[] }) {
               <th className="p-3 font-medium whitespace-nowrap">Retirada</th>
               <th className="p-3 font-medium whitespace-nowrap">Devolução</th>
               <th className="p-3 font-medium">Dias</th>
-              <th className="p-3 font-medium">Local</th>
+              <th className="p-3 font-medium text-right">Ganhos</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">Nenhuma reserva encontrada.</td></tr>
-            ) : filtered.map((t) => (
-              <tr key={t.id} onClick={() => setOpenId(t.id)} className="border-b last:border-0 hover:bg-muted/30 cursor-pointer">
-                <td className="p-3">
-                  <div className="flex items-center gap-2">
-                    <VehicleThumb url={t.vehicle_image_url} />
-                    <div className="min-w-0">
-                      <p className="font-medium truncate">{vehicleLabel(t)}</p>
-                      {t.vehicle_license_plate && <p className="text-[11px] text-muted-foreground">{t.vehicle_license_plate}</p>}
+            ) : filtered.map((t) => {
+              const earned = fin.byReservation.get(t.turo_trip_id);
+              return (
+                <tr key={t.id} onClick={() => setOpenId(t.id)} className="border-b last:border-0 hover:bg-muted/30 cursor-pointer">
+                  <td className="p-3">
+                    <div className="flex items-center gap-2">
+                      <VehicleThumb url={t.vehicle_image_url} />
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{vehicleLabel(t)}</p>
+                        {t.vehicle_license_plate && <p className="text-[11px] text-muted-foreground">{t.vehicle_license_plate}</p>}
+                      </div>
+                      {!t.product_id && <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 ml-1">Turo</Badge>}
                     </div>
-                    {!t.product_id && <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 ml-1">Turo</Badge>}
-                  </div>
-                </td>
-                <td className="p-3">{t.guest_name || "—"}</td>
-                <td className="p-3"><StatusBadge status={t.status} /></td>
-                <td className="p-3 whitespace-nowrap">{fmtDate(t.pickup_date)}</td>
-                <td className="p-3 whitespace-nowrap">{fmtDate(t.return_date)}</td>
-                <td className="p-3 tabular-nums">{durationDays(t.pickup_date, t.return_date)}</td>
-                <td className="p-3">{[t.location_city, t.location_state].filter(Boolean).join(", ") || "—"}</td>
-              </tr>
-            ))}
+                  </td>
+                  <td className="p-3">{t.guest_name || "—"}</td>
+                  <td className="p-3"><StatusBadge status={t.status} /></td>
+                  <td className="p-3 whitespace-nowrap">{fmtDate(t.pickup_date)}</td>
+                  <td className="p-3 whitespace-nowrap">{fmtDate(t.return_date)}</td>
+                  <td className="p-3 tabular-nums">{durationDays(t.pickup_date, t.return_date)}</td>
+                  <td className="p-3 text-right tabular-nums font-medium">{earned ? <span className="text-emerald-700">{fmtMoney(earned)}</span> : "—"}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
 
-      <DetailSheet tripId={openId} onClose={() => setOpenId(null)} />
+      <DetailSheet tripId={openId} earned={openId ? fin.byReservation.get(trips.find((t) => t.id === openId)?.turo_trip_id ?? "") : undefined} onClose={() => setOpenId(null)} />
     </div>
   );
 }

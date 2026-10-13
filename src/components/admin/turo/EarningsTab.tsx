@@ -1,7 +1,13 @@
 import { useState } from "react";
+import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { TuroExtras, JsonView, EmptyExtra, StatTile, fmtMoney, fmtDateTime } from "./shared";
+
+const MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+const compactMoney = (n: number) => (n >= 1000 ? `$${(n / 1000).toFixed(1)}k` : `$${Math.round(n)}`);
+const revConfig = { revenue: { label: "Receita", color: "#1b8f6b" } } satisfies ChartConfig;
 
 type EarningEntry = {
   amount?: number;
@@ -16,7 +22,6 @@ type EarningEntry = {
 };
 type EarningsBlob = { years?: Record<string, { ownerEarningsList?: EarningEntry[] }>; scorecard?: unknown };
 
-const MONTHS = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 const isPayout = (e: EarningEntry) => e.earningsType === "DIRECT_DEPOSIT_PAYMENT";
 
 export function EarningsTab({ extras }: { extras: TuroExtras | null }) {
@@ -42,7 +47,7 @@ export function EarningsTab({ extras }: { extras: TuroExtras | null }) {
     byVehicle.set(k, (byVehicle.get(k) ?? 0) + (e.amount ?? 0));
   }
   const vehicles = [...byVehicle.entries()].sort((a, b) => b[1] - a[1]);
-  const vehMax = Math.max(1, ...vehicles.map((v) => v[1]));
+  const revByVehicle = vehicles.slice(0, 8).map(([name, revenue]) => ({ name, revenue }));
 
   // Per month
   const byMonth = new Array(12).fill(0) as number[];
@@ -50,7 +55,7 @@ export function EarningsTab({ extras }: { extras: TuroExtras | null }) {
     const m = e.createdDate ? Number(e.createdDate.slice(5, 7)) - 1 : -1;
     if (m >= 0 && m < 12) byMonth[m] += e.amount ?? 0;
   }
-  const monthMax = Math.max(1, ...byMonth);
+  const revByMonth = byMonth.map((revenue, i) => ({ month: MONTHS[i], revenue }));
 
   return (
     <div className="space-y-4">
@@ -73,34 +78,42 @@ export function EarningsTab({ extras }: { extras: TuroExtras | null }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Ganhos por mês</CardTitle></CardHeader>
+          <CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Ganhos por mês · {year}</CardTitle></CardHeader>
           <CardContent>
-            <div className="flex items-end gap-1.5 h-32">
-              {byMonth.map((v, i) => (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1 min-w-0">
-                  <span className="text-[9px] font-semibold text-muted-foreground tabular-nums">{v > 0 ? Math.round(v) : ""}</span>
-                  <div className="w-full rounded-t" style={{ height: `${(v / monthMax) * 100}%`, minHeight: v > 0 ? 4 : 0, background: "#1b8f6b" }} title={fmtMoney(v, currency)} />
-                  <span className="text-[9px] text-muted-foreground">{MONTHS[i]}</span>
-                </div>
-              ))}
-            </div>
+            <ChartContainer config={revConfig} className="h-[220px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={revByMonth} margin={{ left: 4, right: 8, top: 8 }}>
+                  <defs>
+                    <linearGradient id="earnFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="var(--color-revenue)" stopOpacity={0.35} />
+                      <stop offset="95%" stopColor="var(--color-revenue)" stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
+                  <XAxis dataKey="month" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={44} tickFormatter={compactMoney} />
+                  <ChartTooltip content={<ChartTooltipContent formatter={(v) => fmtMoney(Number(v), currency)} />} />
+                  <Area type="monotone" dataKey="revenue" stroke="var(--color-revenue)" strokeWidth={2} fill="url(#earnFill)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </ChartContainer>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Ganhos por veículo</CardTitle></CardHeader>
-          <CardContent className="space-y-2">
-            {vehicles.slice(0, 7).map(([name, amt]) => (
-              <div key={name} className="space-y-0.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="truncate font-medium">{name}</span>
-                  <span className="tabular-nums text-muted-foreground shrink-0 ml-2">{fmtMoney(amt, currency)}</span>
-                </div>
-                <div className="h-2 rounded-full bg-muted overflow-hidden">
-                  <div className="h-full rounded-full" style={{ width: `${(amt / vehMax) * 100}%`, background: "#1b8f6b" }} />
-                </div>
-              </div>
-            ))}
+          <CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Ganhos por veículo · {year}</CardTitle></CardHeader>
+          <CardContent>
+            <ChartContainer config={revConfig} className="h-[220px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={revByVehicle} layout="vertical" margin={{ left: 8, right: 16 }}>
+                  <CartesianGrid horizontal={false} strokeDasharray="3 3" opacity={0.3} />
+                  <XAxis type="number" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={compactMoney} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={120} />
+                  <ChartTooltip content={<ChartTooltipContent formatter={(v) => fmtMoney(Number(v), currency)} />} />
+                  <Bar dataKey="revenue" fill="var(--color-revenue)" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartContainer>
           </CardContent>
         </Card>
       </div>

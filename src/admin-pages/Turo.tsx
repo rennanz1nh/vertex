@@ -124,9 +124,9 @@ export default function TuroPage() {
       ) : (
         <>
           {activeTab === "overview" && <OverviewTab stats={stats} trips={trips} extras={extras} />}
-          {activeTab === "reservations" && <ReservationsTab trips={trips} />}
-          {activeTab === "vehicles" && <VehiclesTab trips={trips} />}
-          {activeTab === "guests" && <GuestsTab trips={trips} />}
+          {activeTab === "reservations" && <ReservationsTab trips={trips} extras={extras} />}
+          {activeTab === "vehicles" && <VehiclesTab trips={trips} extras={extras} />}
+          {activeTab === "guests" && <GuestsTab trips={trips} extras={extras} />}
           {activeTab === "earnings" && <EarningsTab extras={extras} />}
           {activeTab === "reviews" && <ReviewsTab extras={extras} />}
           {activeTab === "payout" && <PayoutTab extras={extras} />}

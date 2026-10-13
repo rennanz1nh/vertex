@@ -78,6 +78,27 @@ export function fmtDate(iso: string | null) {
   return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
+type FinEntry = { amount?: number; vehicleId?: number | null; earningsType?: string; reservation?: { reservationId?: number } | null };
+export type FinanceIndex = { byReservation: Map<string, number>; byVehicle: Map<string, number> };
+
+// Builds lookup maps from the stored earnings so any tab can show real revenue:
+// reservationId -> amount (per-trip $) and vehicleId -> total revenue (per-car $).
+export function buildFinanceIndex(extras: TuroExtras | null): FinanceIndex {
+  const byReservation = new Map<string, number>();
+  const byVehicle = new Map<string, number>();
+  const earnings = extras?.earnings as { years?: Record<string, { ownerEarningsList?: FinEntry[] }> } | undefined;
+  for (const y of Object.values(earnings?.years ?? {})) {
+    for (const e of y.ownerEarningsList ?? []) {
+      if (e.earningsType === "DIRECT_DEPOSIT_PAYMENT") continue;
+      const amt = typeof e.amount === "number" ? e.amount : 0;
+      const rid = e.reservation?.reservationId;
+      if (rid != null) byReservation.set(String(rid), (byReservation.get(String(rid)) ?? 0) + amt);
+      if (e.vehicleId != null) byVehicle.set(String(e.vehicleId), (byVehicle.get(String(e.vehicleId)) ?? 0) + amt);
+    }
+  }
+  return { byReservation, byVehicle };
+}
+
 export function fmtMoney(amount: number | null | undefined, currency = "USD"): string {
   if (amount == null || isNaN(amount)) return "—";
   try {
