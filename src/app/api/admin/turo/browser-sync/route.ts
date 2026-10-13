@@ -193,7 +193,10 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const body = await request.json() as { upcomingData?: unknown; historyData?: unknown; probe?: unknown };
+  const body = await request.json() as {
+    upcomingData?: unknown; historyData?: unknown; probe?: unknown;
+    earnings?: unknown; reviews?: unknown; feedback?: unknown; payout?: unknown;
+  };
   const errors: string[] = [];
   const seen = new Set<string>();
   const rows: TripRow[] = [];
@@ -262,6 +265,13 @@ export async function POST(request: NextRequest) {
   if (rowId) {
     const update: Record<string, unknown> = { last_synced_at: new Date().toISOString() };
     if (body.probe) update.probe_data = body.probe;
+    if (body.earnings !== undefined) update.earnings_data = body.earnings;
+    if (body.reviews !== undefined) update.reviews_data = body.reviews;
+    if (body.feedback !== undefined) update.feedback_data = body.feedback;
+    if (body.payout !== undefined) update.payout_data = body.payout;
+    if (body.earnings !== undefined || body.reviews !== undefined || body.feedback !== undefined || body.payout !== undefined) {
+      update.host_data_synced_at = new Date().toISOString();
+    }
     await supabase.from("turo_tokens").update(update).eq("id", rowId);
   }
 

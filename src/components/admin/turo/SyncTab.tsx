@@ -8,50 +8,15 @@ import { authedFetch } from "@/lib/admin-fetch";
 import { Link2, Link2Off, AlertCircle, Copy, Check, Terminal, RefreshCw } from "lucide-react";
 import { TuroConfig, fmtDateTime } from "./shared";
 
-// Probes a broad set of candidate Turo endpoints (same-origin on turo.com) so we can
-// map which expose earnings / receipts / reviews / messages / vehicles. Results are
-// stored to turo_tokens.probe_data and surfaced in the discovery panel below.
-const PROBE = `let hid=null;try{const ff=(h.tripHistoryFeeds&&(h.tripHistoryFeeds.list||h.tripHistoryFeeds))||[];for(const m of ff){if(m.trips&&m.trips[0]){hid=m.trips[0].owner&&m.trips[0].owner.id;break;}}}catch(e){}const yr=new Date().getFullYear();let probe={hostId:hid,results:{}};const P=['/api/me/earnings/summaries/list?year='+yr,'/api/me/earnings/summaries/list?year='+(yr-1),'/api/me/payout/method'];if(hid){P.push('/api/drivers/'+hid+'/owner-scorecard/earnings','/api/drivers/'+hid+'/host-feedback?days=365&itemsPerPage=50&page=1&sortOrder=MOST_RECENT','/api/drivers/'+hid+'/host-scorecard/structured-feedback?days=365&sortOrder=MOST_RECENT','/api/drivers/'+hid+'/owner-status');}for(const pu of P){try{const rr=await fetch(pu);let v;if(rr.ok){const tx=await rr.text();try{v=JSON.parse(tx);}catch(_){v={_nonjson:tx.slice(0,300)};}}else{v=rr.status;}probe.results[pu]=v;}catch(e){probe.results[pu]=String(e);}}`;
+// Fetches the real Turo host endpoints (confirmed via network sniffer) same-origin on
+// turo.com — earnings, reviews, structured feedback, payout — and sends them to
+// browser-sync, which stores them for the Ganhos / Avaliações / Métodos tabs.
+const FETCH_EXTRAS = `let hid=null;try{const ff=(h.tripHistoryFeeds&&(h.tripHistoryFeeds.list||h.tripHistoryFeeds))||[];for(const m of ff){if(m.trips&&m.trips[0]){hid=m.trips[0].owner&&m.trips[0].owner.id;break;}}}catch(e){}const yr=new Date().getFullYear();const gj=async(u)=>{try{const r=await fetch(u);return r.ok?await r.json():{_status:r.status};}catch(e){return {_error:String(e)};}};const earnings={hostId:hid,years:{}};earnings.years[yr]=await gj('/api/me/earnings/summaries/list?year='+yr);earnings.years[yr-1]=await gj('/api/me/earnings/summaries/list?year='+(yr-1));if(hid){earnings.scorecard=await gj('/api/drivers/'+hid+'/owner-scorecard/earnings');}const payout=await gj('/api/me/payout/method');const reviews=hid?await gj('/api/drivers/'+hid+'/host-feedback?days=365&itemsPerPage=50&page=1&sortOrder=MOST_RECENT'):null;const feedback=hid?await gj('/api/drivers/'+hid+'/host-scorecard/structured-feedback?days=365&sortOrder=MOST_RECENT'):null;`;
 
 function buildScript(auth: { key?: string; token?: string }) {
   const header = auth.key ? `'X-Sync-Key':'${auth.key}'` : `'X-Sync-Token':'${auth.token}'`;
   const prefix = auth.key ? "javascript:" : "";
-  return `${prefix}(async()=>{try{const[u,h]=await Promise.all([fetch('/api/v2/feeds/upcoming-trips?appMode=HOST').then(r=>r.json()),fetch('/api/v2/feeds/trip-history?driverRoles=HOST').then(r=>r.json())]);${PROBE}const r=await fetch('https://vertexrentalcar.com/api/admin/turo/browser-sync',{method:'POST',headers:{'Content-Type':'application/json',${header}},body:JSON.stringify({upcomingData:u,historyData:h,probe:probe})});const d=await r.json();alert(d.synced>0?'✅ '+d.synced+' viagens sincronizadas!':'⚠️ '+JSON.stringify(d));}catch(e){alert('❌ '+e);}})();`;
-}
-
-type ProbeData = { tripId?: unknown; hostId?: unknown; results?: Record<string, unknown> };
-
-function DiscoveryPanel({ probe }: { probe: ProbeData | null }) {
-  const results = probe?.results ?? {};
-  const entries = Object.entries(results);
-  if (entries.length === 0) {
-    return (
-      <p className="text-xs text-muted-foreground">
-        Nenhuma sondagem ainda. Rode uma sincronização — os endpoints candidatos serão testados e aparecem aqui,
-        mostrando onde o Turo expõe ganhos, recibos, avaliações e mensagens.
-      </p>
-    );
-  }
-  return (
-    <div className="space-y-1.5">
-      {entries.map(([url, val]) => {
-        const ok = val !== null && typeof val === "object" && !("_nonjson" in (val as object));
-        const isNum = typeof val === "number";
-        const keys = ok ? Object.keys(val as object).slice(0, 8).join(", ") : "";
-        return (
-          <div key={url} className="flex items-start gap-2 text-xs font-mono border-b last:border-0 py-1">
-            <span className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold ${ok ? "bg-green-100 text-green-700" : isNum ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-600"}`}>
-              {ok ? "JSON" : isNum ? `HTTP ${val as number}` : "erro"}
-            </span>
-            <div className="min-w-0">
-              <p className="truncate">{url}</p>
-              {ok && <p className="text-muted-foreground truncate">{`{ ${keys} }`}</p>}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
+  return `${prefix}(async()=>{try{const[u,h]=await Promise.all([fetch('/api/v2/feeds/upcoming-trips?appMode=HOST').then(r=>r.json()),fetch('/api/v2/feeds/trip-history?driverRoles=HOST').then(r=>r.json())]);${FETCH_EXTRAS}const r=await fetch('https://vertexrentalcar.com/api/admin/turo/browser-sync',{method:'POST',headers:{'Content-Type':'application/json',${header}},body:JSON.stringify({upcomingData:u,historyData:h,earnings:earnings,reviews:reviews,feedback:feedback,payout:payout})});const d=await r.json();alert(d.synced>0?'✅ '+d.synced+' viagens + ganhos/avaliações sincronizados!':'⚠️ '+JSON.stringify(d));}catch(e){alert('❌ '+e);}})();`;
 }
 
 export function SyncTab({ config, connected, onChanged }: { config: TuroConfig | null; connected: boolean; onChanged: () => void }) {
@@ -212,11 +177,15 @@ export function SyncTab({ config, connected, onChanged }: { config: TuroConfig |
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold">Descoberta de endpoints</CardTitle>
-          <CardDescription className="text-xs">Resultado da última sondagem — onde o Turo expõe ganhos, recibos, avaliações e mensagens.</CardDescription>
+          <CardTitle className="text-sm font-semibold">Dados do host</CardTitle>
+          <CardDescription className="text-xs">Ganhos, avaliações e método de pagamento são capturados junto com as viagens.</CardDescription>
         </CardHeader>
         <CardContent>
-          <DiscoveryPanel probe={(config?.probe_data as ProbeData) ?? null} />
+          <p className="text-xs text-muted-foreground">
+            {config?.host_data_synced_at
+              ? `Última captura: ${fmtDateTime(config.host_data_synced_at)}. Veja em Ganhos, Avaliações e Métodos.`
+              : "Ainda não capturado. Rode uma sincronização para preencher as abas Ganhos, Avaliações e Métodos."}
+          </p>
         </CardContent>
       </Card>
     </div>

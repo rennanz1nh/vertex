@@ -8,6 +8,7 @@ export interface TuroConfig {
   updated_at: string;
   sync_key: string | null;
   probe_data?: unknown;
+  host_data_synced_at?: string | null;
 }
 
 export interface TuroTrip {
@@ -99,6 +100,77 @@ export function statusMeta(status: string): { label: string; cls: string } {
 export function StatusBadge({ status }: { status: string }) {
   const m = statusMeta(status);
   return <Badge className={`${m.cls} border font-medium`}>{m.label}</Badge>;
+}
+
+export interface TuroExtras {
+  earnings: unknown;
+  reviews: unknown;
+  feedback: unknown;
+  payout: unknown;
+  syncedAt: string | null;
+}
+
+function renderScalar(v: unknown): React.ReactNode {
+  if (v === null || v === undefined || v === "") return <span className="text-muted-foreground">—</span>;
+  if (typeof v === "object") return <span className="text-muted-foreground">{Array.isArray(v) ? `[${(v as unknown[]).length}]` : "{…}"}</span>;
+  if (typeof v === "boolean") return v ? "sim" : "não";
+  return String(v);
+}
+
+// Faithfully renders arbitrary JSON: objects as key/value rows, arrays of objects
+// as tables, scalars inline. Shows real Turo data without assuming a schema.
+export function JsonView({ value, depth = 0 }: { value: unknown; depth?: number }) {
+  if (value === null || value === undefined) return <span className="text-muted-foreground text-sm">—</span>;
+  if (typeof value !== "object") return <span className="text-sm break-words">{String(value)}</span>;
+
+  if (Array.isArray(value)) {
+    if (value.length === 0) return <span className="text-muted-foreground text-sm">vazio</span>;
+    const objs = value.filter((v) => v && typeof v === "object" && !Array.isArray(v)) as Record<string, unknown>[];
+    if (objs.length === value.length) {
+      const cols = [...new Set(objs.flatMap((o) => Object.keys(o)))].slice(0, 12);
+      return (
+        <div className="overflow-x-auto rounded border">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="bg-muted/40 text-left">{cols.map((c) => <th key={c} className="p-1.5 font-medium border-b whitespace-nowrap">{c}</th>)}</tr>
+            </thead>
+            <tbody>
+              {value.slice(0, 200).map((o, i) => (
+                <tr key={i} className="border-b last:border-0">
+                  {cols.map((c) => <td key={c} className="p-1.5 align-top">{renderScalar((o as Record<string, unknown>)[c])}</td>)}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+    return <span className="text-sm">{value.map((v) => String(v)).join(", ")}</span>;
+  }
+
+  const entries = Object.entries(value as Record<string, unknown>);
+  if (entries.length === 0) return <span className="text-muted-foreground text-sm">vazio</span>;
+  return (
+    <div className={depth > 0 ? "pl-3 border-l space-y-0.5" : "space-y-0.5"}>
+      {entries.map(([k, v]) => (
+        <div key={k} className="py-1 border-b last:border-0 text-sm">
+          <span className="text-muted-foreground">{k}: </span>
+          {v && typeof v === "object"
+            ? <div className="mt-1">{<JsonView value={v} depth={depth + 1} />}</div>
+            : <span className="font-medium break-words">{renderScalar(v)}</span>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function EmptyExtra({ label }: { label: string }) {
+  return (
+    <div className="text-center py-16 text-muted-foreground">
+      <p>{label} ainda não capturado.</p>
+      <p className="text-sm mt-1">Rode uma sincronização na aba <strong>Sincronização</strong> para preencher.</p>
+    </div>
+  );
 }
 
 export function StatTile({ label, value, hint }: { label: string; value: string; hint?: string }) {

@@ -7,11 +7,14 @@ import { useAuth } from "@/hooks/useAuth";
 import { isMasterAdminEmail } from "@/lib/master-admin";
 import { authedFetch } from "@/lib/admin-fetch";
 import { AlertCircle } from "lucide-react";
-import { TuroConfig, TuroTrip, TuroStats } from "@/components/admin/turo/shared";
+import { TuroConfig, TuroTrip, TuroStats, TuroExtras } from "@/components/admin/turo/shared";
 import { OverviewTab } from "@/components/admin/turo/OverviewTab";
 import { ReservationsTab } from "@/components/admin/turo/ReservationsTab";
 import { VehiclesTab } from "@/components/admin/turo/VehiclesTab";
 import { GuestsTab } from "@/components/admin/turo/GuestsTab";
+import { EarningsTab } from "@/components/admin/turo/EarningsTab";
+import { ReviewsTab } from "@/components/admin/turo/ReviewsTab";
+import { PayoutTab } from "@/components/admin/turo/PayoutTab";
 import { SyncTab } from "@/components/admin/turo/SyncTab";
 
 export const TURO_TABS = [
@@ -19,6 +22,9 @@ export const TURO_TABS = [
   { id: "reservations", label: "Reservas" },
   { id: "vehicles", label: "Veículos" },
   { id: "guests", label: "Hóspedes" },
+  { id: "earnings", label: "Ganhos" },
+  { id: "reviews", label: "Avaliações" },
+  { id: "payout", label: "Métodos" },
   { id: "sync", label: "Sincronização" },
 ] as const;
 
@@ -37,6 +43,7 @@ export default function TuroPage() {
   const [config, setConfig] = useState<TuroConfig | null>(null);
   const [trips, setTrips] = useState<TuroTrip[]>([]);
   const [stats, setStats] = useState<TuroStats | null>(null);
+  const [extras, setExtras] = useState<TuroExtras | null>(null);
 
   const loadConfig = useCallback(async () => {
     const res = await authedFetch("/api/admin/turo/config");
@@ -59,11 +66,16 @@ export default function TuroPage() {
     if (res.ok) setStats(await res.json() as TuroStats);
   }, []);
 
+  const loadExtras = useCallback(async () => {
+    const res = await authedFetch("/api/admin/turo/extras");
+    if (res.ok) setExtras(await res.json() as TuroExtras);
+  }, []);
+
   const reloadAll = useCallback(async () => {
     const isConnected = await loadConfig();
-    if (isConnected) await Promise.all([loadTrips(), loadStats()]);
-    else { setTrips([]); setStats(null); }
-  }, [loadConfig, loadTrips, loadStats]);
+    if (isConnected) await Promise.all([loadTrips(), loadStats(), loadExtras()]);
+    else { setTrips([]); setStats(null); setExtras(null); }
+  }, [loadConfig, loadTrips, loadStats, loadExtras]);
 
   useEffect(() => { if (isMaster) reloadAll(); }, [isMaster, reloadAll]);
 
@@ -115,6 +127,9 @@ export default function TuroPage() {
           {activeTab === "reservations" && <ReservationsTab trips={trips} />}
           {activeTab === "vehicles" && <VehiclesTab trips={trips} />}
           {activeTab === "guests" && <GuestsTab trips={trips} />}
+          {activeTab === "earnings" && <EarningsTab extras={extras} />}
+          {activeTab === "reviews" && <ReviewsTab extras={extras} />}
+          {activeTab === "payout" && <PayoutTab extras={extras} />}
           {activeTab === "sync" && <SyncTab config={config} connected={connected} onChanged={reloadAll} />}
         </>
       )}

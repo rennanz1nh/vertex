@@ -49,6 +49,9 @@ const turoTabs = [
   { id: "reservations", label: "Reservas" },
   { id: "vehicles", label: "Veículos" },
   { id: "guests", label: "Hóspedes" },
+  { id: "earnings", label: "Ganhos" },
+  { id: "reviews", label: "Avaliações" },
+  { id: "payout", label: "Métodos" },
   { id: "sync", label: "Sincronização" },
 ];
 
