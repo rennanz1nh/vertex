@@ -78,6 +78,20 @@ export function fmtDate(iso: string | null) {
   return new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
+export function fmtMoney(amount: number | null | undefined, currency = "USD"): string {
+  if (amount == null || isNaN(amount)) return "—";
+  try {
+    return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(amount);
+  } catch {
+    return `$${amount.toFixed(2)}`;
+  }
+}
+
+export function epochToDate(ms: unknown): string {
+  if (typeof ms !== "number" || !ms) return "—";
+  return new Date(ms).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
 export function durationDays(pickup: string | null, ret: string | null): number {
   if (!pickup || !ret) return 0;
   const d = (new Date(ret).getTime() - new Date(pickup).getTime()) / 86400000;
