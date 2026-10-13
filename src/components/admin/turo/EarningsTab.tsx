@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
+import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
@@ -8,6 +8,27 @@ import { TuroExtras, JsonView, EmptyExtra, StatTile, fmtMoney, fmtDateTime } fro
 const MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 const compactMoney = (n: number) => (n >= 1000 ? `$${(n / 1000).toFixed(1)}k` : `$${Math.round(n)}`);
 const revConfig = { revenue: { label: "Receita", color: "#1b8f6b" } } satisfies ChartConfig;
+const feeConfig = { rate: { label: "Taxa", color: "#4338ca" } } satisfies ChartConfig;
+const MONTHS_LC = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+type FeePoint = { key: string; label: string; rate: number | null; fee: number; gross: number; trips: number };
+function FeeTooltip({ active, payload }: { active?: boolean; payload?: { payload: FeePoint }[] }) {
+  const p = active ? payload?.[0]?.payload : undefined;
+  if (!p) return null;
+  return (
+    <div className="rounded-lg border bg-background px-3 py-2 text-xs shadow-md space-y-0.5">
+      <p className="font-semibold">{p.label}</p>
+      {p.rate == null ? (
+        <p className="text-muted-foreground">Sem recibos neste mês</p>
+      ) : (
+        <>
+          <p>Taxa efetiva: <span className="font-semibold text-indigo-700">{p.rate.toFixed(1)}%</span></p>
+          <p className="text-muted-foreground">{fmtMoney(p.fee)} de {fmtMoney(p.gross)} · {p.trips} {p.trips === 1 ? "viagem" : "viagens"}</p>
+        </>
+      )}
+    </div>
+  );
+}
 
 type EarningEntry = {
   amount?: number;
@@ -64,6 +85,46 @@ export function EarningsTab({ extras }: { extras: TuroExtras | null }) {
     if (m >= 0 && m < 12) byMonth[m] += e.amount ?? 0;
   }
   const revByMonth = byMonth.map((revenue, i) => ({ month: MONTHS[i], revenue }));
+
+  // Effective Turo fee rate per month = sum(fees) / sum(guest-paid totals), across all captured years.
+  const earliest = new Map<string, string>();
+  for (const y of Object.values(years)) {
+    for (const e of y.ownerEarningsList ?? []) {
+      const rid = e.reservation?.reservationId;
+      if (isPayout(e) || rid == null || !e.createdDate) continue;
+      const prev = earliest.get(String(rid));
+      if (!prev || e.createdDate < prev) earliest.set(String(rid), e.createdDate);
+    }
+  }
+  const monthAcc = new Map<string, { fee: number; gross: number; trips: number }>();
+  for (const [rid, date] of earliest) {
+    const r = extras?.receipts?.[rid];
+    if (!r || r.turo_fee == null || r.trip_total == null) continue;
+    const m = date.slice(0, 7);
+    const a = monthAcc.get(m) ?? { fee: 0, gross: 0, trips: 0 };
+    a.fee += r.turo_fee; a.gross += r.trip_total; a.trips++;
+    monthAcc.set(m, a);
+  }
+  // Continuous month axis: months with no receipts become gaps (null) instead of being skipped,
+  // so a quiet stretch is not drawn as if the rate moved smoothly across it.
+  const monthKeys = [...monthAcc.keys()].sort();
+  const feeSeries: FeePoint[] = [];
+  if (monthKeys.length) {
+    let y = Number(monthKeys[0].slice(0, 4)), mo = Number(monthKeys[0].slice(5, 7));
+    const last = monthKeys[monthKeys.length - 1];
+    for (;;) {
+      const key = `${y}-${String(mo).padStart(2, "0")}`;
+      const v = monthAcc.get(key);
+      feeSeries.push({
+        key,
+        label: `${MONTHS_LC[mo - 1]}/${String(y).slice(2)}`,
+        rate: v && v.gross > 0 ? Math.round((100 * v.fee / v.gross) * 10) / 10 : null,
+        fee: v?.fee ?? 0, gross: v?.gross ?? 0, trips: v?.trips ?? 0,
+      });
+      if (key === last) break;
+      mo++; if (mo > 12) { mo = 1; y++; }
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -126,6 +187,28 @@ export function EarningsTab({ extras }: { extras: TuroExtras | null }) {
           </CardContent>
         </Card>
       </div>
+
+      {feeSeries.length >= 2 && (
+        <Card>
+          <CardHeader className="pb-1">
+            <CardTitle className="text-sm font-semibold">Taxa da Turo por mês</CardTitle>
+            <p className="text-xs text-muted-foreground">Taxas ÷ total pago pelos hóspedes no mês. Pedágios e multas repassados reduzem o percentual.</p>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={feeConfig} className="h-[240px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={feeSeries} margin={{ left: 4, right: 12, top: 12 }}>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
+                  <XAxis dataKey="label" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={36} domain={[0, (max: number) => Math.max(10, Math.ceil(max / 5) * 5)]} tickFormatter={(v: number) => `${v}%`} />
+                  <Tooltip content={<FeeTooltip />} />
+                  <Line type="monotone" dataKey="rate" connectNulls={false} stroke="var(--color-rate)" strokeWidth={2} dot={{ r: 3, fill: "var(--color-rate)", stroke: "var(--background)", strokeWidth: 2 }} activeDot={{ r: 5 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Lançamentos {year}</CardTitle></CardHeader>
