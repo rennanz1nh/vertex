@@ -123,7 +123,7 @@ export default function TuroPage() {
         </div>
       ) : (
         <>
-          {activeTab === "overview" && <OverviewTab stats={stats} />}
+          {activeTab === "overview" && <OverviewTab stats={stats} trips={trips} extras={extras} />}
           {activeTab === "reservations" && <ReservationsTab trips={trips} />}
           {activeTab === "vehicles" && <VehiclesTab trips={trips} />}
           {activeTab === "guests" && <GuestsTab trips={trips} />}
