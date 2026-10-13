@@ -14,10 +14,12 @@ export async function GET(request: NextRequest) {
     { db: { schema: (process.env.NEXT_PUBLIC_SUPABASE_SCHEMA || "public") as "public" } }
   );
 
+  // Prefer the row that actually has host data (handles a legacy duplicate row
+  // where the synced data and the newest updated_at live on different rows).
   const { data, error } = await supabase
     .from("turo_tokens")
     .select("earnings_data, reviews_data, feedback_data, payout_data, host_data_synced_at")
-    .order("updated_at", { ascending: false })
+    .order("host_data_synced_at", { ascending: false, nullsFirst: false })
     .limit(1)
     .maybeSingle();
 
