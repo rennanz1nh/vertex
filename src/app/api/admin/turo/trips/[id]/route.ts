@@ -22,5 +22,12 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  return NextResponse.json({ trip: data });
+
+  const { data: receipt } = await supabase
+    .from("turo_receipts")
+    .select("data, trip_total, turo_fee, host_earned")
+    .eq("reservation_id", data.turo_trip_id)
+    .maybeSingle();
+
+  return NextResponse.json({ trip: data, receipt: receipt ?? null });
 }

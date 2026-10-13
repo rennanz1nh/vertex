@@ -40,6 +40,14 @@ export function EarningsTab({ extras }: { extras: TuroExtras | null }) {
   const totalPaidOut = payoutEntries.reduce((s, e) => s + (e.amount ?? 0), 0);
   const tripCount = earningEntries.filter((e) => e.reservation?.reservationId).length;
 
+  // Turo fees from stored receipts, for the trips earned in the selected year
+  let feeTotal = 0, grossTotal = 0, feeTrips = 0;
+  for (const e of earningEntries) {
+    const rid = e.reservation?.reservationId;
+    const r = rid != null ? extras?.receipts?.[String(rid)] : undefined;
+    if (r?.turo_fee != null && r.trip_total != null) { feeTotal += r.turo_fee; grossTotal += r.trip_total; feeTrips++; }
+  }
+
   // Per vehicle
   const byVehicle = new Map<string, number>();
   for (const e of earningEntries) {
@@ -69,9 +77,10 @@ export function EarningsTab({ extras }: { extras: TuroExtras | null }) {
         {extras?.syncedAt && <span className="text-xs text-muted-foreground ml-auto">Capturado em {fmtDateTime(extras.syncedAt)}</span>}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         <StatTile label={`Ganhos ${year}`} value={fmtMoney(totalEarned, currency)} hint={`${earningEntries.length} lançamentos`} />
         <StatTile label="Viagens pagas" value={String(tripCount)} />
+        <StatTile label="Taxas da Turo" value={feeTrips ? fmtMoney(feeTotal, currency) : "—"} hint={feeTrips ? `${((feeTotal / grossTotal) * 100).toFixed(1)}% do valor pago · ${feeTrips} recibos` : "sincronize para trazer recibos"} />
         <StatTile label="Repassado ao banco" value={fmtMoney(totalPaidOut, currency)} hint={`${payoutEntries.length} repasses`} />
         <StatTile label="Veículos" value={String(vehicles.length)} />
       </div>

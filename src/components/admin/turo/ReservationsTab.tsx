@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Search, ExternalLink, MapPin, Car as CarIcon, User, Calendar, Clock, DollarSign } from "lucide-react";
+import { Search, ExternalLink, MapPin, Car as CarIcon, User, Calendar, Clock, DollarSign, Receipt, ChevronDown } from "lucide-react";
 import { authedFetch } from "@/lib/admin-fetch";
 import { TuroTrip, TuroExtras, StatusBadge, vehicleLabel, fmtDateTime, fmtDate, durationDays, fmtMoney, buildFinanceIndex } from "./shared";
 
@@ -75,17 +75,64 @@ function MiniStat({ icon: Icon, label, value, accent }: { icon: React.ComponentT
   );
 }
 
+type LineItem = { label?: string; value?: string; valueSubtext?: string | null; receiptLineItemType?: string };
+type ReceiptRow = { data: RawObj; trip_total: number | null; turo_fee: number | null; host_earned: number | null };
+
+function LineItems({ title, items }: { title: string; items: LineItem[] | null | undefined }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <div>
+      <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">{title}</h4>
+      <div className="rounded-lg border divide-y">
+        {items.map((it, i) => {
+          const type = it.receiptLineItemType ?? "";
+          const strong = type.startsWith("TOTAL");
+          const neg = type === "CURRENCY_NEGATIVE";
+          return (
+            <div key={i} className={`flex justify-between gap-3 px-3 py-2 text-sm ${strong ? "bg-muted/40 font-semibold" : ""}`}>
+              <div className="min-w-0">
+                <p>{it.label}</p>
+                {it.valueSubtext && <p className="text-[11px] text-muted-foreground whitespace-pre-line">{it.valueSubtext}</p>}
+              </div>
+              <span className={`tabular-nums shrink-0 ${neg ? "text-red-600" : type === "TOTAL_EARNED" ? "text-emerald-700" : ""}`}>{it.value}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function SplitBar({ total, fee, earned }: { total: number; fee: number; earned: number }) {
+  const feePct = total > 0 ? (fee / total) * 100 : 0;
+  return (
+    <div>
+      <div className="flex h-3 rounded-full overflow-hidden bg-muted">
+        <div className="bg-emerald-600" style={{ width: `${100 - feePct}%` }} title={`Você: ${fmtMoney(earned)}`} />
+        <div className="bg-indigo-600" style={{ width: `${feePct}%` }} title={`Turo: ${fmtMoney(fee)}`} />
+      </div>
+      <div className="flex justify-between text-[11px] text-muted-foreground mt-1">
+        <span><span className="inline-block w-2 h-2 rounded-sm bg-emerald-600 mr-1" />Você {(100 - feePct).toFixed(1)}%</span>
+        <span><span className="inline-block w-2 h-2 rounded-sm bg-indigo-600 mr-1" />Turo {feePct.toFixed(1)}%</span>
+      </div>
+    </div>
+  );
+}
+
 function DetailDialog({ tripId, earned, onClose }: { tripId: string | null; earned?: number; onClose: () => void }) {
   const [detail, setDetail] = useState<TuroTrip & { raw_data?: RawObj } | null>(null);
+  const [receipt, setReceipt] = useState<ReceiptRow | null>(null);
+  const [showBreakdown, setShowBreakdown] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!tripId) { setDetail(null); return; }
+    setShowBreakdown(false);
+    if (!tripId) { setDetail(null); setReceipt(null); return; }
     let active = true;
     setLoading(true);
     authedFetch(`/api/admin/turo/trips/${tripId}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (active) setDetail(d?.trip ?? null); })
+      .then((d) => { if (active) { setDetail(d?.trip ?? null); setReceipt(d?.receipt ?? null); } })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [tripId]);
@@ -130,8 +177,41 @@ function DetailDialog({ tripId, earned, onClose }: { tripId: string | null; earn
                 <MiniStat icon={Calendar} label="Retirada" value={fmtDate(detail.pickup_date)} />
                 <MiniStat icon={Calendar} label="Devolução" value={fmtDate(detail.return_date)} />
                 <MiniStat icon={Clock} label="Duração" value={`${durationDays(detail.pickup_date, detail.return_date)} dias`} />
-                <MiniStat icon={DollarSign} label="Ganhos" value={earned ? fmtMoney(earned) : "—"} accent={!!earned} />
+                <MiniStat icon={DollarSign} label="Você recebeu" value={earned ? fmtMoney(earned) : "—"} accent={!!earned} />
               </div>
+
+              {/* Money split: guest paid -> Turo fee -> host net, with receipt breakdown */}
+              {receipt && receipt.trip_total != null && receipt.turo_fee != null && (
+                <section className="rounded-xl border p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5"><Receipt className="h-3.5 w-3.5" /> Divisão do valor</h3>
+                    <button onClick={() => setShowBreakdown((v) => !v)} className="text-xs font-medium text-indigo-600 inline-flex items-center gap-1">
+                      {showBreakdown ? "Ocultar breakdown" : "Ver breakdown"}
+                      <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showBreakdown ? "rotate-180" : ""}`} />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3 text-center">
+                    <div><p className="text-[11px] text-muted-foreground">Hóspede pagou</p><p className="text-lg font-bold tabular-nums">{fmtMoney(receipt.trip_total)}</p></div>
+                    <div><p className="text-[11px] text-muted-foreground">Taxa da Turo</p><p className="text-lg font-bold tabular-nums text-indigo-700">{fmtMoney(receipt.turo_fee)}</p></div>
+                    <div><p className="text-[11px] text-muted-foreground">Você recebeu</p><p className="text-lg font-bold tabular-nums text-emerald-700">{fmtMoney(receipt.host_earned)}</p></div>
+                  </div>
+                  <SplitBar total={receipt.trip_total} fee={receipt.turo_fee} earned={receipt.host_earned ?? receipt.trip_total - receipt.turo_fee} />
+
+                  {showBreakdown && (
+                    <div className="space-y-3 pt-2 border-t">
+                      <LineItems title="Valor pago pelo hóspede" items={receipt.data.costDetailLineItems as LineItem[]} />
+                      <LineItems title="Seus ganhos" items={receipt.data.earningLineItems as LineItem[]} />
+                      <LineItems title="Reembolsos" items={receipt.data.refundLineItems as LineItem[]} />
+                      <LineItems title="Reembolso de despesas" items={receipt.data.reimbursementLineItems as LineItem[]} />
+                      <LineItems title="Depósitos" items={receipt.data.depositLineItems as LineItem[]} />
+                      {typeof receipt.data.disclaimer === "string" && <p className="text-[11px] text-muted-foreground">{receipt.data.disclaimer}</p>}
+                    </div>
+                  )}
+                </section>
+              )}
+              {detail && !receipt && earned != null && earned > 0 && (
+                <p className="text-xs text-muted-foreground rounded-lg bg-muted/50 p-3">Breakdown (taxa da Turo) ainda não capturado para esta reserva. Rode uma sincronização para trazer os recibos.</p>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {/* Guest */}
@@ -266,12 +346,13 @@ export function ReservationsTab({ trips, extras }: { trips: TuroTrip[]; extras: 
               <th className="p-3 font-medium whitespace-nowrap">Retirada</th>
               <th className="p-3 font-medium whitespace-nowrap">Devolução</th>
               <th className="p-3 font-medium">Dias</th>
+              <th className="p-3 font-medium text-right">Taxa Turo</th>
               <th className="p-3 font-medium text-right">Ganhos</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">Nenhuma reserva encontrada.</td></tr>
+              <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">Nenhuma reserva encontrada.</td></tr>
             ) : filtered.map((t) => {
               const earned = fin.byReservation.get(t.turo_trip_id);
               return (
@@ -291,6 +372,7 @@ export function ReservationsTab({ trips, extras }: { trips: TuroTrip[]; extras: 
                   <td className="p-3 whitespace-nowrap">{fmtDate(t.pickup_date)}</td>
                   <td className="p-3 whitespace-nowrap">{fmtDate(t.return_date)}</td>
                   <td className="p-3 tabular-nums">{durationDays(t.pickup_date, t.return_date)}</td>
+                  <td className="p-3 text-right tabular-nums text-indigo-700">{extras?.receipts?.[t.turo_trip_id]?.turo_fee != null ? fmtMoney(extras.receipts[t.turo_trip_id].turo_fee) : "—"}</td>
                   <td className="p-3 text-right tabular-nums font-medium">{earned ? <span className="text-emerald-700">{fmtMoney(earned)}</span> : "—"}</td>
                 </tr>
               );

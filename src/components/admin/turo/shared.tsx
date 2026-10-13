@@ -137,7 +137,10 @@ export function StatusBadge({ status }: { status: string }) {
   return <Badge className={`${m.cls} border font-medium`}>{m.label}</Badge>;
 }
 
+export type ReceiptSummary = { trip_total: number | null; turo_fee: number | null; host_earned: number | null };
+
 export interface TuroExtras {
+  receipts?: Record<string, ReceiptSummary>;
   earnings: unknown;
   reviews: unknown;
   feedback: unknown;

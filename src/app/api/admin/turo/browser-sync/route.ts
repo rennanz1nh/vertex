@@ -123,6 +123,33 @@ function parseHistoryTrip(trip: RawTrip): TripRow {
   };
 }
 
+// "$323.32" -> 323.32, "- $35.93" -> -35.93
+function parseMoney(v: unknown): number | null {
+  if (typeof v !== "string") return null;
+  const n = parseFloat(v.replace(/[^0-9.]/g, ""));
+  if (isNaN(n)) return null;
+  return /^\s*-/.test(v) ? -n : n;
+}
+
+type LineItem = { label?: string; value?: string; receiptLineItemType?: string };
+
+function parseReceipt(id: string, data: RawTrip) {
+  const cost = (data.costDetailLineItems as LineItem[]) ?? [];
+  const earn = (data.earningLineItems as LineItem[]) ?? [];
+  const total = cost.find((i) => i.receiptLineItemType === "TOTAL_AMOUNT");
+  const fee = earn.find((i) => /turo fee/i.test(i.label ?? ""));
+  const earned = earn.find((i) => i.receiptLineItemType === "TOTAL_EARNED");
+  const feeVal = parseMoney(fee?.value);
+  return {
+    reservation_id: id,
+    data,
+    trip_total: parseMoney(total?.value),
+    turo_fee: feeVal != null ? Math.abs(feeVal) : null,
+    host_earned: parseMoney(earned?.value),
+    fetched_at: new Date().toISOString(),
+  };
+}
+
 async function verifySyncToken(supabase: ReturnType<typeof adminClient>, token: string): Promise<string | null> {
   const { data } = await supabase
     .from("turo_tokens")
@@ -196,6 +223,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json() as {
     upcomingData?: unknown; historyData?: unknown; probe?: unknown;
     earnings?: unknown; reviews?: unknown; feedback?: unknown; payout?: unknown;
+    receipts?: { id?: string; data?: RawTrip }[];
   };
   const errors: string[] = [];
   const seen = new Set<string>();
@@ -253,6 +281,16 @@ export async function POST(request: NextRequest) {
     else errors.push(`upsert ${row.turo_trip_id}: ${upsertErr.message}`);
   }
 
+  let receiptsSaved = 0;
+  if (Array.isArray(body.receipts) && body.receipts.length) {
+    const receiptRows = body.receipts
+      .filter((r) => r?.id && r.data)
+      .map((r) => parseReceipt(String(r.id), r.data as RawTrip));
+    const { error: recErr } = await supabase.from("turo_receipts").upsert(receiptRows, { onConflict: "reservation_id" });
+    if (recErr) errors.push(`receipts: ${recErr.message}`);
+    else receiptsSaved = receiptRows.length;
+  }
+
   // Update last_synced_at on the token row
   const rowId = tokenRowId ?? (await supabase
     .from("turo_tokens")
@@ -276,7 +314,7 @@ export async function POST(request: NextRequest) {
   }
 
   return new NextResponse(
-    JSON.stringify({ ok: true, synced, errors, totalFetched: rows.length }),
+    JSON.stringify({ ok: true, synced, errors, totalFetched: rows.length, receiptsSaved }),
     { status: 200, headers: { "Content-Type": "application/json", ...CORS_HEADERS } }
   );
 }

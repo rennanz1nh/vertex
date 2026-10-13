@@ -24,7 +24,17 @@ export async function GET(request: NextRequest) {
     .maybeSingle();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  const { data: recRows } = await supabase
+    .from("turo_receipts")
+    .select("reservation_id, trip_total, turo_fee, host_earned");
+  const receipts: Record<string, { trip_total: number | null; turo_fee: number | null; host_earned: number | null }> = {};
+  for (const r of (recRows ?? []) as { reservation_id: string; trip_total: number | null; turo_fee: number | null; host_earned: number | null }[]) {
+    receipts[r.reservation_id] = { trip_total: r.trip_total, turo_fee: r.turo_fee, host_earned: r.host_earned };
+  }
+
   return NextResponse.json({
+    receipts,
     earnings: data?.earnings_data ?? null,
     reviews: data?.reviews_data ?? null,
     feedback: data?.feedback_data ?? null,
