@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Search, ExternalLink, MapPin, Car as CarIcon, User } from "lucide-react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Search, ExternalLink, MapPin, Car as CarIcon, User, Calendar, Clock, DollarSign } from "lucide-react";
 import { authedFetch } from "@/lib/admin-fetch";
 import { TuroTrip, TuroExtras, StatusBadge, vehicleLabel, fmtDateTime, fmtDate, durationDays, fmtMoney, buildFinanceIndex } from "./shared";
 
@@ -42,7 +42,40 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
-function DetailSheet({ tripId, earned, onClose }: { tripId: string | null; earned?: number; onClose: () => void }) {
+function initials(name: string) {
+  return name.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("") || "?";
+}
+function avatarColor(name: string) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360;
+  return `hsl(${h} 45% 45%)`;
+}
+
+// Full-width banner photo with graceful fallback (Turo serves some .heic that
+// browsers can't render — fall back to a branded gradient block).
+function Banner({ url }: { url: string | null }) {
+  const [err, setErr] = useState(false);
+  if (!url || err) {
+    return (
+      <div className="w-full h-44 bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center">
+        <CarIcon className="h-12 w-12 text-white/40" />
+      </div>
+    );
+  }
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={url} alt="" onError={() => setErr(true)} className="w-full h-44 object-cover" />;
+}
+
+function MiniStat({ icon: Icon, label, value, accent }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string; accent?: boolean }) {
+  return (
+    <div className="rounded-lg border p-2.5">
+      <p className="text-[11px] text-muted-foreground flex items-center gap-1"><Icon className="h-3 w-3" /> {label}</p>
+      <p className={`text-sm font-semibold mt-0.5 ${accent ? "text-emerald-700" : ""}`}>{value}</p>
+    </div>
+  );
+}
+
+function DetailDialog({ tripId, earned, onClose }: { tripId: string | null; earned?: number; onClose: () => void }) {
   const [detail, setDetail] = useState<TuroTrip & { raw_data?: RawObj } | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -62,80 +95,100 @@ function DetailSheet({ tripId, earned, onClose }: { tripId: string | null; earne
   const renterUrl = s(get(raw, "renter", "url"));
   const address = s(get(raw, "location", "address"));
   const regState = s(get(raw, "vehicle", "registration", "state"));
+  const guest = detail?.guest_name || "Hóspede";
 
   return (
-    <Sheet open={!!tripId} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <SheetContent className="w-full sm:max-w-md overflow-y-auto">
-        {loading && <p className="text-sm text-muted-foreground py-8 text-center">Carregando...</p>}
+    <Dialog open={!!tripId} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-3xl p-0 overflow-hidden gap-0 max-h-[90vh] flex flex-col">
+        <DialogTitle className="sr-only">{detail ? vehicleLabel(detail) : "Reserva"}</DialogTitle>
+        {loading && !detail && <p className="text-sm text-muted-foreground py-16 text-center">Carregando...</p>}
         {detail && (
           <>
-            <SheetHeader className="mb-4">
-              <SheetTitle className="flex items-center gap-2">
-                <VehicleThumb url={detail.vehicle_image_url} size={44} />
+            {/* Banner */}
+            <div className="relative shrink-0">
+              <Banner url={detail.vehicle_image_url} />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+              <div className="absolute bottom-3 left-4 right-4 flex items-end justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="truncate">{vehicleLabel(detail)}</p>
-                  <div className="mt-1"><StatusBadge status={detail.status} /></div>
+                  <StatusBadge status={detail.status} />
+                  <h2 className="text-white text-xl font-bold mt-1 truncate drop-shadow">{vehicleLabel(detail)}{detail.vehicle_trim ? ` ${detail.vehicle_trim}` : ""}</h2>
+                  <p className="text-white/80 text-xs">{[detail.location_city, detail.location_state].filter(Boolean).join(", ")}</p>
                 </div>
-              </SheetTitle>
-            </SheetHeader>
-
-            <div className="space-y-5">
-              <section>
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1 flex items-center gap-1.5"><CarIcon className="h-3.5 w-3.5" /> Reserva</h3>
-                <Row label="ID Turo">{detail.turo_trip_id}</Row>
-                <Row label="Retirada">{fmtDateTime(detail.pickup_date)}</Row>
-                <Row label="Devolução">{fmtDateTime(detail.return_date)}</Row>
-                <Row label="Duração">{durationDays(detail.pickup_date, detail.return_date)} dia(s)</Row>
                 {earned != null && earned > 0 && (
-                  <Row label="Ganhos"><span className="text-emerald-700 font-semibold">{fmtMoney(earned)}</span></Row>
+                  <div className="shrink-0 bg-white/95 rounded-lg px-3 py-1.5 text-right">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Ganhos</p>
+                    <p className="text-lg font-bold text-emerald-700 tabular-nums leading-none">{fmtMoney(earned)}</p>
+                  </div>
                 )}
-              </section>
+              </div>
+            </div>
 
-              <section>
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1 flex items-center gap-1.5"><User className="h-3.5 w-3.5" /> Hóspede</h3>
-                <Row label="Nome">{detail.guest_name || "—"}</Row>
-                {renterUrl && (
-                  <Row label="Perfil">
-                    <a href={renterUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 inline-flex items-center gap-1">
-                      Ver no Turo <ExternalLink className="h-3 w-3" />
-                    </a>
-                  </Row>
-                )}
-              </section>
+            {/* Body */}
+            <div className="p-5 space-y-5 overflow-y-auto">
+              {/* Mini stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+                <MiniStat icon={Calendar} label="Retirada" value={fmtDate(detail.pickup_date)} />
+                <MiniStat icon={Calendar} label="Devolução" value={fmtDate(detail.return_date)} />
+                <MiniStat icon={Clock} label="Duração" value={`${durationDays(detail.pickup_date, detail.return_date)} dias`} />
+                <MiniStat icon={DollarSign} label="Ganhos" value={earned ? fmtMoney(earned) : "—"} accent={!!earned} />
+              </div>
 
-              <section>
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1 flex items-center gap-1.5"><CarIcon className="h-3.5 w-3.5" /> Veículo</h3>
-                <Row label="Modelo">{vehicleLabel(detail)}{detail.vehicle_trim ? ` ${detail.vehicle_trim}` : ""}</Row>
-                {detail.vehicle_type && <Row label="Tipo">{detail.vehicle_type}</Row>}
-                {detail.vehicle_vin && <Row label="VIN">{detail.vehicle_vin}</Row>}
-                {detail.vehicle_license_plate && <Row label="Placa">{detail.vehicle_license_plate}{regState ? ` (${regState})` : ""}</Row>}
-                <Row label="Cadastrado">{detail.product_id ? <Badge className="bg-green-100 text-green-800 border-green-200 border">Sim</Badge> : <Badge variant="outline">Não</Badge>}</Row>
-                {vehicleUrl && (
-                  <Row label="Anúncio">
-                    <a href={vehicleUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 inline-flex items-center gap-1">
-                      Ver no Turo <ExternalLink className="h-3 w-3" />
-                    </a>
-                  </Row>
-                )}
-              </section>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Guest */}
+                <section>
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2 flex items-center gap-1.5"><User className="h-3.5 w-3.5" /> Hóspede</h3>
+                  <div className="flex items-center gap-3">
+                    <span className="w-11 h-11 rounded-full flex items-center justify-center text-white text-sm font-semibold shrink-0" style={{ background: avatarColor(guest) }}>{initials(guest)}</span>
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{guest}</p>
+                      {renterUrl && (
+                        <a href={renterUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 text-xs inline-flex items-center gap-1">
+                          Ver perfil no Turo <ExternalLink className="h-3 w-3" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </section>
 
-              <section>
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1 flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> Local</h3>
-                <Row label="Cidade">{[detail.location_city, detail.location_state].filter(Boolean).join(", ") || "—"}</Row>
-                {address && <Row label="Endereço">{address}</Row>}
-                {detail.location_lat != null && detail.location_lng != null && (
-                  <Row label="Mapa">
-                    <a href={`https://maps.google.com/?q=${detail.location_lat},${detail.location_lng}`} target="_blank" rel="noopener noreferrer" className="text-indigo-600 inline-flex items-center gap-1">
-                      Abrir <ExternalLink className="h-3 w-3" />
-                    </a>
-                  </Row>
-                )}
-              </section>
+                {/* Reservation times */}
+                <section>
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2 flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" /> Período</h3>
+                  <Row label="Retirada">{fmtDateTime(detail.pickup_date)}</Row>
+                  <Row label="Devolução">{fmtDateTime(detail.return_date)}</Row>
+                  <Row label="ID Turo">{detail.turo_trip_id}</Row>
+                </section>
+
+                {/* Vehicle */}
+                <section>
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2 flex items-center gap-1.5"><CarIcon className="h-3.5 w-3.5" /> Veículo</h3>
+                  {detail.vehicle_type && <Row label="Tipo">{detail.vehicle_type}</Row>}
+                  {detail.vehicle_vin && <Row label="VIN">{detail.vehicle_vin}</Row>}
+                  {detail.vehicle_license_plate && <Row label="Placa">{detail.vehicle_license_plate}{regState ? ` (${regState})` : ""}</Row>}
+                  <Row label="Na frota">{detail.product_id ? <Badge className="bg-green-100 text-green-800 border-green-200 border">Sim</Badge> : <Badge variant="outline">Não</Badge>}</Row>
+                  {vehicleUrl && (
+                    <Row label="Anúncio">
+                      <a href={vehicleUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 inline-flex items-center gap-1">Ver no Turo <ExternalLink className="h-3 w-3" /></a>
+                    </Row>
+                  )}
+                </section>
+
+                {/* Location */}
+                <section>
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2 flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> Local</h3>
+                  <Row label="Cidade">{[detail.location_city, detail.location_state].filter(Boolean).join(", ") || "—"}</Row>
+                  {address && <Row label="Endereço">{address}</Row>}
+                  {detail.location_lat != null && detail.location_lng != null && (
+                    <Row label="Mapa">
+                      <a href={`https://maps.google.com/?q=${detail.location_lat},${detail.location_lng}`} target="_blank" rel="noopener noreferrer" className="text-indigo-600 inline-flex items-center gap-1">Abrir <ExternalLink className="h-3 w-3" /></a>
+                    </Row>
+                  )}
+                </section>
+              </div>
             </div>
           </>
         )}
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -246,7 +299,7 @@ export function ReservationsTab({ trips, extras }: { trips: TuroTrip[]; extras: 
         </table>
       </div>
 
-      <DetailSheet tripId={openId} earned={openId ? fin.byReservation.get(trips.find((t) => t.id === openId)?.turo_trip_id ?? "") : undefined} onClose={() => setOpenId(null)} />
+      <DetailDialog tripId={openId} earned={openId ? fin.byReservation.get(trips.find((t) => t.id === openId)?.turo_trip_id ?? "") : undefined} onClose={() => setOpenId(null)} />
     </div>
   );
 }
