@@ -41,8 +41,16 @@ const navigation = [
   { title: "Calendário", url: "/admin/calendar", icon: CalendarClock },
   { title: "Clientes", url: "/admin/clients", icon: Users },
   { title: "Reservas", url: "/admin/bookings", icon: ClipboardList },
-  { title: "", url: "/admin/turo", icon: null, logoSrc: "/turo-logo.png" },
 ] as { title: string; url: string; icon: React.ComponentType<{ className?: string }> | null; logoSrc?: string }[];
+
+// Turo lives in its own collapsible group (master-admin only), one link per tab.
+const turoTabs = [
+  { id: "overview", label: "Visão Geral" },
+  { id: "reservations", label: "Reservas" },
+  { id: "vehicles", label: "Veículos" },
+  { id: "guests", label: "Hóspedes" },
+  { id: "sync", label: "Sincronização" },
+];
 
 // Each platform is a single link straight into its main page — the sub-pages that used
 // to be separate sidebar entries are now tabs at the top of that page (same pattern as
@@ -121,8 +129,9 @@ export function AppSidebar() {
   const { isMobile, setOpenMobile } = useSidebar();
   const isAdmin = profile?.role === 'admin';
   const isMaster = isMasterAdminEmail(user?.email);
-  // Turo is locked to the master-admin account for now.
-  const visibleNav = navigation.filter((item) => item.url !== "/admin/turo" || isMaster);
+  const [turoOpenOverride, setTuroOpenOverride] = useState<boolean | null>(null);
+  const turoChildActive = pathname.startsWith("/admin/turo");
+  const turoOpen = turoOpenOverride ?? turoChildActive;
   const [unreadChats, setUnreadChats] = useState(0);
 
   // Mobile only: close the overlay after navigating (desktop keeps the sidebar exactly
@@ -198,25 +207,49 @@ export function AppSidebar() {
           <SidebarGroupLabel>Menu Principal</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-2">
-              {visibleNav.map((item) => {
+              {navigation.map((item) => {
                 const isActive = item.url === "/admin" ? pathname === item.url : pathname.startsWith(item.url);
                 return (
                   <SidebarMenuItem key={item.url}>
                     <SidebarMenuButton asChild className={resetButtonClass}>
                       <Link href={item.url} className={navLinkClass(isActive)}>
-                        {item.logoSrc ? (
-                          <Image src={item.logoSrc} alt="Turo" width={56} height={20} className="object-contain" />
-                        ) : (
-                          <>
-                            {item.icon && <item.icon className="h-4 w-4 shrink-0" />}
-                            <span className="flex-1">{item.title}</span>
-                          </>
-                        )}
+                        {item.icon && <item.icon className="h-4 w-4 shrink-0" />}
+                        <span className="flex-1">{item.title}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
               })}
+
+              {/* Turo — master-admin only, collapsible with one link per tab */}
+              {isMaster && (
+                <Collapsible asChild open={turoOpen} onOpenChange={setTuroOpenOverride}>
+                  <SidebarMenuItem className="group/turo">
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton className={cn(resetButtonClass, "w-full")}>
+                        <div className={navLinkClass(turoChildActive && !turoOpen)}>
+                          <Image src="/turo-logo.png" alt="Turo" width={48} height={18} className="object-contain shrink-0" />
+                          <span className="flex-1" />
+                          <ChevronRight className="h-4 w-4 shrink-0 transition-transform group-data-[state=open]/turo:rotate-90" />
+                        </div>
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <SidebarMenuSub className="mx-4">
+                        {turoTabs.map((t) => (
+                          <SidebarMenuSubItem key={t.id}>
+                            <SidebarMenuSubButton asChild>
+                              <Link href={`/admin/turo?tab=${t.id}`} className="flex items-center gap-2">
+                                <span className="text-xs font-medium">{t.label}</span>
+                              </Link>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        ))}
+                      </SidebarMenuSub>
+                    </CollapsibleContent>
+                  </SidebarMenuItem>
+                </Collapsible>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
