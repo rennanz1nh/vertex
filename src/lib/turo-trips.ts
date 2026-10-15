@@ -182,9 +182,9 @@ export async function upsertTrips(supabase: SupabaseClient, rows: TripRow[]): Pr
 
 /**
  * Fills EMPTY car fields from the latest Turo trip of each linked car (plate, transmission,
- * pickup city, and VIN for hidden cars). Never overwrites a value that is already there.
- * VIN is deliberately skipped for store-visible cars: it doubles as their Google Shopping
- * SKU (see google-shopping-feed.ts), so setting it would change the listing's identity.
+ * pickup city, VIN). Never overwrites a value that is already there. Note the VIN doubles as
+ * the Google Shopping SKU (see google-shopping-feed.ts); filling it for visible cars was
+ * explicitly approved by the owner.
  */
 export async function fillCarInfoFromTuro(supabase: SupabaseClient, rows: TripRow[]): Promise<number> {
   const latest = new Map<string, TripRow>();
@@ -208,7 +208,7 @@ export async function fillCarInfoFromTuro(supabase: SupabaseClient, rows: TripRo
     if (empty(p.license_plate) && r.vehicle_license_plate) patch.license_plate = r.vehicle_license_plate;
     if (empty(p.transmission) && (r.raw_data.vehicle as RawTrip | undefined)?.automaticTransmission === true) patch.transmission = "Automatic";
     if (empty(p.pickup_city) && r.location_city) patch.pickup_city = r.location_city;
-    if (empty(p.vin) && !p.store_visible && r.vehicle_vin) patch.vin = r.vehicle_vin.toUpperCase();
+    if (empty(p.vin) && r.vehicle_vin) patch.vin = r.vehicle_vin.toUpperCase();
     if (Object.keys(patch).length) {
       const { error } = await supabase.from("products").update(patch).eq("id", p.id);
       if (!error) updated++;
