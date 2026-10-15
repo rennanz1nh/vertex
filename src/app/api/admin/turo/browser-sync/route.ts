@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { requireMasterAdmin } from "@/lib/admin-auth";
+import { collectTrips, linkTrips, upsertTrips, fillCarInfoFromTuro, type RawTrip } from "@/lib/turo-trips";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "https://turo.com",
@@ -22,105 +23,6 @@ function adminClient() {
     process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     { db: { schema: (process.env.NEXT_PUBLIC_SUPABASE_SCHEMA || "public") as "public" } }
   );
-}
-
-type RawTrip = Record<string, unknown>;
-
-function epochToIso(ms: unknown): string | null {
-  if (typeof ms !== "number" || !ms) return null;
-  return new Date(ms).toISOString();
-}
-
-function str(v: unknown): string | null {
-  return typeof v === "string" && v ? v : null;
-}
-
-function vehicleFields(vehicle: RawTrip) {
-  const reg = (vehicle.registration as RawTrip) ?? {};
-  const img = (vehicle.image as RawTrip) ?? {};
-  return {
-    vehicle_make: String(vehicle.make ?? ""),
-    vehicle_model: String(vehicle.model ?? ""),
-    vehicle_year: Number(vehicle.year) || null,
-    vehicle_id: String(vehicle.id ?? ""),
-    vehicle_vin: str(vehicle.vin),
-    vehicle_license_plate: str(reg.licensePlate),
-    vehicle_type: str(vehicle.type),
-    vehicle_trim: str(vehicle.trim),
-    vehicle_image_url: str(img.originalImageUrl),
-  };
-}
-
-function locationFields(loc: RawTrip) {
-  return {
-    location_city: String(loc.city ?? ""),
-    location_state: String(loc.state ?? ""),
-    location_lat: loc.latitude != null ? Number(loc.latitude) : null,
-    location_lng: loc.longitude != null ? Number(loc.longitude) : null,
-    location_timezone: str(loc.timeZone),
-  };
-}
-
-type TripRow = {
-  turo_trip_id: string;
-  status: string;
-  guest_name: string;
-  pickup_date: string | null;
-  return_date: string | null;
-  earnings_amount: number | null;
-  earnings_currency: string;
-  renter_id: string | null;
-  product_id: string | null;
-  raw_data: RawTrip;
-  updated_at: string;
-} & ReturnType<typeof vehicleFields> & ReturnType<typeof locationFields>;
-
-function parseUpcomingItem(item: RawTrip): TripRow {
-  const vehicle = (item.vehicle as RawTrip) ?? {};
-  const actor = (item.actor as RawTrip) ?? (item.renter as RawTrip) ?? {};
-  const interval = (item.interval as RawTrip) ?? {};
-  const start = (interval.start as RawTrip) ?? {};
-  const end = (interval.end as RawTrip) ?? {};
-  const loc = (item.location as RawTrip) ?? {};
-  return {
-    turo_trip_id: String(item.reservationId ?? item.id ?? ""),
-    status: String(item.tripItemStatus ?? item.statusCode ?? item.status ?? ""),
-    guest_name: String(actor.name ?? [actor.firstName, actor.lastName].filter(Boolean).join(" ") ?? ""),
-    ...vehicleFields(vehicle),
-    pickup_date: epochToIso(start.epochMillis),
-    return_date: epochToIso(end.epochMillis),
-    earnings_amount: null,
-    earnings_currency: "USD",
-    ...locationFields(loc),
-    renter_id: str(actor.id) ?? (actor.id != null ? String(actor.id) : null),
-    product_id: null,
-    raw_data: item,
-    updated_at: new Date().toISOString(),
-  };
-}
-
-function parseHistoryTrip(trip: RawTrip): TripRow {
-  const interval = (trip.interval as RawTrip) ?? {};
-  const start = (interval.start as RawTrip) ?? {};
-  const end = (interval.end as RawTrip) ?? {};
-  const loc = (trip.location as RawTrip) ?? {};
-  const vehicle = (trip.vehicle as RawTrip) ?? {};
-  const renter = (trip.renter as RawTrip) ?? (trip.driver as RawTrip) ?? {};
-  return {
-    turo_trip_id: String(trip.id ?? ""),
-    status: String(trip.status ?? trip.statusCode ?? "COMPLETED"),
-    guest_name: String(renter.name ?? [renter.firstName, renter.lastName].filter(Boolean).join(" ") ?? ""),
-    ...vehicleFields(vehicle),
-    pickup_date: epochToIso(start.epochMillis),
-    return_date: epochToIso(end.epochMillis),
-    earnings_amount: null,
-    earnings_currency: "USD",
-    ...locationFields(loc),
-    renter_id: renter.id != null ? String(renter.id) : null,
-    product_id: null,
-    raw_data: trip,
-    updated_at: new Date().toISOString(),
-  };
 }
 
 // "$323.32" -> 323.32, "- $35.93" -> -35.93
@@ -226,60 +128,12 @@ export async function POST(request: NextRequest) {
     receipts?: { id?: string; data?: RawTrip }[];
   };
   const errors: string[] = [];
-  const seen = new Set<string>();
-  const rows: TripRow[] = [];
-
-  if (body.upcomingData) {
-    const upcoming = body.upcomingData as RawTrip;
-    for (const item of (upcoming.upcomingTripItems as RawTrip[]) ?? []) {
-      const row = parseUpcomingItem(item);
-      if (!row.turo_trip_id || seen.has(row.turo_trip_id)) continue;
-      seen.add(row.turo_trip_id);
-      rows.push(row);
-    }
-  }
-
-  if (body.historyData) {
-    const history = body.historyData as RawTrip;
-    const feedsList = (
-      Array.isArray(history.tripHistoryFeeds)
-        ? history.tripHistoryFeeds
-        : ((history.tripHistoryFeeds as Record<string, unknown>)?.list ?? [])
-    ) as RawTrip[];
-    for (const monthGroup of feedsList) {
-      for (const trip of (monthGroup.trips as RawTrip[]) ?? []) {
-        const row = parseHistoryTrip(trip);
-        if (!row.turo_trip_id || seen.has(row.turo_trip_id)) continue;
-        seen.add(row.turo_trip_id);
-        rows.push(row);
-      }
-    }
-  }
-
-  // Auto-match each trip to a registered car by VIN (case-insensitive)
-  const vins = [...new Set(rows.map(r => r.vehicle_vin).filter((v): v is string => !!v))];
-  if (vins.length) {
-    const { data: products } = await supabase
-      .from("products")
-      .select("id, vin")
-      .not("vin", "is", null);
-    const vinToId = new Map<string, string>();
-    for (const p of (products ?? []) as { id: string; vin: string | null }[]) {
-      if (p.vin) vinToId.set(p.vin.toLowerCase(), p.id);
-    }
-    for (const row of rows) {
-      if (row.vehicle_vin) row.product_id = vinToId.get(row.vehicle_vin.toLowerCase()) ?? null;
-    }
-  }
-
-  let synced = 0;
-  for (const row of rows) {
-    const { error: upsertErr } = await supabase
-      .from("turo_trips")
-      .upsert(row, { onConflict: "turo_trip_id" });
-    if (!upsertErr) synced++;
-    else errors.push(`upsert ${row.turo_trip_id}: ${upsertErr.message}`);
-  }
+  const rows = collectTrips(body.upcomingData, body.historyData);
+  const { unlinkedVehicleIds } = await linkTrips(supabase, rows);
+  const up = await upsertTrips(supabase, rows);
+  const synced = up.synced;
+  errors.push(...up.errors);
+  const carsUpdated = await fillCarInfoFromTuro(supabase, rows);
 
   let receiptsSaved = 0;
   if (Array.isArray(body.receipts) && body.receipts.length) {
@@ -314,7 +168,7 @@ export async function POST(request: NextRequest) {
   }
 
   return new NextResponse(
-    JSON.stringify({ ok: true, synced, errors, totalFetched: rows.length, receiptsSaved }),
+    JSON.stringify({ ok: true, synced, errors, totalFetched: rows.length, receiptsSaved, unlinkedVehicleIds, carsUpdated }),
     { status: 200, headers: { "Content-Type": "application/json", ...CORS_HEADERS } }
   );
 }

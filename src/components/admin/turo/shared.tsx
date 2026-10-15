@@ -9,6 +9,9 @@ export interface TuroConfig {
   sync_key: string | null;
   probe_data?: unknown;
   host_data_synced_at?: string | null;
+  auto_sync_at?: string | null;
+  auto_sync_ok?: boolean | null;
+  auto_sync_message?: string | null;
 }
 
 export interface TuroTrip {

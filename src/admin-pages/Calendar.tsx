@@ -74,8 +74,10 @@ export default function CalendarPage() {
   const [view, setView] = useState<'timeline' | 'month'>('timeline');
   const [cars, setCars] = useState<Car[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [turoTrips, setTuroTrips] = useState<TuroTripRow[]>([]);
+  const [allTuroTrips, setTuroTrips] = useState<TuroTripRow[]>([]);
   const [showTuro, setShowTuro] = useState(true);
+  // Cancelled trips don't occupy the calendar
+  const turoTrips = useMemo(() => allTuroTrips.filter((t) => !/cancel/i.test(t.status)), [allTuroTrips]);
   const [loading, setLoading] = useState(true);
   const today = useMemo(() => startOfDay(new Date()), []);
   const [timelineStart, setTimelineStart] = useState(() => addDays(today, -1));

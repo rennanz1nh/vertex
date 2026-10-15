@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
   const supabase = adminClient();
   const { data, error } = await supabase
     .from("turo_tokens")
-    .select("id, host_id, host_name, last_synced_at, updated_at, sync_key, host_data_synced_at")
+    .select("id, host_id, host_name, last_synced_at, updated_at, sync_key, host_data_synced_at, auto_sync_at, auto_sync_ok, auto_sync_message")
     .order("last_synced_at", { ascending: false, nullsFirst: false })
     .limit(1)
     .maybeSingle();

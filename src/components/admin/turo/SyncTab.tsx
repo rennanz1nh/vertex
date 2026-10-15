@@ -185,6 +185,22 @@ export function SyncTab({ config, connected, onChanged }: { config: TuroConfig |
 
       <Card>
         <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold">Atualização automática</CardTitle>
+          <CardDescription className="text-xs">Tentativa somente leitura 3x ao dia (a cada 8h). Nada é escrito na Turo.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {config?.auto_sync_at ? (
+            <p className={`text-xs ${config.auto_sync_ok ? "text-green-700" : "text-amber-700"}`}>
+              {fmtDateTime(config.auto_sync_at)} — {config.auto_sync_message}
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">Ainda não executou.</p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
           <CardTitle className="text-sm font-semibold">Dados do host</CardTitle>
           <CardDescription className="text-xs">Ganhos, avaliações e método de pagamento são capturados junto com as viagens.</CardDescription>
         </CardHeader>
