@@ -243,8 +243,8 @@ export function V2Shell({ children }: { children: React.ReactNode }) {
             <img src="/icons/Small.png" alt="Vertex Rental Cars" className="h-8 w-8 object-contain" />
           ) : (
             <>
-              <img src="/images/store-logo-sidebar.png" alt="Vertex Rental Cars" className="v2-light-only h-auto w-full" />
-              <img src="/images/store-logo-sidebar.png" alt="Vertex Rental Cars" className="v2-dark-only h-auto w-full [filter:invert(1)_hue-rotate(180deg)_brightness(1.15)]" />
+              <img src="/images/store-logo-sidebar.png" alt="Vertex Rental Cars" className="v2-light-only mx-auto max-h-11 w-auto object-contain" />
+              <img src="/images/store-logo-sidebar.png" alt="Vertex Rental Cars" className="v2-dark-only mx-auto max-h-11 w-auto object-contain [filter:invert(1)_hue-rotate(180deg)_brightness(1.15)]" />
             </>
           )}
           {/* eslint-enable @next/next/no-img-element */}
