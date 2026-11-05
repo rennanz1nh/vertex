@@ -19,9 +19,7 @@ export default function AdminRootLayout({ children }: { children: React.ReactNod
           <Toaster />
           <Sonner />
           <AuthWrapper>
-            <div style={{ "--primary": "0 0% 0%", "--ring": "0 0% 0%", "--secondary": "0 0% 88%", "--secondary-foreground": "0 0% 10%" } as React.CSSProperties}>
-              <AdminLayout>{children}</AdminLayout>
-            </div>
+            <AdminLayout>{children}</AdminLayout>
           </AuthWrapper>
         </TooltipProvider>
       </AuthProvider>
