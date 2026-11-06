@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { requireMasterAdmin } from "@/lib/admin-auth";
+import { activeTuroTokenRow } from "@/lib/turo-token-row";
 
 function adminClient() {
   return createClient(
@@ -26,12 +27,10 @@ export async function GET(request: NextRequest) {
   if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const supabase = adminClient();
-  const { data, error } = await supabase
-    .from("turo_tokens")
-    .select("id, host_id, host_name, last_synced_at, updated_at, sync_key, host_data_synced_at, auto_sync_at, auto_sync_ok, auto_sync_message")
-    .order("last_synced_at", { ascending: false, nullsFirst: false })
-    .limit(1)
-    .maybeSingle();
+  const { data, error } = await activeTuroTokenRow(
+    supabase,
+    "id, host_id, host_name, last_synced_at, updated_at, sync_key, host_data_synced_at, auto_sync_at, auto_sync_ok, auto_sync_message",
+  );
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ connected: !!data, config: data ?? null });
@@ -55,20 +54,20 @@ export async function POST(request: NextRequest) {
   } catch { /* ignore */ }
 
   const supabase = adminClient();
-  const { data: existing, error: selectErr } = await supabase
-    .from("turo_tokens")
-    .select("id")
-    .limit(1)
-    .maybeSingle();
+  const { data: existingRow, error: selectErr } = await activeTuroTokenRow<{ id: string; host_name: string | null }>(supabase, "id, host_name");
+  const existing = existingRow;
 
   if (selectErr) return NextResponse.json({ error: selectErr.message }, { status: 500 });
 
   if (existing) {
+    // Keep host_name (filled by the browser sync) and keep a single row: any other row is a
+    // stale leftover that would otherwise be picked by mistake.
     const { error: updateErr } = await supabase
       .from("turo_tokens")
-      .update({ bearer_token: raw, host_id, host_name: null, updated_at: new Date().toISOString() })
+      .update({ bearer_token: raw, host_id, updated_at: new Date().toISOString() })
       .eq("id", existing.id);
     if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
+    await supabase.from("turo_tokens").delete().neq("id", existing.id);
   } else {
     const { error: insertErr } = await supabase
       .from("turo_tokens")

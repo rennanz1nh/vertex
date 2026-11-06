@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { activeTuroTokenRow } from "@/lib/turo-token-row";
 import { createClient } from "@supabase/supabase-js";
 import { requireMasterAdmin } from "@/lib/admin-auth";
 import { randomUUID } from "crypto";
@@ -16,12 +17,7 @@ export async function POST(request: NextRequest) {
   if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const supabase = adminClient();
-  const { data: tokenRow } = await supabase
-    .from("turo_tokens")
-    .select("id")
-    .order("updated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const { data: tokenRow } = await activeTuroTokenRow<{ id: string }>(supabase, "id");
 
   if (!tokenRow) return NextResponse.json({ error: "Não conectado" }, { status: 404 });
 

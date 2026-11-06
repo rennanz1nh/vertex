@@ -51,6 +51,7 @@ type BookingRow = {
   rental_agreement_signed_at: string | null;
   rental_agreement_signature_path: string | null;
   rental_agreement_version: string | null;
+  turo_blocked_at: string | null;
   created_at: string;
 };
 
@@ -125,6 +126,20 @@ export default function Bookings() {
     }
   }, [toast]);
 
+  const [turoSavingId, setTuroSavingId] = useState<string | null>(null);
+  const toggleTuroBlocked = useCallback(async (booking: BookingRow) => {
+    const next = booking.turo_blocked_at ? null : new Date().toISOString();
+    setTuroSavingId(booking.id);
+    // turo_blocked_at is newer than the generated Database types.
+    const { error } = await supabase.from('bookings').update({ turo_blocked_at: next } as never).eq('id', booking.id);
+    setTuroSavingId(null);
+    if (error) {
+      toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' });
+      return;
+    }
+    setBookings((prev) => prev.map((b) => (b.id === booking.id ? { ...b, turo_blocked_at: next } : b)));
+  }, [toast]);
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -139,7 +154,7 @@ export default function Bookings() {
       if (bookingsError) throw bookingsError;
       if (carsError) throw carsError;
 
-      setBookings((bookingsData || []) as BookingRow[]);
+      setBookings((bookingsData || []) as unknown as BookingRow[]);
       setCars((carsData || []) as CarOption[]);
     } catch (error) {
       console.error('Error fetching bookings:', error);
@@ -240,6 +255,38 @@ export default function Bookings() {
       render: (booking) => <TableCell>{statusBadge(booking.status)}</TableCell>,
     },
     {
+      // Turo has no API to block dates, so every site booking is blocked there by hand.
+      id: 'turo_block', label: 'Turo', headerClassName: 'text-center',
+      render: (booking) => (
+        <TableCell className="text-center">
+          {booking.status === 'cancelled' ? (
+            <span className="text-muted-foreground text-xs">—</span>
+          ) : booking.turo_blocked_at ? (
+            <button
+              type="button"
+              className="text-xs font-medium text-green-700 hover:underline"
+              title={`Bloqueado na Turo em ${formatShortDate(new Date(booking.turo_blocked_at))} — clique para desfazer`}
+              disabled={turoSavingId === booking.id}
+              onClick={() => toggleTuroBlocked(booking)}
+            >
+              Bloqueado
+            </button>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 border-amber-400 text-amber-700 text-xs"
+              title="Bloqueie estas datas no calendário da Turo e clique aqui"
+              disabled={turoSavingId === booking.id}
+              onClick={() => toggleTuroBlocked(booking)}
+            >
+              {turoSavingId === booking.id ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Marcar bloqueado'}
+            </Button>
+          )}
+        </TableCell>
+      ),
+    },
+    {
       id: 'daily_rate', label: 'Diária', headerClassName: 'text-right',
       render: (booking) => <TableCell className="text-right">{formatCurrency(Number(booking.daily_rate))}</TableCell>,
     },
@@ -276,7 +323,7 @@ export default function Bookings() {
         </TableCell>
       ),
     },
-  ], [downloadingAgreementId, handleDownloadAgreement]);
+  ], [downloadingAgreementId, handleDownloadAgreement, turoSavingId, toggleTuroBlocked]);
 
   const defaultOrder = useMemo(() => columns.map((c) => c.id), [columns]);
   const { columnOrder, columnVisibility, setColumnVisibility, handleDragEnd, reset, saveView, isDirty, visibleOrderedIds } =

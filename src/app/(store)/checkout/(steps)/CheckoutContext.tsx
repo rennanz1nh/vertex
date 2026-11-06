@@ -193,6 +193,13 @@ export function CheckoutProvider({ children }: { children: ReactNode }) {
       const res = await fetch("/api/bookings/request", { method: "POST", body: formData });
       if (!res.ok) {
         if (res.status === 413) throw new Error("PAYLOAD_TOO_LARGE");
+        if (res.status === 400 || res.status === 409) {
+          const msg = (await res.json().catch(() => null))?.error;
+          if (msg) {
+            setSubmitError(msg);
+            return false;
+          }
+        }
         throw new Error(await res.text());
       }
       setRequested(true);

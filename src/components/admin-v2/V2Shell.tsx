@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { authedFetch } from "@/lib/admin-fetch";
 import { supabase } from "@/integrations/supabase/client";
 import { NotificationBell } from "@/components/NotificationBell";
+import { TuroSyncStaleBanner } from "@/components/admin/TuroSyncStaleBanner";
 import { CURRENT_VERSION } from "@/data/updates";
 import { GoogleAdsLogo, GoogleCloudLogo, GoogleMerchantCenterLogo, GoogleSearchConsoleLogo } from "@/components/brand-logos";
 import { BrandMark, BrandWord } from "./brand";
@@ -307,6 +308,7 @@ export function V2Shell({ children }: { children: React.ReactNode }) {
 
         <main className={cn("flex flex-1 flex-col gap-5 px-4 pb-28 pt-4 md:px-7 md:pb-8 md:pt-5", showBand && "v2-section")}>
           {showBand && activeItem && <SectionBand item={activeItem} rows={sectionRows} />}
+          <TuroSyncStaleBanner />
           <div className="min-w-0 flex-1">{children}</div>
         </main>
       </div>

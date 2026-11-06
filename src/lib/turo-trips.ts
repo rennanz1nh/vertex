@@ -182,7 +182,8 @@ export async function upsertTrips(supabase: SupabaseClient, rows: TripRow[]): Pr
 
 /**
  * Fills EMPTY car fields from the latest Turo trip of each linked car (plate, transmission,
- * pickup city, VIN). Never overwrites a value that is already there. Note the VIN doubles as
+ * pickup city, VIN, and the cover photo). Never overwrites a value that is already there: the
+ * site's own photos always win, Turo's listing photo is only used for a car with none. Note the VIN doubles as
  * the Google Shopping SKU (see google-shopping-feed.ts); filling it for visible cars was
  * explicitly approved by the owner.
  */
@@ -197,18 +198,19 @@ export async function fillCarInfoFromTuro(supabase: SupabaseClient, rows: TripRo
 
   const { data } = await supabase
     .from("products")
-    .select("id, vin, license_plate, transmission, pickup_city, store_visible")
+    .select("id, vin, license_plate, transmission, pickup_city, image_url, store_visible")
     .in("id", [...latest.keys()]);
 
   const empty = (v: unknown) => typeof v !== "string" || v.trim() === "";
   let updated = 0;
-  for (const p of (data ?? []) as { id: string; vin: string | null; license_plate: string | null; transmission: string | null; pickup_city: string | null; store_visible: boolean }[]) {
+  for (const p of (data ?? []) as { id: string; vin: string | null; license_plate: string | null; transmission: string | null; pickup_city: string | null; image_url: string | null; store_visible: boolean }[]) {
     const r = latest.get(p.id)!;
     const patch: Record<string, string> = {};
     if (empty(p.license_plate) && r.vehicle_license_plate) patch.license_plate = r.vehicle_license_plate;
     if (empty(p.transmission) && (r.raw_data.vehicle as RawTrip | undefined)?.automaticTransmission === true) patch.transmission = "Automatic";
     if (empty(p.pickup_city) && r.location_city) patch.pickup_city = r.location_city;
     if (empty(p.vin) && r.vehicle_vin) patch.vin = r.vehicle_vin.toUpperCase();
+    if (empty(p.image_url) && r.vehicle_image_url) patch.image_url = r.vehicle_image_url;
     if (Object.keys(patch).length) {
       const { error } = await supabase.from("products").update(patch).eq("id", p.id);
       if (!error) updated++;

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, ShoppingBag, Truck, Tag, XCircle } from "lucide-react";
+import { Bell, ShoppingBag, Truck, Tag, XCircle, CalendarX } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 type Notification = {
   id: string;
-  type: "new_order" | "delivery_update" | "ebay_offer_eligible" | "order_cancelled";
+  type: "new_order" | "delivery_update" | "ebay_offer_eligible" | "order_cancelled" | "turo_block";
   title: string;
   message: string | null;
   link: string | null;
@@ -30,6 +30,7 @@ const ICONS = {
   delivery_update: Truck,
   ebay_offer_eligible: Tag,
   order_cancelled: XCircle,
+  turo_block: CalendarX,
 } as const;
 
 /**

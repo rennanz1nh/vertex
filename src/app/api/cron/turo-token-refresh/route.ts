@@ -2,6 +2,7 @@
 // Runs every 6 hours via Vercel Cron so the token never expires between syncs.
 // The refresh endpoint returns 404 HTML but sets Set-Cookie with a new access_token.
 import { NextRequest, NextResponse } from "next/server";
+import { activeTuroTokenRow } from "@/lib/turo-token-row";
 import { createClient } from "@supabase/supabase-js";
 import { extractAccessToken } from "@/app/api/admin/turo/config/route";
 
@@ -39,12 +40,7 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = adminClient();
-  const { data: tokenRow, error } = await supabase
-    .from("turo_tokens")
-    .select("id, bearer_token")
-    .order("updated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const { data: tokenRow, error } = await activeTuroTokenRow<{ id: string; bearer_token: string }>(supabase, "id, bearer_token");
 
   if (error || !tokenRow) {
     return NextResponse.json({ ok: false, reason: "no token row" });

@@ -3,6 +3,7 @@
 // cloud/serverless IPs (403 HTML challenge) even with valid cookies. Every attempt records its
 // outcome on turo_tokens so the UI can say plainly whether automatic updates are working.
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { activeTuroTokenRow } from "@/lib/turo-token-row";
 import { collectTrips, linkTrips, upsertTrips, fillCarInfoFromTuro } from "@/lib/turo-trips";
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36";
@@ -98,11 +99,8 @@ async function record(supabase: SupabaseClient, ok: boolean, message: string) {
 export async function runServerSync(supabase: SupabaseClient): Promise<ServerSyncResult> {
   const finish = async (r: ServerSyncResult) => { await record(supabase, r.ok, r.message); return r; };
 
-  const { data: rows } = await supabase.from("turo_tokens").select("id, bearer_token");
-  const candidates = (rows ?? []) as { id: string; bearer_token: string }[];
-  if (!candidates.length) return finish({ ok: false, message: "Turo não está conectado." });
-  // Prefer the stored cookie that carries a refresh_token (the fuller one)
-  const row = candidates.find((r) => r.bearer_token.includes("refresh_token=")) ?? candidates[0];
+  const { data: row } = await activeTuroTokenRow<{ id: string; bearer_token: string }>(supabase, "id, bearer_token");
+  if (!row) return finish({ ok: false, message: "Turo não está conectado." });
 
   let stored = row.bearer_token;
   let tokenRefreshed = false;

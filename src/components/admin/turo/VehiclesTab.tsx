@@ -7,7 +7,8 @@ import { TuroTrip, TuroExtras, vehicleLabel, fmtDate, fmtMoney, durationDays, bu
 
 type VehicleAgg = {
   key: string;
-  vehicleId: string;
+  /** Every Turo listing id of this car: a relisted car has more than one. */
+  vehicleIds: Set<string>;
   label: string;
   trim: string | null;
   type: string | null;
@@ -41,16 +42,20 @@ export function VehiclesTab({ trips, extras }: { trips: TuroTrip[]; extras: Turo
   const vehicles = useMemo(() => {
     const map = new Map<string, VehicleAgg>();
     for (const t of trips) {
-      const key = t.vehicle_id || vehicleLabel(t);
+      // One card per physical car: our linked car first, then the VIN, so a car relisted
+      // on Turo under a new listing id is not shown twice.
+      const key = t.product_id ? `car:${t.product_id}` : t.vehicle_vin ? `vin:${t.vehicle_vin.trim().toLowerCase()}` : t.vehicle_id || vehicleLabel(t);
       let v = map.get(key);
       if (!v) {
         v = {
-          key, vehicleId: t.vehicle_id, label: vehicleLabel(t), trim: t.vehicle_trim, type: t.vehicle_type,
+          key, vehicleIds: new Set<string>(), label: vehicleLabel(t), trim: t.vehicle_trim, type: t.vehicle_type,
           vin: t.vehicle_vin, plate: t.vehicle_license_plate, image: t.vehicle_image_url,
           matched: false, trips: 0, days: 0, upcoming: 0, revenue: 0, first: null, last: null,
         };
         map.set(key, v);
       }
+      if (t.vehicle_id) v.vehicleIds.add(t.vehicle_id);
+      if (!v.image && t.vehicle_image_url) v.image = t.vehicle_image_url;
       v.trips++;
       v.days += durationDays(t.pickup_date, t.return_date);
       v.matched = v.matched || !!t.product_id;
@@ -63,7 +68,11 @@ export function VehiclesTab({ trips, extras }: { trips: TuroTrip[]; extras: Turo
     }
     // Prefer vehicleId-indexed revenue when available (covers earnings without a trip row)
     for (const v of map.values()) {
-      const byVeh = fin.byVehicle.get(v.vehicleId);
+      let byVeh: number | null = null;
+      for (const id of v.vehicleIds) {
+        const amt = fin.byVehicle.get(id);
+        if (amt != null) byVeh = (byVeh ?? 0) + amt;
+      }
       if (byVeh != null && byVeh > v.revenue) v.revenue = byVeh;
     }
     return [...map.values()];
@@ -114,6 +123,9 @@ export function VehiclesTab({ trips, extras }: { trips: TuroTrip[]; extras: Turo
                   : <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 shrink-0">Turo</Badge>}
               </div>
               <p className="text-[11px] text-muted-foreground truncate">{[v.trim, v.type].filter(Boolean).join(" · ") || "—"}{v.plate ? ` · ${v.plate}` : ""}</p>
+              {v.vehicleIds.size > 1 && (
+                <p className="text-[10px] text-amber-700" title={[...v.vehicleIds].join(", ")}>{v.vehicleIds.size} anúncios na Turo (relistado)</p>
+              )}
 
               <div className="mt-1.5 flex items-baseline justify-between">
                 <span className="text-lg font-bold text-emerald-700 tabular-nums">{v.revenue > 0 ? fmtMoney(v.revenue) : "—"}</span>

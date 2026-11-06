@@ -28,7 +28,9 @@ export interface TuroTrip {
   vehicle_license_plate: string | null;
   vehicle_type: string | null;
   vehicle_trim: string | null;
+  /** The linked car's site cover when it has one, else Turo's listing photo (see the trips API). */
   vehicle_image_url: string | null;
+  turo_image_url?: string | null;
   pickup_date: string | null;
   return_date: string | null;
   earnings_amount: number | null;

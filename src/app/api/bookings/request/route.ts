@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { getUnavailableCarIds, isValidDateRange } from "@/lib/car-availability";
 
 type RequestBody = {
   carId: string;
@@ -85,6 +86,20 @@ export async function POST(req: NextRequest) {
   const { carId, pickupDate, pickupTime, returnDate, returnTime, dailyRate, protectionPlan, extras, driver, breakdown, rentalAgreementVersion } = body;
   if (!carId || !pickupDate || !returnDate || !driver?.fullName?.trim() || !driver?.email?.trim() || !rentalAgreementVersion) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+  }
+
+  if (!isValidDateRange(pickupDate, returnDate)) {
+    return NextResponse.json({ error: "Please choose a valid pickup and return date." }, { status: 400 });
+  }
+
+  // Last check before anything is stored: the car may have been booked here or on Turo since
+  // the customer opened the page (the listing filter only runs when they search by dates).
+  const unavailable = await getUnavailableCarIds(pickupDate, returnDate);
+  if (unavailable.has(carId)) {
+    return NextResponse.json(
+      { error: "Sorry, this car was just booked for some of these dates. Please choose other dates or another car." },
+      { status: 409 },
+    );
   }
 
   const email = driver.email.trim().toLowerCase();

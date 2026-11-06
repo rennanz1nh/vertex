@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { requireMasterAdmin } from "@/lib/admin-auth";
+import { activeTuroTokenRow } from "@/lib/turo-token-row";
 import { collectTrips, linkTrips, upsertTrips, fillCarInfoFromTuro, type RawTrip } from "@/lib/turo-trips";
 
 const CORS_HEADERS = {
@@ -146,13 +147,8 @@ export async function POST(request: NextRequest) {
   }
 
   // Update last_synced_at on the token row
-  const rowId = tokenRowId ?? (await supabase
-    .from("turo_tokens")
-    .select("id")
-    .order("updated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle()
-    .then(r => r.data?.id as string | null));
+  const rowId = tokenRowId ?? (await activeTuroTokenRow<{ id: string }>(supabase, "id")
+    .then(r => r.data?.id ?? null));
 
   if (rowId) {
     const update: Record<string, unknown> = { last_synced_at: new Date().toISOString() };
