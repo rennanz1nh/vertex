@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Menu, X, ChevronDown, PanelLeft, MessageCircle, Moon, Sun, Store, LogOut, ChevronRight, Settings, Home, Car, ClipboardList } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -57,11 +57,12 @@ type Tab = { title: string; href: string; active: boolean; logo?: TabLogo };
 
 /** Tab rows for the active section: its sub-pages (plus a second row when the active sub-page has its own). */
 function useSectionTabs(pathname: string, item: NavItem | undefined): Tab[][] {
+  const params = useSearchParams();
   if (!item) return [];
   if (!item.pages) return [];
-  const rows: Tab[][] = [item.pages.map((p) => ({ title: p.title, href: p.url, active: pageActive(pathname, p), logo: p.logo }))];
-  const sub = item.pages.find((p) => p.pages && pageActive(pathname, p));
-  if (sub?.pages) rows.push(sub.pages.map((p) => ({ title: p.title, href: p.url, active: pageActive(pathname, p) })));
+  const rows: Tab[][] = [item.pages.map((p) => ({ title: p.title, href: p.url, active: pageActive(pathname, p, params), logo: p.logo }))];
+  const sub = item.pages.find((p) => p.pages && pageActive(pathname, p, params));
+  if (sub?.pages) rows.push(sub.pages.map((p) => ({ title: p.title, href: p.url, active: pageActive(pathname, p, params) })));
   return rows;
 }
 

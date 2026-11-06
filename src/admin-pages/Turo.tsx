@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { isMasterAdminEmail } from "@/lib/master-admin";
 import { authedFetch } from "@/lib/admin-fetch";
@@ -98,22 +97,6 @@ export default function TuroPage() {
       <div>
         <h1 className="text-2xl font-bold">Turo</h1>
         <p className="text-sm text-muted-foreground">Integração completa com sua conta de host no Turo</p>
-      </div>
-
-      {/* Tab nav */}
-      <div className="border-b flex gap-1 overflow-x-auto">
-        {TURO_TABS.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={cn(
-              "px-4 py-2 text-sm font-medium border-b-2 -mb-px whitespace-nowrap transition-colors",
-              activeTab === t.id ? "border-indigo-600 text-indigo-700" : "border-transparent text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
       </div>
 
       {!connected && activeTab !== "sync" ? (

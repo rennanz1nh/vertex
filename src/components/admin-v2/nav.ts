@@ -4,7 +4,7 @@ import {
 import type { BrandKey } from "./brand";
 
 export type TabLogo = "googleads" | "searchconsole" | "shopping" | "merchant" | "cloud";
-export type SubPage = { title: string; url: string; exact?: boolean; basePath?: string; logo?: TabLogo; pages?: SubPage[] };
+export type SubPage = { title: string; url: string; exact?: boolean; basePath?: string; logo?: TabLogo; pages?: SubPage[]; tab?: string; defaultTab?: boolean };
 export type NavItem = {
   title: string;
   url: string;
@@ -25,14 +25,14 @@ export type NavSection = { title: string; items: NavItem[]; collapsible?: boolea
 
 // Turo lives as one sidebar item with its tabs shown in the sticky section band at the top of the page.
 export const TURO_PAGES: SubPage[] = [
-  { title: "Visão Geral", url: "/admin/turo?tab=overview", basePath: "/admin/turo" },
-  { title: "Reservas", url: "/admin/turo?tab=reservations", basePath: "/admin/turo" },
-  { title: "Veículos", url: "/admin/turo?tab=vehicles", basePath: "/admin/turo" },
-  { title: "Hóspedes", url: "/admin/turo?tab=guests", basePath: "/admin/turo" },
-  { title: "Ganhos", url: "/admin/turo?tab=earnings", basePath: "/admin/turo" },
-  { title: "Avaliações", url: "/admin/turo?tab=reviews", basePath: "/admin/turo" },
-  { title: "Métodos", url: "/admin/turo?tab=payout", basePath: "/admin/turo" },
-  { title: "Sincronização", url: "/admin/turo?tab=sync", basePath: "/admin/turo" },
+  { title: "Visão Geral", url: "/admin/turo?tab=overview", basePath: "/admin/turo", tab: "overview", defaultTab: true },
+  { title: "Reservas", url: "/admin/turo?tab=reservations", basePath: "/admin/turo", tab: "reservations" },
+  { title: "Veículos", url: "/admin/turo?tab=vehicles", basePath: "/admin/turo", tab: "vehicles" },
+  { title: "Hóspedes", url: "/admin/turo?tab=guests", basePath: "/admin/turo", tab: "guests" },
+  { title: "Ganhos", url: "/admin/turo?tab=earnings", basePath: "/admin/turo", tab: "earnings" },
+  { title: "Avaliações", url: "/admin/turo?tab=reviews", basePath: "/admin/turo", tab: "reviews" },
+  { title: "Métodos", url: "/admin/turo?tab=payout", basePath: "/admin/turo", tab: "payout" },
+  { title: "Sincronização", url: "/admin/turo?tab=sync", basePath: "/admin/turo", tab: "sync" },
 ];
 
 // Sidebar sections mapped from the AppSidebar's existing navigation, now regrouped for V2.
@@ -122,6 +122,15 @@ export function itemActive(pathname: string, item: NavItem) {
   return pathname.startsWith(item.basePath ?? item.url) || !!item.extraPaths?.some((p) => pathname.startsWith(p));
 }
 
-export function pageActive(pathname: string, page: SubPage) {
-  return page.exact ? pathname === page.url : pathname.startsWith(page.basePath ?? page.url);
+export function pageActive(pathname: string, page: SubPage, params?: URLSearchParams | null) {
+  if (page.exact) return pathname === page.url;
+  if (!pathname.startsWith(page.basePath ?? page.url)) return false;
+  // Query-string-driven tabs (e.g. Turo's ?tab=overview): the first one with `defaultTab`
+  // matches when no ?tab= is set, so the band still highlights something on first open.
+  if (page.tab) {
+    const current = params?.get("tab");
+    if (!current) return !!page.defaultTab;
+    return current === page.tab;
+  }
+  return true;
 }
