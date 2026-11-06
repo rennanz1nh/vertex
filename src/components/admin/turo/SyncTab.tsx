@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { authedFetch } from "@/lib/admin-fetch";
-import { Link2, Link2Off, AlertCircle, Copy, Check, Terminal, RefreshCw } from "lucide-react";
+import { Link2, Link2Off, AlertCircle, Copy, Check, Terminal, RefreshCw, Puzzle, Download } from "lucide-react";
 import { TuroConfig, fmtDateTime } from "./shared";
 
 // Fetches the real Turo host endpoints (confirmed via network sniffer) same-origin on
@@ -33,6 +33,7 @@ export function SyncTab({ config, connected, onChanged }: { config: TuroConfig |
   const [script, setScript] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [copiedBookmark, setCopiedBookmark] = useState(false);
+  const [copiedKey, setCopiedKey] = useState(false);
   const [generating, setGenerating] = useState(false);
 
   const bookmarklet = config?.sync_key ? buildScript({ key: config.sync_key }, true) : null;
@@ -143,6 +144,33 @@ export function SyncTab({ config, connected, onChanged }: { config: TuroConfig |
           </Button>
         </div>
       </div>
+
+      {config?.sync_key && (
+        <Card className="border-emerald-200 bg-emerald-50">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-emerald-900 text-base"><Puzzle className="h-5 w-5" /> Sync automático pela extensão do Chrome (recomendado)</CardTitle>
+            <CardDescription className="text-emerald-800">
+              Instale uma vez e pronto: ela envia as viagens, ganhos e recibos a cada 3 horas, sozinha, usando o login da Turo deste Chrome. Nada de colar código.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm text-emerald-900">
+            <ol className="list-decimal list-inside space-y-1">
+              <li>Baixe e descompacte: <a href="/downloads/vertex-turo-sync.zip" download className="inline-flex items-center gap-1 font-semibold underline"><Download className="h-3.5 w-3.5" />vertex-turo-sync.zip</a></li>
+              <li>No Chrome, abra <code className="rounded bg-white px-1">chrome://extensions</code> e ligue o <strong>Modo do desenvolvedor</strong></li>
+              <li>Clique em <strong>Carregar sem compactação</strong> e escolha a pasta descompactada</li>
+              <li>Clique no ícone da extensão, cole a chave abaixo, <strong>Salvar</strong> e <strong>Sincronizar agora</strong></li>
+              <li>Deixe o turo.com logado nesse Chrome. Se a Turo deslogar, a extensão avisa.</li>
+            </ol>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 truncate rounded bg-white px-2 py-1.5 font-mono text-xs">{config.sync_key}</code>
+              <Button size="sm" variant="outline" className="h-8 text-xs" onClick={async () => { await navigator.clipboard.writeText(config.sync_key!); setCopiedKey(true); setTimeout(() => setCopiedKey(false), 2000); }}>
+                {copiedKey ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}{copiedKey ? "Copiada!" : "Copiar chave"}
+              </Button>
+            </div>
+            <p className="text-xs text-emerald-800">Só roda com o Chrome aberto. Se ficar mais de 12h sem sincronizar, o admin mostra um alerta.</p>
+          </CardContent>
+        </Card>
+      )}
 
       {bookmarklet && (
         <Card className="border-indigo-200 bg-indigo-50">

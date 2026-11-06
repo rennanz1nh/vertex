@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build:turo-extension": "rm -f public/downloads/vertex-turo-sync.zip && mkdir -p public/downloads && cd extensions/turo-sync && zip -qr ../../public/downloads/vertex-turo-sync.zip ."
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.111.0",

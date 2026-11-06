@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body { font: 13px/1.4 system-ui, sans-serif; width: 300px; margin: 0; padding: 14px; color: #141414; }
+    h1 { font-size: 14px; margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
+    h1 img { width: 20px; height: 20px; }
+    label { display: block; font-weight: 600; margin: 10px 0 4px; }
+    input { width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid #ccc; border-radius: 6px; font: inherit; }
+    button { margin-top: 10px; width: 100%; padding: 8px; border: 0; border-radius: 6px; background: #141414; color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+    button.secondary { background: #eee; color: #141414; }
+    button:disabled { opacity: .6; cursor: default; }
+    #status { margin-top: 12px; padding: 8px; border-radius: 6px; background: #f4f4f4; }
+    #status.ok { background: #e8f6ec; color: #17602d; }
+    #status.bad { background: #fdf0e1; color: #8a4b05; }
+    small { color: #666; display: block; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <h1><img src="icon.png" alt="" /> Vertex · Sync Turo</h1>
+  <div id="status">Ainda não sincronizou.</div>
+  <button id="sync">Sincronizar agora</button>
+
+  <label for="key">Chave de sincronização</label>
+  <input id="key" type="password" placeholder="admin → Turo → Sincronização" autocomplete="off" />
+  <label for="site">Site</label>
+  <input id="site" type="url" placeholder="https://vertexrentalcar.com" />
+  <button id="save" class="secondary">Salvar</button>
+  <small>Roda sozinha a cada 3 horas enquanto o Chrome estiver aberto. Precisa estar logado no turo.com neste Chrome.</small>
+  <script src="popup.js"></script>
+</body>
+</html>
