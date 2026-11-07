@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { addDays, businessToday, paymentPlan, paymentSummary } from "./booking-payment-plan";
+import { addDays, businessToday, depositAvailable, paymentPlan, paymentSummary } from "./booking-payment-plan";
 
 describe("paymentPlan", () => {
   it("splits 20% now and 80% five days before pickup", () => {
@@ -24,6 +24,21 @@ describe("paymentPlan", () => {
 
   it("keeps the split when the due date is tomorrow", () => {
     expect(paymentPlan(200, "2026-11-13", "2026-11-07")).toMatchObject({ plan: "deposit_balance", balanceDueDate: "2026-11-08" });
+  });
+});
+
+describe("pay in full option", () => {
+  it("charges 100% now when the customer picks full, even far from pickup", () => {
+    expect(paymentPlan(312, "2026-12-20", "2026-11-07", "full")).toEqual({ plan: "full", depositAmount: 312, balanceAmount: 0, balanceDueDate: null });
+  });
+
+  it("ignores a 20% choice inside the 5-day window", () => {
+    expect(paymentPlan(200, "2026-11-10", "2026-11-07", "deposit").plan).toBe("full");
+  });
+
+  it("offers the 20% option only before the due date", () => {
+    expect(depositAvailable("2026-11-13", "2026-11-07")).toBe(true);
+    expect(depositAvailable("2026-11-12", "2026-11-07")).toBe(false);
   });
 });
 

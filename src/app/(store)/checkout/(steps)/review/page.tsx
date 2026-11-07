@@ -1,6 +1,6 @@
 "use client";
 
-import { formatLongDate, paymentPlan } from "@/lib/booking-payment-plan";
+import { depositAvailable, formatLongDate, paymentPlan } from "@/lib/booking-payment-plan";
 import { useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -11,14 +11,15 @@ import StepProgress from "@/components/store/StepProgress";
 
 export default function CheckoutReviewPage() {
   const router = useRouter();
-  const { loaded, draft, driver, driverStepComplete, days, breakdown } = useCheckout();
+  const { loaded, draft, driver, driverStepComplete, days, breakdown, paymentChoice, setPaymentChoice } = useCheckout();
 
   useEffect(() => {
     if (loaded && (!draft || !driverStepComplete)) router.replace("/checkout");
   }, [loaded, draft, driverStepComplete, router]);
 
   if (!loaded || !draft || !driverStepComplete || !breakdown) return null;
-  const schedule = paymentPlan(breakdown.total, draft.pickupDate);
+  const canSplit = depositAvailable(draft.pickupDate);
+  const split = paymentPlan(breakdown.total, draft.pickupDate, undefined, "deposit");
 
   return (
     <div className="max-w-[800px] mx-auto px-4 py-8">
@@ -122,13 +123,47 @@ export default function CheckoutReviewPage() {
           <span>Trip total</span>
           <span>{formatPrice(breakdown.total)}</span>
         </div>
-        {schedule.plan === "full" ? (
-          <p className="text-xs text-gray-500 mt-2">Pick-up is less than 5 days away, so the full amount is charged when you book.</p>
-        ) : (
-          <div className="text-xs text-gray-600 mt-2 space-y-1">
-            <div className="flex justify-between"><span>Due when you book (20%)</span><span>{formatPrice(schedule.depositAmount)}</span></div>
-            <div className="flex justify-between"><span>Charged automatically on {formatLongDate(schedule.balanceDueDate!)}</span><span>{formatPrice(schedule.balanceAmount)}</span></div>
+      </div>
+
+      {/* How to pay */}
+      <div className="border border-gray-200 rounded-sm p-5 mb-6">
+        <h2 className="text-sm font-semibold text-gray-900 mb-3">How would you like to pay?</h2>
+        {canSplit ? (
+          <div className="space-y-2" role="radiogroup" aria-label="Payment option">
+            {([
+              {
+                id: "deposit" as const,
+                title: `Pay 20% now: ${formatPrice(split.depositAmount)}`,
+                detail: `The remaining ${formatPrice(split.balanceAmount)} is charged automatically to the same card on ${formatLongDate(split.balanceDueDate!)}, 5 days before pick-up.`,
+              },
+              {
+                id: "full" as const,
+                title: `Pay in full now: ${formatPrice(breakdown.total)}`,
+                detail: "One payment today. Nothing else is charged before your trip.",
+              },
+            ]).map((opt) => (
+              <label
+                key={opt.id}
+                className={`flex items-start gap-3 border rounded-sm p-3 cursor-pointer ${paymentChoice === opt.id ? "border-black bg-gray-50" : "border-gray-200"}`}
+              >
+                <input
+                  type="radio"
+                  name="paymentChoice"
+                  className="mt-1 accent-black"
+                  checked={paymentChoice === opt.id}
+                  onChange={() => setPaymentChoice(opt.id)}
+                />
+                <span>
+                  <span className="block text-sm font-medium text-gray-900">{opt.title}</span>
+                  <span className="block text-xs text-gray-500 mt-0.5">{opt.detail}</span>
+                </span>
+              </label>
+            ))}
           </div>
+        ) : (
+          <p className="text-sm text-gray-600">
+            Pick-up is less than 5 days away, so the full {formatPrice(breakdown.total)} is charged when you book.
+          </p>
         )}
       </div>
 

@@ -11,11 +11,11 @@ import { printRentalAgreementTerms } from "@/lib/rental-agreement-print";
 import { useCheckout } from "../CheckoutContext";
 import StepProgress from "@/components/store/StepProgress";
 import StripePaymentForm from "@/components/store/StripePaymentForm";
-import { formatLongDate, formatUsd, paymentPlan, paymentSummary } from "@/lib/booking-payment-plan";
+import { depositAvailable, formatLongDate, formatUsd, paymentPlan, paymentSummary } from "@/lib/booking-payment-plan";
 
 export default function CheckoutAgreementPage() {
   const router = useRouter();
-  const { loaded, draft, driver, driverStepComplete, breakdown, payment, requested, submitting, submitError, submitBooking, completePayment } =
+  const { loaded, draft, driver, driverStepComplete, breakdown, paymentChoice, payment, requested, submitting, submitError, submitBooking, completePayment } =
     useCheckout();
   const [checked, setChecked] = useState(false);
   const [signatureError, setSignatureError] = useState<string | null>(null);
@@ -77,7 +77,9 @@ export default function CheckoutAgreementPage() {
           returnUrl={returnUrl}
           consent={
             isFull
-              ? "Your pick-up is less than 5 days away, so the full trip amount is charged now."
+              ? depositAvailable(draft.pickupDate)
+                ? "The full trip amount is charged now. Nothing else is charged before your trip."
+                : "Your pick-up is less than 5 days away, so the full trip amount is charged now."
               : `By booking, you authorize Vertex Rental Car USA LLC to save this card and charge the remaining ${formatUsd(sched.balanceAmount)} to it automatically on ${formatLongDate(sched.balanceDueDate!)} (5 days before pick-up).`
           }
           onSuccess={completePayment}
@@ -86,7 +88,7 @@ export default function CheckoutAgreementPage() {
     );
   }
 
-  const preview = breakdown ? paymentPlan(breakdown.total, draft.pickupDate) : null;
+  const preview = breakdown ? paymentPlan(breakdown.total, draft.pickupDate, undefined, paymentChoice) : null;
 
   const allChecked = checked;
   const today = new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
@@ -225,7 +227,7 @@ export default function CheckoutAgreementPage() {
       {preview && (
         <p className="text-[11px] text-gray-500 mt-2 text-center">
           {preview.plan === "full"
-            ? `Pick-up is less than 5 days away: the full ${formatUsd(preview.depositAmount)} is charged when you book.`
+            ? `The full ${formatUsd(preview.depositAmount)} is charged when you book.`
             : `${formatUsd(preview.depositAmount)} (20%) is charged when you book; the remaining ${formatUsd(preview.balanceAmount)} is charged automatically on ${formatLongDate(preview.balanceDueDate!)}.`}
         </p>
       )}

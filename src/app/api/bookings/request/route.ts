@@ -36,6 +36,7 @@ type RequestBody = {
     total: number;
   };
   rentalAgreementVersion: string;
+  paymentChoice?: "deposit" | "full";
 };
 
 const MAX_LICENSE_PHOTO_BYTES = 10 * 1024 * 1024; // 10MB
@@ -147,7 +148,7 @@ export async function POST(req: NextRequest) {
       { status: 409 },
     );
   }
-  const schedule = paymentPlan(priced.total, pickupDate);
+  const schedule = paymentPlan(priced.total, pickupDate, undefined, body.paymentChoice === "full" ? "full" : "deposit");
 
   const email = driver.email.trim().toLowerCase();
 

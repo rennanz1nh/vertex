@@ -14,7 +14,7 @@ import {
   type DriverInfo,
 } from "@/lib/tripDraft";
 import { RENTAL_AGREEMENT_VERSION } from "@/lib/rental-agreement";
-import type { PaymentPlan } from "@/lib/booking-payment-plan";
+import type { PaymentChoice, PaymentPlan } from "@/lib/booking-payment-plan";
 import { compressImageFile } from "@/lib/compress-image";
 
 const emptyDriver: DriverInfo = {
@@ -59,6 +59,9 @@ type CheckoutContextValue = {
   breakdown: Breakdown | null;
   age: number | null;
   youngDriverFee: number;
+  /** 20% now + 80% later, or 100% now (picked on the review step). */
+  paymentChoice: PaymentChoice;
+  setPaymentChoice: (c: PaymentChoice) => void;
   /** Set once the agreement is signed and the booking is waiting for the card. */
   payment: PendingPayment | null;
   /** True once the deposit (or full amount) is paid and the booking confirmed. */
@@ -87,6 +90,7 @@ export function CheckoutProvider({ children }: { children: ReactNode }) {
   const [errors, setErrors] = useState<DriverErrors>({});
   const [requested, setRequested] = useState(false);
   const [payment, setPayment] = useState<PendingPayment | null>(null);
+  const [paymentChoice, setPaymentChoice] = useState<PaymentChoice>("deposit");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -198,6 +202,7 @@ export function CheckoutProvider({ children }: { children: ReactNode }) {
             total: breakdown.total,
           },
           rentalAgreementVersion: RENTAL_AGREEMENT_VERSION,
+          paymentChoice,
         })
       );
       formData.append("licenseFront", licenseFront);
@@ -263,6 +268,8 @@ export function CheckoutProvider({ children }: { children: ReactNode }) {
         breakdown,
         age,
         youngDriverFee,
+        paymentChoice,
+        setPaymentChoice,
         payment,
         requested,
         submitting,

@@ -1,6 +1,6 @@
-// Payment schedule for storefront bookings: 20% at checkout, the remaining 80% charged
-// automatically 5 days before pickup. A booking made inside that 5-day window pays 100%
-// at checkout. Pure functions (no Stripe/DB) so the checkout UI and the server agree.
+// Payment schedule for storefront bookings: the customer picks 20% at checkout with the
+// remaining 80% charged automatically 5 days before pickup, or 100% at checkout. A booking
+// made inside that 5-day window can only pay 100%. Pure functions (no Stripe/DB) so the checkout UI and the server agree.
 
 export const DEPOSIT_RATE = 0.2;
 export const BALANCE_DAYS_BEFORE_PICKUP = 5;
@@ -8,6 +8,8 @@ export const BALANCE_DAYS_BEFORE_PICKUP = 5;
 export const BUSINESS_TIME_ZONE = "America/New_York";
 
 export type PaymentPlanKind = "deposit_balance" | "full";
+/** What the customer picked at checkout. "deposit" is only honored when the pickup is far enough out. */
+export type PaymentChoice = "deposit" | "full";
 
 export type PaymentPlan = {
   plan: PaymentPlanKind;
@@ -34,10 +36,20 @@ export function addDays(isoDate: string, days: number): string {
   return dt.toISOString().slice(0, 10);
 }
 
-export function paymentPlan(total: number, pickupDate: string, today: string = businessToday()): PaymentPlan {
+/** The 20% option exists only while the balance due date is still in the future. */
+export function depositAvailable(pickupDate: string, today: string = businessToday()): boolean {
+  return today < addDays(pickupDate, -BALANCE_DAYS_BEFORE_PICKUP);
+}
+
+export function paymentPlan(
+  total: number,
+  pickupDate: string,
+  today: string = businessToday(),
+  choice: PaymentChoice = "deposit",
+): PaymentPlan {
   const totalCents = toCents(total);
   const dueDate = addDays(pickupDate, -BALANCE_DAYS_BEFORE_PICKUP);
-  if (today >= dueDate) {
+  if (choice === "full" || !depositAvailable(pickupDate, today)) {
     return { plan: "full", depositAmount: totalCents / 100, balanceAmount: 0, balanceDueDate: null };
   }
   const depositCents = Math.round(totalCents * DEPOSIT_RATE);
