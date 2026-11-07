@@ -10,10 +10,12 @@ import { RENTAL_AGREEMENT_SECTIONS, RENTAL_AGREEMENT_ACKNOWLEDGMENTS } from "@/l
 import { printRentalAgreementTerms } from "@/lib/rental-agreement-print";
 import { useCheckout } from "../CheckoutContext";
 import StepProgress from "@/components/store/StepProgress";
+import StripePaymentForm from "@/components/store/StripePaymentForm";
+import { formatLongDate, formatUsd, paymentPlan, paymentSummary } from "@/lib/booking-payment-plan";
 
 export default function CheckoutAgreementPage() {
   const router = useRouter();
-  const { loaded, draft, driver, driverStepComplete, requested, submitting, submitError, submitBooking } =
+  const { loaded, draft, driver, driverStepComplete, breakdown, payment, requested, submitting, submitError, submitBooking, completePayment } =
     useCheckout();
   const [checked, setChecked] = useState(false);
   const [signatureError, setSignatureError] = useState<string | null>(null);
@@ -27,11 +29,11 @@ export default function CheckoutAgreementPage() {
   if (requested) {
     return (
       <div className="max-w-[900px] mx-auto px-4 py-20 text-center">
-        <h1 className="font-serif text-2xl md:text-3xl font-light text-gray-900 mb-3">Trip request sent!</h1>
-        <p className="text-sm text-gray-600 max-w-md mx-auto mb-8">
-          We&apos;ve sent your request to the host. You&apos;ll get a confirmation once it&apos;s approved. No
-          payment has been charged yet.
+        <h1 className="font-serif text-2xl md:text-3xl font-light text-gray-900 mb-3">Your trip is booked!</h1>
+        <p className="text-sm text-gray-600 max-w-md mx-auto mb-2">
+          We&apos;ve emailed your confirmation{payment ? ` (#${payment.bookingId.slice(0, 8).toUpperCase()})` : ""}.
         </p>
+        {payment && <p className="text-sm text-gray-600 max-w-md mx-auto mb-8">{paymentSummary(payment.schedule)}</p>}
         <Link
           href="/products"
           className="inline-block bg-black text-white px-8 py-3 text-sm font-medium hover:bg-gray-800 transition-colors"
@@ -43,6 +45,48 @@ export default function CheckoutAgreementPage() {
   }
 
   if (!loaded || !draft || !driverStepComplete) return null;
+
+  if (payment) {
+    const sched = payment.schedule;
+    const isFull = sched.plan === "full";
+    const returnUrl = `${window.location.origin}/booking/confirmed?id=${payment.bookingId}&token=${payment.token}`;
+    return (
+      <div className="max-w-[560px] mx-auto px-4 py-8">
+        <StepProgress current={4} />
+        <h1 className="font-serif text-2xl md:text-3xl font-light text-gray-900 mb-1">Payment</h1>
+        <p className="text-xs text-gray-500 mb-6">{draft.carName} &middot; {formatLongDate(draft.pickupDate)} &rarr; {formatLongDate(draft.returnDate)}</p>
+        <div className="border rounded-sm p-4 mb-6 text-sm space-y-2 bg-gray-50">
+          <div className="flex justify-between font-medium text-gray-900">
+            <span>{isFull ? "Due today (full amount)" : "Due today (20% deposit)"}</span>
+            <span>{formatUsd(sched.depositAmount)}</span>
+          </div>
+          {!isFull && sched.balanceDueDate && (
+            <div className="flex justify-between text-gray-600">
+              <span>Charged automatically on {formatLongDate(sched.balanceDueDate)}</span>
+              <span>{formatUsd(sched.balanceAmount)}</span>
+            </div>
+          )}
+          <div className="flex justify-between border-t pt-2 text-gray-900">
+            <span>Trip total</span>
+            <span>{formatUsd(sched.depositAmount + sched.balanceAmount)}</span>
+          </div>
+        </div>
+        <StripePaymentForm
+          clientSecret={payment.clientSecret}
+          payLabel={`Pay ${formatUsd(sched.depositAmount)} and book`}
+          returnUrl={returnUrl}
+          consent={
+            isFull
+              ? "Your pick-up is less than 5 days away, so the full trip amount is charged now."
+              : `By booking, you authorize Vertex Rental Car USA LLC to save this card and charge the remaining ${formatUsd(sched.balanceAmount)} to it automatically on ${formatLongDate(sched.balanceDueDate!)} (5 days before pick-up).`
+          }
+          onSuccess={completePayment}
+        />
+      </div>
+    );
+  }
+
+  const preview = breakdown ? paymentPlan(breakdown.total, draft.pickupDate) : null;
 
   const allChecked = checked;
   const today = new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
@@ -77,7 +121,7 @@ export default function CheckoutAgreementPage() {
       <p className="text-xs text-gray-500 mb-6">Step 4 of 4</p>
 
       <p className="text-xs text-gray-500 mb-4">
-        Vertex Rental Car USA LLC &mdash; General Rental Terms. Please read before signing to request your booking.
+        Vertex Rental Car USA LLC &mdash; General Rental Terms. Please read and sign, then pay to book.
       </p>
 
       <div className="border rounded-sm max-h-[45vh] overflow-y-auto p-4 space-y-4 bg-gray-50 mb-6">
@@ -171,16 +215,20 @@ export default function CheckoutAgreementPage() {
         >
           {submitting ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin" /> Sending request&hellip;
+              <Loader2 className="h-4 w-4 animate-spin" /> Preparing payment&hellip;
             </>
           ) : (
-            "Request to Book"
+            "Continue to payment"
           )}
         </button>
       </div>
-      <p className="text-[11px] text-gray-400 mt-2 text-center">
-        No payment is collected &mdash; checkout isn&apos;t connected yet.
-      </p>
+      {preview && (
+        <p className="text-[11px] text-gray-500 mt-2 text-center">
+          {preview.plan === "full"
+            ? `Pick-up is less than 5 days away: the full ${formatUsd(preview.depositAmount)} is charged when you book.`
+            : `${formatUsd(preview.depositAmount)} (20%) is charged when you book; the remaining ${formatUsd(preview.balanceAmount)} is charged automatically on ${formatLongDate(preview.balanceDueDate!)}.`}
+        </p>
+      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { authedFetch } from '@/lib/admin-fetch';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Search, Trash2, CheckSquare, Columns3, GripVertical, Image as ImageIcon, Download, Loader2 } from 'lucide-react';
@@ -52,6 +53,13 @@ type BookingRow = {
   rental_agreement_signature_path: string | null;
   rental_agreement_version: string | null;
   turo_blocked_at: string | null;
+  payment_plan: 'deposit_balance' | 'full' | null;
+  deposit_amount: number | null;
+  deposit_paid_at: string | null;
+  balance_amount: number | null;
+  balance_due_date: string | null;
+  balance_status: 'none' | 'scheduled' | 'processing' | 'paid' | 'failed';
+  balance_last_error: string | null;
   created_at: string;
 };
 
@@ -61,6 +69,8 @@ type ColumnDef = {
   headerClassName?: string;
   render: (booking: BookingRow, car: CarOption | undefined) => React.ReactNode;
 };
+
+const formatCurrency = (value: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value || 0);
 
 function statusBadge(status: string) {
   const s = (BOOKING_STATUS_LABEL[status as BookingStatus] && status) as BookingStatus | undefined;
@@ -125,6 +135,51 @@ export default function Bookings() {
       setDownloadingAgreementId(null);
     }
   }, [toast]);
+
+  const [chargingId, setChargingId] = useState<string | null>(null);
+  const chargeBalanceNow = useCallback(async (booking: BookingRow) => {
+    if (!confirm(`Cobrar agora o saldo de ${formatCurrency(Number(booking.balance_amount))} no cartão salvo do cliente?`)) return;
+    setChargingId(booking.id);
+    try {
+      const res = await authedFetch(`/api/admin/bookings/${booking.id}/charge-balance`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (data.ok) toast({ title: 'Saldo cobrado', description: formatCurrency(Number(booking.balance_amount)) });
+      else toast({ title: 'Cobrança não realizada', description: data.reason || 'Erro', variant: 'destructive' });
+      await fetchData();
+    } finally {
+      setChargingId(null);
+    }
+  }, [toast]);
+
+  const paymentCell = useCallback((b: BookingRow) => {
+    if (!b.payment_plan) return <span className="text-muted-foreground text-xs">Manual</span>;
+    if (!b.deposit_paid_at) return <span className="text-xs text-amber-700">Aguardando cartão</span>;
+    if (b.payment_plan === 'full') return <span className="text-xs text-green-700">Pago 100%</span>;
+    const due = b.balance_due_date ? formatShortDate(parseLocalDate(b.balance_due_date)) : '—';
+    const bal = formatCurrency(Number(b.balance_amount));
+    const canCharge = b.status === 'confirmed' && (b.balance_status === 'scheduled' || b.balance_status === 'failed');
+    return (
+      <div className="flex flex-col gap-0.5 text-xs">
+        <span className="text-green-700">Sinal {formatCurrency(Number(b.deposit_amount))} pago</span>
+        {b.balance_status === 'paid' && <span className="text-green-700">Saldo {bal} pago</span>}
+        {b.balance_status === 'scheduled' && <span className="text-muted-foreground">Saldo {bal} em {due}</span>}
+        {b.balance_status === 'processing' && <span className="text-blue-700">Cobrando saldo {bal}…</span>}
+        {b.balance_status === 'failed' && (
+          <span className="text-red-700" title={b.balance_last_error ?? ''}>Saldo {bal} falhou · tenta de novo em 24h</span>
+        )}
+        {canCharge && (
+          <button
+            type="button"
+            className="self-start text-[11px] font-medium underline disabled:opacity-50"
+            disabled={chargingId === b.id}
+            onClick={() => chargeBalanceNow(b)}
+          >
+            {chargingId === b.id ? 'Cobrando…' : 'Cobrar saldo agora'}
+          </button>
+        )}
+      </div>
+    );
+  }, [chargingId, chargeBalanceNow]);
 
   const [turoSavingId, setTuroSavingId] = useState<string | null>(null);
   const toggleTuroBlocked = useCallback(async (booking: BookingRow) => {
@@ -208,7 +263,6 @@ export default function Bookings() {
     }
   };
 
-  const formatCurrency = (value: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value || 0);
 
   // ===== Column definitions =====
   const columns: ColumnDef[] = useMemo(() => [
@@ -287,6 +341,11 @@ export default function Bookings() {
       ),
     },
     {
+      // Online payments: 20% deposit at checkout, 80% charged automatically 5 days before pickup.
+      id: 'payment', label: 'Pagamento',
+      render: (booking) => <TableCell>{paymentCell(booking)}</TableCell>,
+    },
+    {
       id: 'daily_rate', label: 'Diária', headerClassName: 'text-right',
       render: (booking) => <TableCell className="text-right">{formatCurrency(Number(booking.daily_rate))}</TableCell>,
     },
@@ -323,7 +382,7 @@ export default function Bookings() {
         </TableCell>
       ),
     },
-  ], [downloadingAgreementId, handleDownloadAgreement, turoSavingId, toggleTuroBlocked]);
+  ], [downloadingAgreementId, handleDownloadAgreement, turoSavingId, toggleTuroBlocked, paymentCell]);
 
   const defaultOrder = useMemo(() => columns.map((c) => c.id), [columns]);
   const { columnOrder, columnVisibility, setColumnVisibility, handleDragEnd, reset, saveView, isDirty, visibleOrderedIds } =

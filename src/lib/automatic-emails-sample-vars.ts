@@ -21,6 +21,10 @@ export const SAMPLE_VARS: Record<string, string> = {
   protection_plan: "Standard",
   extras_list: "Unlimited mileage, Prepaid refuel",
   estimated_total: "$312.00",
+  payment_summary: "Paid today: $62.40 (20% deposit). Remaining $249.60 will be charged automatically to the same card on Sun, Sep 20, 2026.",
+  balance_amount: "$249.60",
+  failure_reason: "your card was declined",
+  pay_link: "https://vertexrentalcar.com/booking/pay?id=A1B2C3D4",
 };
 
 export function renderTemplate(template: string, vars: Record<string, string>): string {

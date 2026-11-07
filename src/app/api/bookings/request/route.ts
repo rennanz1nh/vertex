@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getUnavailableCarIds, isValidDateRange } from "@/lib/car-availability";
+import { getEffectivePrice } from "@/lib/pricing";
+import { stripe } from "@/lib/stripe";
+import {
+  tripPriceBreakdown, ageFromDateOfBirth, MINIMUM_DRIVER_AGE, PROTECTION_PLANS, EXTRAS,
+  type ProtectionPlanId, type ExtraId,
+} from "@/lib/trip-pricing";
+import { paymentPlan, toCents } from "@/lib/booking-payment-plan";
+import { getOrCreateStripeCustomer, type PaymentKind } from "@/lib/booking-payments";
 
 type RequestBody = {
   carId: string;
@@ -39,8 +47,10 @@ function extensionFor(file: File): string {
   return (file.type.split("/")[1] || "jpg").toLowerCase();
 }
 
-// Request to Book: creates the booking (pending_payment — no Stripe wired up yet) and,
-// since the storefront has no customer accounts, finds-or-creates the matching client
+// Book & pay: creates the booking as pending_payment with a Stripe PaymentIntent for the
+// deposit (20%, or 100% within 5 days of pickup) and returns its client secret; the page
+// confirms the card and /api/bookings/[id]/finalize (or the webhook) confirms the booking.
+// Since the storefront has no customer accounts, it also finds-or-creates the matching client
 // record by email server-side (service role — the clients table holds PII like driver's
 // license numbers, so it's never opened up to anon reads/writes directly).
 //
@@ -83,7 +93,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Please sign the rental agreement before submitting your request." }, { status: 400 });
   }
 
-  const { carId, pickupDate, pickupTime, returnDate, returnTime, dailyRate, protectionPlan, extras, driver, breakdown, rentalAgreementVersion } = body;
+  const { carId, pickupDate, pickupTime, returnDate, returnTime, protectionPlan, extras, driver, breakdown, rentalAgreementVersion } = body;
   if (!carId || !pickupDate || !returnDate || !driver?.fullName?.trim() || !driver?.email?.trim() || !rentalAgreementVersion) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
@@ -101,6 +111,43 @@ export async function POST(req: NextRequest) {
       { status: 409 },
     );
   }
+
+  // Everything charged is recomputed here from the database; the browser's numbers are only
+  // compared, so a stale or edited page can never set the price.
+  const { data: car } = await supabaseAdmin
+    .from("products")
+    .select("id, name, make, model, year, daily_rate, discounted_daily_rate, min_driver_age, store_visible")
+    .eq("id", carId)
+    .maybeSingle();
+  if (!car || !car.store_visible) {
+    return NextResponse.json({ error: "This car is no longer available." }, { status: 409 });
+  }
+  const { price: dailyRate } = getEffectivePrice(car.daily_rate, car.discounted_daily_rate);
+  if (dailyRate <= 0) {
+    return NextResponse.json({ error: "This car is not available for online booking." }, { status: 409 });
+  }
+  const plan = PROTECTION_PLANS.find((p) => p.id === protectionPlan)?.id ?? null;
+  const extraIds = (Array.isArray(extras) ? extras : []).filter((id): id is ExtraId => EXTRAS.some((e) => e.id === id));
+  if (!driver.dateOfBirth) {
+    return NextResponse.json({ error: "Please enter the driver's date of birth." }, { status: 400 });
+  }
+  const minAge = Math.max(MINIMUM_DRIVER_AGE, Number(car.min_driver_age) || MINIMUM_DRIVER_AGE);
+  if (ageFromDateOfBirth(driver.dateOfBirth) < minAge) {
+    return NextResponse.json({ error: `The driver must be at least ${minAge} years old for this car.` }, { status: 400 });
+  }
+  const priced = tripPriceBreakdown({
+    carId, carName: "", carImage: null, dailyRate, minDriverAge: minAge,
+    pickupDate, pickupTime, returnDate, returnTime,
+    protectionPlan: plan as ProtectionPlanId | null, extras: extraIds,
+    driver: { ...driver, dateOfBirth: driver.dateOfBirth },
+  });
+  if (Math.abs(toCents(priced.total) - toCents(Number(breakdown?.total ?? 0))) > 1) {
+    return NextResponse.json(
+      { error: "The price of this trip has changed. Please go back and review it before paying." },
+      { status: 409 },
+    );
+  }
+  const schedule = paymentPlan(priced.total, pickupDate);
 
   const email = driver.email.trim().toLowerCase();
 
@@ -162,7 +209,11 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const { error: bookingError } = await supabaseAdmin.from("bookings").insert({
+    const stripeCustomerId = await getOrCreateStripeCustomer(email, driver.fullName.trim(), driver.phone);
+
+    // Created unpaid: it holds the dates while the customer pays and is released by the cron
+    // if the payment never completes (see expireUnpaidCheckouts).
+    const { data: booking, error: bookingError } = await supabaseAdmin.from("bookings").insert({
       car_id: carId,
       status: "pending_payment",
       pickup_date: pickupDate,
@@ -170,8 +221,8 @@ export async function POST(req: NextRequest) {
       return_date: returnDate,
       return_time: returnTime,
       daily_rate: dailyRate,
-      protection_plan: protectionPlan,
-      extras,
+      protection_plan: plan ?? "basic",
+      extras: extraIds,
       driver_full_name: driver.fullName,
       driver_date_of_birth: driver.dateOfBirth,
       driver_license_number: driver.licenseNumber,
@@ -182,17 +233,52 @@ export async function POST(req: NextRequest) {
       rental_agreement_signed_at: new Date().toISOString(),
       rental_agreement_signature_path: signaturePath,
       rental_agreement_version: rentalAgreementVersion,
-      trip_subtotal: breakdown.tripSubtotal,
-      protection_total: breakdown.protectionTotal,
-      extras_total: breakdown.extrasTotal,
-      young_driver_fee_total: breakdown.youngDriverFeeTotal,
-      estimated_total: breakdown.total,
+      trip_subtotal: priced.tripSubtotal,
+      protection_total: priced.protectionTotal,
+      extras_total: priced.extrasTotal,
+      young_driver_fee_total: priced.youngDriverFeeTotal,
+      estimated_total: priced.total,
       customer_name: driver.fullName,
       customer_email: email,
-    });
-    if (bookingError) throw bookingError;
+      payment_plan: schedule.plan,
+      deposit_amount: schedule.depositAmount,
+      balance_amount: schedule.balanceAmount,
+      balance_due_date: schedule.balanceDueDate,
+      stripe_customer_id: stripeCustomerId,
+    }).select("id, payment_token").single();
+    if (bookingError || !booking) throw bookingError ?? new Error("booking insert returned nothing");
 
-    return NextResponse.json({ ok: true });
+    const carName = car.name || [car.year, car.make, car.model].filter(Boolean).join(" ") || "Vehicle";
+    let clientSecret: string | null;
+    try {
+      const pi = await stripe.paymentIntents.create(
+        {
+          amount: toCents(schedule.depositAmount),
+          currency: "usd",
+          customer: stripeCustomerId,
+          // Saved for the automatic 80% charge 5 days before pickup.
+          setup_future_usage: "off_session",
+          payment_method_types: ["card"],
+          description: `${schedule.plan === "full" ? "Full payment" : "20% deposit"} · ${carName} · ${pickupDate} → ${returnDate}`,
+          receipt_email: email,
+          metadata: { booking_id: booking.id, kind: (schedule.plan === "full" ? "full" : "deposit") satisfies PaymentKind },
+        },
+        { idempotencyKey: `deposit-${booking.id}` },
+      );
+      clientSecret = pi.client_secret;
+      await supabaseAdmin.from("bookings").update({ deposit_payment_intent_id: pi.id }).eq("id", booking.id);
+    } catch (e) {
+      await supabaseAdmin.from("bookings").update({ status: "cancelled", notes: "Falha ao iniciar o pagamento." }).eq("id", booking.id);
+      throw e;
+    }
+
+    return NextResponse.json({
+      ok: true,
+      bookingId: booking.id,
+      token: booking.payment_token,
+      clientSecret,
+      schedule,
+    });
   } catch (e) {
     console.error("Failed to create booking request:", e);
     return NextResponse.json({ error: "Could not submit your request. Please try again." }, { status: 502 });

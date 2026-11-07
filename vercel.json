@@ -51,6 +51,10 @@
     {
       "path": "/api/cron/social-media-inbox-watch",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/booking-payments",
+      "schedule": "17 * * * *"
     }
   ]
 }

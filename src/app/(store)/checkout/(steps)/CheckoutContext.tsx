@@ -14,6 +14,7 @@ import {
   type DriverInfo,
 } from "@/lib/tripDraft";
 import { RENTAL_AGREEMENT_VERSION } from "@/lib/rental-agreement";
+import type { PaymentPlan } from "@/lib/booking-payment-plan";
 import { compressImageFile } from "@/lib/compress-image";
 
 const emptyDriver: DriverInfo = {
@@ -35,6 +36,14 @@ export type DriverErrors = Partial<Record<keyof DriverInfo, string>> & { license
 
 type Breakdown = ReturnType<typeof tripPriceBreakdown>;
 
+/** Returned by /api/bookings/request: the unpaid booking and its deposit PaymentIntent. */
+export type PendingPayment = {
+  bookingId: string;
+  token: string;
+  clientSecret: string;
+  schedule: PaymentPlan;
+};
+
 type CheckoutContextValue = {
   loaded: boolean;
   draft: TripDraft | null;
@@ -50,10 +59,14 @@ type CheckoutContextValue = {
   breakdown: Breakdown | null;
   age: number | null;
   youngDriverFee: number;
+  /** Set once the agreement is signed and the booking is waiting for the card. */
+  payment: PendingPayment | null;
+  /** True once the deposit (or full amount) is paid and the booking confirmed. */
   requested: boolean;
   submitting: boolean;
   submitError: string | null;
   submitBooking: (signatureDataUrl: string) => Promise<boolean>;
+  completePayment: () => Promise<void>;
 };
 
 const CheckoutContext = createContext<CheckoutContextValue | null>(null);
@@ -73,6 +86,7 @@ export function CheckoutProvider({ children }: { children: ReactNode }) {
   const [licenseBack, setLicenseBack] = useState<File | null>(null);
   const [errors, setErrors] = useState<DriverErrors>({});
   const [requested, setRequested] = useState(false);
+  const [payment, setPayment] = useState<PendingPayment | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -202,8 +216,8 @@ export function CheckoutProvider({ children }: { children: ReactNode }) {
         }
         throw new Error(await res.text());
       }
-      setRequested(true);
-      clearTripDraft();
+      const data = (await res.json()) as PendingPayment & { ok: boolean };
+      setPayment({ bookingId: data.bookingId, token: data.token, clientSecret: data.clientSecret, schedule: data.schedule });
       return true;
     } catch (e) {
       console.error("Failed to submit booking request:", e);
@@ -217,6 +231,19 @@ export function CheckoutProvider({ children }: { children: ReactNode }) {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  // After the card is confirmed: let the server confirm the booking right away (the Stripe
+  // webhook would also do it), then show the confirmation.
+  async function completePayment() {
+    if (!payment) return;
+    await fetch(`/api/bookings/${payment.bookingId}/finalize`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: payment.token }),
+    }).catch(() => null);
+    setRequested(true);
+    clearTripDraft();
   }
 
   return (
@@ -236,10 +263,12 @@ export function CheckoutProvider({ children }: { children: ReactNode }) {
         breakdown,
         age,
         youngDriverFee,
+        payment,
         requested,
         submitting,
         submitError,
         submitBooking,
+        completePayment,
       }}
     >
       {children}

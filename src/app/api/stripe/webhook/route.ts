@@ -3,6 +3,7 @@ import type Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
 import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
 import { sendAutomaticEmail } from "@/lib/automatic-emails";
+import { applyDepositSucceeded, markBalancePaid } from "@/lib/booking-payments";
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
@@ -23,6 +24,22 @@ export async function POST(req: NextRequest) {
     } catch (err) {
       console.error("Failed to fulfill order for session", session.id, err);
       return NextResponse.json({ error: "Order fulfillment failed" }, { status: 500 });
+    }
+  }
+
+  // Car bookings (PaymentIntents tagged with booking_id): deposit/full payment confirms the
+  // booking; a balance payment marks the 80% as paid. Shop orders go through Checkout
+  // Sessions above and carry no booking_id, so they are ignored here.
+  if (event.type === "payment_intent.succeeded") {
+    const pi = event.data.object as Stripe.PaymentIntent;
+    if (pi.metadata?.booking_id) {
+      try {
+        if (pi.metadata.kind === "balance") await markBalancePaid(pi);
+        else await applyDepositSucceeded(pi);
+      } catch (err) {
+        console.error("Failed to apply booking payment", pi.id, err);
+        return NextResponse.json({ error: "Booking payment update failed" }, { status: 500 });
+      }
     }
   }
 

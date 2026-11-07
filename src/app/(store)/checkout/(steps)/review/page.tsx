@@ -1,5 +1,6 @@
 "use client";
 
+import { formatLongDate, paymentPlan } from "@/lib/booking-payment-plan";
 import { useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -17,6 +18,7 @@ export default function CheckoutReviewPage() {
   }, [loaded, draft, driverStepComplete, router]);
 
   if (!loaded || !draft || !driverStepComplete || !breakdown) return null;
+  const schedule = paymentPlan(breakdown.total, draft.pickupDate);
 
   return (
     <div className="max-w-[800px] mx-auto px-4 py-8">
@@ -116,14 +118,18 @@ export default function CheckoutReviewPage() {
             <span>{formatPrice(breakdown.youngDriverFeeTotal)}</span>
           </div>
         )}
-        <div className="flex justify-between text-xs text-gray-400 mb-4 mt-2">
-          <span>Taxes &amp; fees</span>
-          <span>Not calculated (no checkout yet)</span>
-        </div>
-        <div className="border-t border-gray-200 pt-4 flex justify-between text-sm font-semibold text-gray-900">
-          <span>Estimated total</span>
+        <div className="border-t border-gray-200 pt-4 mt-2 flex justify-between text-sm font-semibold text-gray-900">
+          <span>Trip total</span>
           <span>{formatPrice(breakdown.total)}</span>
         </div>
+        {schedule.plan === "full" ? (
+          <p className="text-xs text-gray-500 mt-2">Pick-up is less than 5 days away, so the full amount is charged when you book.</p>
+        ) : (
+          <div className="text-xs text-gray-600 mt-2 space-y-1">
+            <div className="flex justify-between"><span>Due when you book (20%)</span><span>{formatPrice(schedule.depositAmount)}</span></div>
+            <div className="flex justify-between"><span>Charged automatically on {formatLongDate(schedule.balanceDueDate!)}</span><span>{formatPrice(schedule.balanceAmount)}</span></div>
+          </div>
+        )}
       </div>
 
       <div className="flex justify-between items-center pt-6 border-t border-gray-100">
