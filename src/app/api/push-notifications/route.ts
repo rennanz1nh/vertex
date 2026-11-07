@@ -10,7 +10,8 @@ export async function GET(request: NextRequest) {
   if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: auth.status });
 
   const { data, error } = await supabaseAdmin.from("push_preferences").select("trigger_key, enabled, title, message, tags");
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // If the table is not there yet (migration pending), still show every alert with its defaults.
+  if (error) console.error("push_preferences read failed; showing catalog defaults", error.message);
   const saved = new Map((data ?? []).map((r) => [r.trigger_key as string, r]));
 
   const notifications = PUSH_CATALOG.map((e) => {
