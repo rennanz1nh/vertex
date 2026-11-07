@@ -1,6 +1,7 @@
 // Shared Turo trip handling: parse the two host feeds, link each trip to one of our
 // cars, and upsert. Used by the browser-driven sync and the scheduled server pull.
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { notifyPush } from "@/lib/notify";
 
 export type RawTrip = Record<string, unknown>;
 
@@ -169,7 +170,49 @@ export async function linkTrips(supabase: SupabaseClient, rows: TripRow[]): Prom
   return { unlinkedVehicleIds: [...unlinked] };
 }
 
+function tripDates(row: TripRow): string {
+  const tz = row.location_timezone || "America/New_York";
+  const fmt = (iso: string | null) =>
+    iso ? new Intl.DateTimeFormat("en-US", { timeZone: tz, month: "short", day: "numeric" }).format(new Date(iso)) : "?";
+  return `${fmt(row.pickup_date)} → ${fmt(row.return_date)}`;
+}
+
+const isCancelled = (status: string | null | undefined) => /cancel/i.test(status ?? "");
+
+/**
+ * Compares the incoming trips with what is stored and pushes "new trip" / "trip cancelled".
+ * Past trips are ignored, and a first big import sends one summary instead of a flood.
+ */
+async function announceTripChanges(supabase: SupabaseClient, rows: TripRow[]): Promise<void> {
+  const ids = rows.map((r) => r.turo_trip_id);
+  const known = new Map<string, string>();
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data } = await supabase.from("turo_trips").select("turo_trip_id, status").in("turo_trip_id", ids.slice(i, i + 200));
+    for (const r of (data ?? []) as { turo_trip_id: string; status: string }[]) known.set(r.turo_trip_id, r.status);
+  }
+  const now = Date.now();
+  const label = (r: TripRow) => [r.vehicle_year, r.vehicle_make, r.vehicle_model].filter(Boolean).join(" ") || "Carro";
+  const upcoming = (r: TripRow) => !!r.return_date && new Date(r.return_date).getTime() > now;
+
+  const fresh = rows.filter((r) => !known.has(r.turo_trip_id) && !isCancelled(r.status) && upcoming(r));
+  const cancelled = rows.filter((r) => known.has(r.turo_trip_id) && !isCancelled(known.get(r.turo_trip_id)) && isCancelled(r.status) && upcoming(r));
+
+  if (fresh.length > 5) {
+    await notifyPush("turo_new_trip", { car: `${fresh.length} viagens novas`, guest: "veja no admin", dates: "Turo → Reservas" });
+  } else {
+    for (const r of fresh) await notifyPush("turo_new_trip", { car: label(r), guest: r.guest_name || "Hóspede", dates: tripDates(r) });
+  }
+  for (const r of cancelled.slice(0, 5)) {
+    await notifyPush("turo_trip_cancelled", { car: label(r), guest: r.guest_name || "Hóspede", dates: tripDates(r) });
+  }
+}
+
 export async function upsertTrips(supabase: SupabaseClient, rows: TripRow[]): Promise<{ synced: number; errors: string[] }> {
+  try {
+    await announceTripChanges(supabase, rows);
+  } catch (e) {
+    console.error("announceTripChanges failed", e);
+  }
   let synced = 0;
   const errors: string[] = [];
   for (const row of rows) {

@@ -7,8 +7,9 @@ import {
   tripPriceBreakdown, ageFromDateOfBirth, MINIMUM_DRIVER_AGE, PROTECTION_PLANS, EXTRAS,
   type ProtectionPlanId, type ExtraId,
 } from "@/lib/trip-pricing";
-import { paymentPlan, toCents } from "@/lib/booking-payment-plan";
+import { formatUsd, paymentPlan, shortRange, toCents } from "@/lib/booking-payment-plan";
 import { getOrCreateStripeCustomer, type PaymentKind } from "@/lib/booking-payments";
+import { notifyPush } from "@/lib/notify";
 
 type RequestBody = {
   carId: string;
@@ -272,6 +273,13 @@ export async function POST(req: NextRequest) {
       await supabaseAdmin.from("bookings").update({ status: "cancelled", notes: "Falha ao iniciar o pagamento." }).eq("id", booking.id);
       throw e;
     }
+
+    await notifyPush("checkout_started", {
+      car: carName,
+      customer: driver.fullName.trim(),
+      dates: shortRange(pickupDate, returnDate),
+      amount: formatUsd(priced.total),
+    });
 
     return NextResponse.json({
       ok: true,

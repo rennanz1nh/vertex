@@ -78,3 +78,14 @@ export function paymentSummary(p: Pick<PaymentPlan, "plan" | "depositAmount" | "
   }
   return `Paid today: ${formatUsd(p.depositAmount)} (20% deposit). The remaining ${formatUsd(p.balanceAmount)} will be charged automatically to the same card on ${formatLongDate(p.balanceDueDate)}.`;
 }
+
+/** "Dec 20" for a YYYY-MM-DD date. */
+export function shortDate(isoDate: string): string {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+/** "Dec 20 → Dec 23". */
+export function shortRange(pickupDate: string, returnDate: string): string {
+  return `${shortDate(pickupDate)} → ${shortDate(returnDate)}`;
+}

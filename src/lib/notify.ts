@@ -5,6 +5,7 @@ import type { PriceUpdateSummary as TikTokShopPriceUpdateSummary } from "@/lib/t
 import type { FeedSyncSummary as GoogleShoppingSyncSummary } from "@/lib/google-shopping-feed";
 import { getSiteSettings } from "@/lib/site-settings";
 import { resolveSiteUrl } from "@/lib/seo";
+import { PUSH_CATALOG_BY_KEY } from "@/lib/push-catalog";
 
 export type PushTriggerKey =
   | "ebay_price_success"
@@ -21,7 +22,14 @@ export type PushTriggerKey =
   | "daily_report"
   | "ebay_offers_eligible"
   | "new_order"
-  | "new_booking";
+  | "new_booking"
+  | "booking_checkout_abandoned"
+  | "booking_balance_paid"
+  | "booking_payment_failed"
+  | "pickup_tomorrow"
+  | "turo_new_trip"
+  | "turo_trip_cancelled"
+  | "turo_sync_stale";
 
 type MasterSettings = { enabled: boolean; ntfy_topic: string | null };
 
@@ -46,22 +54,34 @@ async function getMasterSettings(): Promise<MasterSettings> {
 
 type PushTemplate = { enabled: boolean; title: string; message: string; tags: string[] };
 
-// Used when a trigger has no row in push_notifications yet, so a newly added alert works
-// before (or without) its database row. A row, once saved in Settings, always wins.
-const BUILT_IN_TEMPLATES: Partial<Record<PushTriggerKey, PushTemplate>> = {
-  new_booking: { enabled: true, title: "Nova reserva: {car}", message: "{customer} · {dates} · {paid}", tags: ["red_car", "tada"] },
-};
-
+// Vertex triggers (src/lib/push-catalog.ts) read their on/off and text from push_preferences,
+// falling back to the catalog defaults, so every alert works before anyone opens Settings.
+// Older triggers outside the catalog keep using push_notifications.
 async function getPushTemplate(triggerKey: PushTriggerKey): Promise<PushTemplate | null> {
-  const builtIn = BUILT_IN_TEMPLATES[triggerKey] ?? null;
+  const entry = PUSH_CATALOG_BY_KEY.get(triggerKey);
+  const supabase = getSupabase();
+  if (entry) {
+    const defaults: PushTemplate = { enabled: entry.defaultEnabled, title: entry.title, message: entry.message, tags: entry.tags };
+    try {
+      const { data } = await supabase.from("push_preferences").select("enabled, title, message, tags").eq("trigger_key", triggerKey).maybeSingle();
+      if (!data) return defaults;
+      return {
+        enabled: !!data.enabled,
+        title: data.title || entry.title,
+        message: data.message || entry.message,
+        tags: data.tags ? String(data.tags).split(",").map((t) => t.trim()).filter(Boolean) : entry.tags,
+      };
+    } catch {
+      return defaults;
+    }
+  }
   try {
-    const supabase = getSupabase();
     const { data } = await supabase
       .from("push_notifications")
       .select("enabled, title, message, tags")
       .eq("trigger_key", triggerKey)
       .maybeSingle();
-    if (!data) return builtIn;
+    if (!data) return null;
     return {
       enabled: data.enabled,
       title: data.title,
@@ -69,7 +89,7 @@ async function getPushTemplate(triggerKey: PushTriggerKey): Promise<PushTemplate
       tags: (data.tags ?? "").split(",").map((t: string) => t.trim()).filter(Boolean),
     };
   } catch {
-    return builtIn;
+    return null;
   }
 }
 
@@ -139,6 +159,13 @@ const DEFAULT_DESTINATIONS: Partial<Record<PushTriggerKey, string>> = {
   ebay_offers_eligible: "/admin/automations/ebay/send-offer",
   new_order: "/admin",
   new_booking: "/admin/bookings",
+  booking_checkout_abandoned: "/admin/bookings",
+  booking_balance_paid: "/admin/bookings",
+  booking_payment_failed: "/admin/bookings",
+  pickup_tomorrow: "/admin/calendar",
+  turo_new_trip: "/admin/turo?tab=reservations",
+  turo_trip_cancelled: "/admin/turo?tab=reservations",
+  turo_sync_stale: "/admin/turo?tab=sync",
 };
 
 async function adminUrl(path: string): Promise<string> {
@@ -245,6 +272,15 @@ export async function notifyGoogleShoppingSyncError(
   mode: "test" | "full" | "select"
 ) {
   await sendTriggeredPush("google_shopping_error", { trigger: triggerLabel(trigger), mode: modeLabel(mode), error }, { priority: "high" });
+}
+
+/** Generic sender for the Vertex triggers (see src/lib/push-catalog.ts for vars). Never throws. */
+export async function notifyPush(triggerKey: PushTriggerKey, vars: Record<string, string | number>, opts?: { priority?: "high" }) {
+  try {
+    await sendTriggeredPush(triggerKey, vars, opts);
+  } catch (e) {
+    console.error(`notifyPush(${triggerKey}) failed`, e);
+  }
 }
 
 /** Push on every booking paid on the site (see src/lib/booking-alerts.ts). */

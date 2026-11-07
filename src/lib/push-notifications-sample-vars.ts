@@ -1,7 +1,8 @@
 import type { PushTriggerKey } from "@/lib/notify";
+import { PUSH_CATALOG } from "@/lib/push-catalog";
 
 /** Sample values used to render each push template's {placeholder}s for the "Ver exemplo" preview and "Enviar teste" button. */
-export const PUSH_SAMPLE_VARS: Record<PushTriggerKey, Record<string, string | number>> = {
+const LEGACY_SAMPLE_VARS: Partial<Record<PushTriggerKey, Record<string, string | number>>> = {
   ebay_price_success: { trigger: "manual", mode: "todos", updated: 98, total: 100 },
   ebay_price_error: { trigger: "automática", mode: "todos", error: "eBay token not found" },
   amazon_price_success: { trigger: "manual", mode: "todos", updated: 42, total: 45 },
@@ -16,5 +17,10 @@ export const PUSH_SAMPLE_VARS: Record<PushTriggerKey, Record<string, string | nu
   daily_report: { revenue: "$1,240.00", sessions: 312 },
   ebay_offers_eligible: { count: 3 },
   new_order: { canal: "eBay", total: "$49.90" },
-  new_booking: { car: "2020 Kia Rio", customer: "Jane Doe", dates: "Dec 20 → Dec 23", paid: "$62.40 pagos (20%)", total: "$312.00" },
 };
+
+// Vertex triggers take their samples from the catalog.
+export const PUSH_SAMPLE_VARS = {
+  ...LEGACY_SAMPLE_VARS,
+  ...Object.fromEntries(PUSH_CATALOG.map((e) => [e.key, e.sample])),
+} as Record<PushTriggerKey, Record<string, string | number>>;

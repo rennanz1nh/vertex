@@ -8,7 +8,7 @@ import { htmlToPlainText } from "@/lib/automatic-emails";
 import { notifyNewBooking } from "@/lib/notify";
 import { MASTER_ADMIN_EMAIL } from "@/lib/master-admin";
 import { PROTECTION_PLANS, EXTRAS, tripDays, type ExtraId, type ProtectionPlanId } from "@/lib/trip-pricing";
-import { formatLongDate, formatUsd } from "@/lib/booking-payment-plan";
+import { formatLongDate, formatUsd, shortRange } from "@/lib/booking-payment-plan";
 import { carNameFor, siteUrl, type BookingRecord } from "@/lib/booking-emails";
 
 export type AlertSettings = {
@@ -58,11 +58,6 @@ type AlertContent = {
   push: { car: string; customer: string; dates: string; paid: string; total: string };
 };
 
-function shortDate(iso: string): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
 function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
@@ -73,7 +68,7 @@ export function buildAlertContent(b: BookingRecord, carName: string, customerPho
   const paid = Number(b.deposit_amount ?? total);
   const isFull = b.payment_plan !== "deposit_balance";
   const confirmation = b.id.slice(0, 8).toUpperCase();
-  const dates = `${shortDate(b.pickup_date)} → ${shortDate(b.return_date)}`;
+  const dates = shortRange(b.pickup_date, b.return_date);
   const paidLabel = isFull ? `${formatUsd(paid)} pago (100%)` : `${formatUsd(paid)} pago (20%)`;
   const plan = PROTECTION_PLANS.find((p) => p.id === (b.protection_plan as ProtectionPlanId))?.name ?? String(b.protection_plan ?? "—");
   const extras = (Array.isArray(b.extras) ? (b.extras as ExtraId[]) : []).map((id) => EXTRAS.find((e) => e.id === id)?.name).filter(Boolean).join(", ") || "Nenhum";

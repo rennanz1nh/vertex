@@ -42,6 +42,8 @@ vi.mock("@/lib/booking-emails", () => ({
 }));
 
 vi.mock("@/lib/booking-alerts", () => ({ sendBookingAlerts: vi.fn() }));
+const pushes: unknown[][] = [];
+vi.mock("@/lib/notify", () => ({ notifyPush: async (...a: unknown[]) => { pushes.push(a); } }));
 
 import { chargeBalance, chargeDueBalances } from "./booking-payments";
 
@@ -61,6 +63,7 @@ beforeEach(() => {
   createPI.mockReset();
   retrievePI.mockReset();
   sentFailed.mockReset();
+  pushes.length = 0;
 });
 
 describe("chargeBalance", () => {
@@ -72,6 +75,7 @@ describe("chargeBalance", () => {
     expect(params).toMatchObject({ amount: 24960, customer: "cus_1", payment_method: "pm_1", off_session: true, confirm: true });
     expect(opts).toEqual({ idempotencyKey: "balance-b1-1" });
     expect(db.bookings[0]).toMatchObject({ balance_status: "paid", balance_payment_intent_id: "pi_1" });
+    expect(pushes[0]?.[0]).toBe("booking_balance_paid");
   });
 
   it("on a decline: marks failed, notifies the admin and emails the customer", async () => {
@@ -81,6 +85,7 @@ describe("chargeBalance", () => {
     expect(db.bookings[0]).toMatchObject({ balance_status: "failed", balance_payment_intent_id: "pi_x", balance_attempts: 1 });
     expect(db.admin_notifications[0]).toMatchObject({ type: "payment_failed" });
     expect(sentFailed).toHaveBeenCalledWith(expect.objectContaining({ id: "b1" }), "your card was declined");
+    expect(pushes[0]).toEqual(["booking_payment_failed", expect.objectContaining({ reason: "your card was declined" }), { priority: "high" }]);
   });
 
   it("does not charge before the due date unless forced", async () => {
