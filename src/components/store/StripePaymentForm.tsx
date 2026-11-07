@@ -28,18 +28,28 @@ export default function StripePaymentForm({ clientSecret, payLabel, returnUrl, c
   const [ready, setReady] = useState(false);
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     let destroy: (() => void) | undefined;
     getStripe().then((s) => {
-      if (cancelled || !s || !mountRef.current) return;
+      if (cancelled || !mountRef.current) return;
+      if (!s) {
+        setLoadFailed(true);
+        return;
+      }
       const els = s.elements({
         clientSecret,
         appearance: { theme: "stripe", variables: { colorPrimary: "#111111", borderRadius: "2px", fontSizeBase: "14px" } },
       });
       const el = els.create("payment", { layout: "tabs" });
       el.on("ready", () => setReady(true));
+      // e.g. a wrong publishable key or a PaymentIntent from another Stripe account/mode.
+      el.on("loaderror", (event) => {
+        console.error("Stripe Payment Element failed to load", event.error);
+        setLoadFailed(true);
+      });
       el.mount(mountRef.current);
       destroy = () => el.destroy();
       setStripe(s);
@@ -76,7 +86,12 @@ export default function StripePaymentForm({ clientSecret, payLabel, returnUrl, c
   return (
     <div className="space-y-4">
       <div ref={mountRef} className="min-h-[120px]" />
-      {!ready && (
+      {loadFailed && (
+        <p className="text-sm text-red-600">
+          We couldn&apos;t load the secure payment form. Your card has not been charged. Please try again in a few minutes or contact us.
+        </p>
+      )}
+      {!ready && !loadFailed && (
         <p className="text-xs text-gray-500 flex items-center gap-2">
           <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading secure payment form&hellip;
         </p>
