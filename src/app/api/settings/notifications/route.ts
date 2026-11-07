@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { requireAdmin } from "@/lib/admin-auth";
+import { parseEmails, parsePhones } from "@/lib/booking-alerts";
 
 function getSupabase() {
   return createClient(
@@ -42,6 +43,12 @@ export async function PUT(request: NextRequest) {
 
   const body = await request.json();
   const { enabled, ntfy_topic } = body;
+  // Booking alert fields are optional so older callers (master switch form) keep working.
+  const bookingAlerts: Record<string, unknown> = {};
+  if ("booking_alert_emails" in body) bookingAlerts.booking_alert_emails = parseEmails(body.booking_alert_emails).join(", ") || null;
+  if ("booking_alert_phones" in body) bookingAlerts.booking_alert_phones = parsePhones(body.booking_alert_phones).map((p) => `+${p}`).join(", ") || null;
+  if ("booking_alert_sms_enabled" in body) bookingAlerts.booking_alert_sms_enabled = !!body.booking_alert_sms_enabled;
+  if ("booking_alert_sms_sender" in body) bookingAlerts.booking_alert_sms_sender = String(body.booking_alert_sms_sender ?? "").trim().slice(0, 15) || null;
 
   const supabase = getSupabase();
 
@@ -53,8 +60,9 @@ export async function PUT(request: NextRequest) {
 
   const normalizedTopic = typeof ntfy_topic === "string" ? normalizeNtfyTopic(ntfy_topic) : "";
   const update = {
-    enabled: !!enabled,
-    ntfy_topic: normalizedTopic !== "" ? normalizedTopic : null,
+    ...("enabled" in body ? { enabled: !!enabled } : {}),
+    ...("ntfy_topic" in body ? { ntfy_topic: normalizedTopic !== "" ? normalizedTopic : null } : {}),
+    ...bookingAlerts,
     updated_at: new Date().toISOString(),
   };
 

@@ -16,4 +16,5 @@ export const PUSH_SAMPLE_VARS: Record<PushTriggerKey, Record<string, string | nu
   daily_report: { revenue: "$1,240.00", sessions: 312 },
   ebay_offers_eligible: { count: 3 },
   new_order: { canal: "eBay", total: "$49.90" },
+  new_booking: { car: "2020 Kia Rio", customer: "Jane Doe", dates: "Dec 20 → Dec 23", paid: "$62.40 pagos (20%)", total: "$312.00" },
 };

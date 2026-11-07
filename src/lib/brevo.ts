@@ -206,6 +206,25 @@ export function sendTransactionalEmail(input: SendTransactionalEmailInput) {
   });
 }
 
+// ---- Transactional SMS ----
+
+/**
+ * One SMS through Brevo. `recipient` is digits with country code (e.g. 14075551234).
+ * Needs SMS credits on the Brevo account and, for US numbers, an approved toll-free
+ * number (Brevo: SMS > Senders), otherwise Brevo rejects the send.
+ */
+export function sendTransactionalSms(input: { sender: string; recipient: string; content: string }) {
+  return brevoFetch("/transactionalSMS/sms", {
+    method: "POST",
+    body: JSON.stringify({
+      type: "transactional",
+      sender: input.sender,
+      recipient: input.recipient,
+      content: input.content,
+    }),
+  });
+}
+
 // ---- Statistics ----
 
 export function getAggregatedStats(params: { startDate?: string; endDate?: string } = {}) {

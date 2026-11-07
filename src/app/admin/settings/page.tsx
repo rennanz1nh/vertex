@@ -12,6 +12,7 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/
 import { Badge } from "@/components/ui/badge";
 import { Settings as SettingsIcon, Bell, Save, Send, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { SettingsTabs } from "@/components/admin/SettingsTabs";
+import { BookingAlertsCard } from "@/components/admin/BookingAlertsCard";
 import { authedFetch } from "@/lib/admin-fetch";
 import type { PushTriggerKey } from "@/lib/notify";
 import { PUSH_SAMPLE_VARS } from "@/lib/push-notifications-sample-vars";
@@ -99,6 +100,11 @@ const LABELS: Record<PushTriggerKey, { title: string; description: string; vars:
     description: "Enviado assim que qualquer pedido novo é registrado (eBay, Amazon, TikTok Shop, site ou manual), direto do banco de dados.",
     vars: ["canal", "total"],
   },
+  new_booking: {
+    title: "Nova reserva no site",
+    description: "Enviado assim que um cliente paga uma reserva no site (sinal de 20% ou total). Chega junto com o e-mail e o SMS de \"Avisos de nova reserva\".",
+    vars: ["car", "customer", "dates", "paid", "total"],
+  },
 };
 
 const ORDER: PushTriggerKey[] = [
@@ -116,6 +122,7 @@ const ORDER: PushTriggerKey[] = [
   "daily_report",
   "ebay_offers_eligible",
   "new_order",
+  "new_booking",
 ];
 
 function renderPreview(template: string, vars: Record<string, string | number>) {
@@ -313,6 +320,8 @@ export default function SettingsPage() {
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
+
+      <BookingAlertsCard />
 
       <Card className="max-w-3xl">
         <CardHeader>

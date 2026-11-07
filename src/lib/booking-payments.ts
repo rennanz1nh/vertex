@@ -8,6 +8,7 @@ import { stripe } from "@/lib/stripe";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { businessToday, formatUsd, toCents } from "@/lib/booking-payment-plan";
 import { sendBalanceFailedEmail, sendBookingConfirmedEmail, carNameFor, type BookingRecord } from "@/lib/booking-emails";
+import { sendBookingAlerts } from "@/lib/booking-alerts";
 
 /** Unpaid checkout attempts hold the car's dates this long before being released. */
 export const PENDING_DEPOSIT_TTL_MINUTES = 30;
@@ -60,8 +61,9 @@ export async function applyDepositSucceeded(pi: Stripe.PaymentIntent): Promise<B
     .maybeSingle();
 
   if (updated) {
-    // Only the call that actually flipped the row sends the email.
-    await sendBookingConfirmedEmail(updated as BookingRecord);
+    // Only the call that actually flipped the row sends the emails: the customer's
+    // confirmation and the business alert (email + SMS + push).
+    await Promise.all([sendBookingConfirmedEmail(updated as BookingRecord), sendBookingAlerts(updated as BookingRecord)]);
     return updated as BookingRecord;
   }
   return loadBooking(current.id);

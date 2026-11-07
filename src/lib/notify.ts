@@ -20,7 +20,8 @@ export type PushTriggerKey =
   | "checkout_started"
   | "daily_report"
   | "ebay_offers_eligible"
-  | "new_order";
+  | "new_order"
+  | "new_booking";
 
 type MasterSettings = { enabled: boolean; ntfy_topic: string | null };
 
@@ -130,6 +131,7 @@ const DEFAULT_DESTINATIONS: Partial<Record<PushTriggerKey, string>> = {
   daily_report: "/admin/reports/daily",
   ebay_offers_eligible: "/admin/automations/ebay/send-offer",
   new_order: "/admin",
+  new_booking: "/admin/bookings",
 };
 
 async function adminUrl(path: string): Promise<string> {
@@ -236,6 +238,11 @@ export async function notifyGoogleShoppingSyncError(
   mode: "test" | "full" | "select"
 ) {
   await sendTriggeredPush("google_shopping_error", { trigger: triggerLabel(trigger), mode: modeLabel(mode), error }, { priority: "high" });
+}
+
+/** Push on every booking paid on the site (see src/lib/booking-alerts.ts). */
+export async function notifyNewBooking(vars: { car: string; customer: string; dates: string; paid: string; total: string }) {
+  await sendTriggeredPush("new_booking", vars, { priority: "high" });
 }
 
 /**

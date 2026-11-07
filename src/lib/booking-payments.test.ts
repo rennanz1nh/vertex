@@ -41,6 +41,8 @@ vi.mock("@/lib/booking-emails", () => ({
   sendBalanceFailedEmail: (...a: unknown[]) => sentFailed(...a),
 }));
 
+vi.mock("@/lib/booking-alerts", () => ({ sendBookingAlerts: vi.fn() }));
+
 import { chargeBalance, chargeDueBalances } from "./booking-payments";
 
 function booking(over: Row = {}): Row {
