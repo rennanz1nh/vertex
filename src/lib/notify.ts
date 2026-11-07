@@ -46,7 +46,14 @@ async function getMasterSettings(): Promise<MasterSettings> {
 
 type PushTemplate = { enabled: boolean; title: string; message: string; tags: string[] };
 
+// Used when a trigger has no row in push_notifications yet, so a newly added alert works
+// before (or without) its database row. A row, once saved in Settings, always wins.
+const BUILT_IN_TEMPLATES: Partial<Record<PushTriggerKey, PushTemplate>> = {
+  new_booking: { enabled: true, title: "Nova reserva: {car}", message: "{customer} · {dates} · {paid}", tags: ["red_car", "tada"] },
+};
+
 async function getPushTemplate(triggerKey: PushTriggerKey): Promise<PushTemplate | null> {
+  const builtIn = BUILT_IN_TEMPLATES[triggerKey] ?? null;
   try {
     const supabase = getSupabase();
     const { data } = await supabase
@@ -54,7 +61,7 @@ async function getPushTemplate(triggerKey: PushTriggerKey): Promise<PushTemplate
       .select("enabled, title, message, tags")
       .eq("trigger_key", triggerKey)
       .maybeSingle();
-    if (!data) return null;
+    if (!data) return builtIn;
     return {
       enabled: data.enabled,
       title: data.title,
@@ -62,7 +69,7 @@ async function getPushTemplate(triggerKey: PushTriggerKey): Promise<PushTemplate
       tags: (data.tags ?? "").split(",").map((t: string) => t.trim()).filter(Boolean),
     };
   } catch {
-    return null;
+    return builtIn;
   }
 }
 

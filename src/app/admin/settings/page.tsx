@@ -291,7 +291,11 @@ export default function SettingsPage() {
     setNotifications((prev) => (prev ? prev.map((n) => (n.trigger_key === updated.trigger_key ? updated : n)) : prev));
   }
 
-  const sorted = notifications ? [...notifications].sort((a, b) => ORDER.indexOf(a.trigger_key) - ORDER.indexOf(b.trigger_key)) : null;
+  // Skip trigger keys this build doesn't know (e.g. a row added in the database by a newer
+  // release): rendering them without a label would crash the whole Settings page.
+  const sorted = notifications
+    ? notifications.filter((n) => n.trigger_key in LABELS).sort((a, b) => ORDER.indexOf(a.trigger_key) - ORDER.indexOf(b.trigger_key))
+    : null;
 
   if (loading) {
     return (
