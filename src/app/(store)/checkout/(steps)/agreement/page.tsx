@@ -11,7 +11,7 @@ import { printRentalAgreementTerms } from "@/lib/rental-agreement-print";
 import { useCheckout } from "../CheckoutContext";
 import StepProgress from "@/components/store/StepProgress";
 import StripePaymentForm from "@/components/store/StripePaymentForm";
-import { depositAvailable, formatLongDate, formatUsd, paymentPlan, paymentSummary } from "@/lib/booking-payment-plan";
+import { DAMAGE_HOLD_AMOUNT, DAMAGE_HOLD_RELEASE_DAYS, depositAvailable, formatLongDate, formatUsd, paymentPlan, paymentSummary } from "@/lib/booking-payment-plan";
 
 export default function CheckoutAgreementPage() {
   const router = useRouter();
@@ -33,7 +33,7 @@ export default function CheckoutAgreementPage() {
         <p className="text-sm text-gray-600 max-w-md mx-auto mb-2">
           We&apos;ve emailed your confirmation{payment ? ` (#${payment.bookingId.slice(0, 8).toUpperCase()})` : ""}.
         </p>
-        {payment && <p className="text-sm text-gray-600 max-w-md mx-auto mb-8">{paymentSummary(payment.schedule)}</p>}
+        {payment && <p className="text-sm text-gray-600 max-w-md mx-auto mb-8">{paymentSummary(payment.schedule, payment.damageHold)}</p>}
         <Link
           href="/products"
           className="inline-block bg-black text-white px-8 py-3 text-sm font-medium hover:bg-gray-800 transition-colors"
@@ -70,18 +70,27 @@ export default function CheckoutAgreementPage() {
             <span>Trip total</span>
             <span>{formatUsd(sched.depositAmount + sched.balanceAmount)}</span>
           </div>
+          {payment.damageHold > 0 && (
+            <div className="flex justify-between border-t border-dashed pt-2 text-gray-600">
+              <span>Refundable damage deposit, held on pick-up day</span>
+              <span>{formatUsd(payment.damageHold)} hold</span>
+            </div>
+          )}
         </div>
         <StripePaymentForm
           clientSecret={payment.clientSecret}
           payLabel={`Pay ${formatUsd(sched.depositAmount)} and book`}
           returnUrl={returnUrl}
-          consent={
+          consent={[
             isFull
               ? depositAvailable(draft.pickupDate)
                 ? "The full trip amount is charged now. Nothing else is charged before your trip."
                 : "Your pick-up is less than 5 days away, so the full trip amount is charged now."
-              : `By booking, you authorize Vertex Rental Car USA LLC to save this card and charge the remaining ${formatUsd(sched.balanceAmount)} to it automatically on ${formatLongDate(sched.balanceDueDate!)} (5 days before pick-up).`
-          }
+              : `By booking, you authorize Vertex Rental Car USA LLC to save this card and charge the remaining ${formatUsd(sched.balanceAmount)} to it automatically on ${formatLongDate(sched.balanceDueDate!)} (5 days before pick-up).`,
+            payment.damageHold > 0
+              ? `You also authorize a refundable ${formatUsd(payment.damageHold)} damage-deposit hold on this card on pick-up day (renewed while the car is out), released automatically ${DAMAGE_HOLD_RELEASE_DAYS} days after you return the car unless there is damage.`
+              : "",
+          ].filter(Boolean).join(" ")}
           onSuccess={completePayment}
         />
       </div>
@@ -229,6 +238,7 @@ export default function CheckoutAgreementPage() {
           {preview.plan === "full"
             ? `The full ${formatUsd(preview.depositAmount)} is charged when you book.`
             : `${formatUsd(preview.depositAmount)} (20%) is charged when you book; the remaining ${formatUsd(preview.balanceAmount)} is charged automatically on ${formatLongDate(preview.balanceDueDate!)}.`}
+          {` Plus a refundable ${formatUsd(DAMAGE_HOLD_AMOUNT)} damage-deposit hold on pick-up day.`}
         </p>
       )}
     </div>

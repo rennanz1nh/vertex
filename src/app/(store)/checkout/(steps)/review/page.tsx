@@ -1,6 +1,6 @@
 "use client";
 
-import { depositAvailable, formatLongDate, paymentPlan } from "@/lib/booking-payment-plan";
+import { DAMAGE_HOLD_AMOUNT, DAMAGE_HOLD_RELEASE_DAYS, depositAvailable, formatLongDate, paymentPlan } from "@/lib/booking-payment-plan";
 import { useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -122,6 +122,16 @@ export default function CheckoutReviewPage() {
         <div className="border-t border-gray-200 pt-4 mt-2 flex justify-between text-sm font-semibold text-gray-900">
           <span>Trip total</span>
           <span>{formatPrice(breakdown.total)}</span>
+        </div>
+        <div className="border-t border-dashed border-gray-200 pt-3 mt-3">
+          <div className="flex justify-between text-sm text-gray-900">
+            <span>Refundable damage deposit</span>
+            <span>{formatPrice(DAMAGE_HOLD_AMOUNT)} hold</span>
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            Not charged today and not part of the trip total. A {formatPrice(DAMAGE_HOLD_AMOUNT)} hold is placed on your card on
+            pick-up day and released automatically {DAMAGE_HOLD_RELEASE_DAYS} days after you return the car, unless there is damage to the vehicle.
+          </p>
         </div>
       </div>
 

@@ -18,7 +18,7 @@ import { Loader2, Save, Send, Mail, Eye, RefreshCw } from "lucide-react";
 import { SAMPLE_VARS, renderTemplate } from "@/lib/automatic-emails-sample-vars";
 import { authedFetch } from "@/lib/admin-fetch";
 
-type TriggerKey = "booking_confirmed" | "booking_payment_failed" | "order_confirmation" | "order_shipped" | "order_delivered" | "order_cancelled" | "order_refunded" | "newsletter_welcome" | "abandoned_cart";
+type TriggerKey = "booking_confirmed" | "booking_payment_failed" | "booking_hold_failed" | "order_confirmation" | "order_shipped" | "order_delivered" | "order_cancelled" | "order_refunded" | "newsletter_welcome" | "abandoned_cart";
 
 type AutomaticEmail = {
   trigger_key: TriggerKey;
@@ -40,6 +40,11 @@ const LABELS: Record<TriggerKey, { title: string; description: string; vars: str
     title: "Falha na cobrança do saldo",
     description: "Enviado quando a cobrança automática dos 80% (5 dias antes da retirada) é recusada. Leva o link para o cliente pagar com outro cartão. A cobrança é tentada de novo a cada 24h.",
     vars: ["customer_name", "confirmation_number", "car_name", "pickup_date", "pickup_time", "balance_amount", "failure_reason", "pay_link"],
+  },
+  booking_hold_failed: {
+    title: "Falha no bloqueio da caução",
+    description: "Enviado quando o bloqueio da caução de dano ($99) no cartão salvo é recusado no dia da retirada. Leva o link para o cliente autorizar o bloqueio com outro cartão.",
+    vars: ["customer_name", "confirmation_number", "car_name", "pickup_date", "pickup_time", "return_date", "return_time", "hold_amount", "failure_reason", "hold_link"],
   },
   order_confirmation: {
     title: "Confirmação de pedido",
@@ -78,7 +83,7 @@ const LABELS: Record<TriggerKey, { title: string; description: string; vars: str
   },
 };
 
-const ORDER: TriggerKey[] = ["booking_confirmed", "booking_payment_failed", "order_confirmation", "order_shipped", "order_delivered", "order_cancelled", "order_refunded", "newsletter_welcome", "abandoned_cart"];
+const ORDER: TriggerKey[] = ["booking_confirmed", "booking_payment_failed", "booking_hold_failed", "order_confirmation", "order_shipped", "order_delivered", "order_cancelled", "order_refunded", "newsletter_welcome", "abandoned_cart"];
 
 function EmailRow({ email, onSaved }: { email: AutomaticEmail; onSaved: (e: AutomaticEmail) => void }) {
   const { toast } = useToast();

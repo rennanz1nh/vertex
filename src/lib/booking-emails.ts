@@ -30,6 +30,11 @@ export function payLink(b: Pick<BookingRecord, "id" | "payment_token">): string 
   return `${siteUrl()}/booking/pay?id=${b.id}&token=${b.payment_token}`;
 }
 
+/** The customer's "authorize the damage-deposit hold" link. */
+export function holdLink(b: Pick<BookingRecord, "id" | "payment_token">): string {
+  return `${siteUrl()}/booking/hold?id=${b.id}&token=${b.payment_token}`;
+}
+
 export async function carNameFor(carId: string): Promise<string> {
   const { data: car } = await supabaseAdmin.from("products").select("name, make, model, year").eq("id", carId).maybeSingle();
   return car?.name || [car?.year, car?.make, car?.model].filter(Boolean).join(" ") || "your vehicle";
@@ -66,7 +71,7 @@ export async function sendBookingConfirmedEmail(b: BookingRecord): Promise<void>
         depositAmount: Number(b.deposit_amount ?? 0),
         balanceAmount: Number(b.balance_amount ?? 0),
         balanceDueDate: b.balance_due_date,
-      })
+      }, Number(b.damage_hold_amount ?? 0))
     : "";
   await sendAutomaticEmail("booking_confirmed", { email: b.customer_email, name: customerNameOf(b) }, {
     ...baseVars(b, carName),
@@ -86,5 +91,16 @@ export async function sendBalanceFailedEmail(b: BookingRecord, failureReason: st
     balance_amount: formatUsd(Number(b.balance_amount ?? 0)),
     failure_reason: failureReason,
     pay_link: payLink(b),
+  });
+}
+
+export async function sendHoldFailedEmail(b: BookingRecord, failureReason: string): Promise<void> {
+  if (!b.customer_email) return;
+  const carName = await carNameFor(b.car_id);
+  await sendAutomaticEmail("booking_hold_failed", { email: b.customer_email, name: customerNameOf(b) }, {
+    ...baseVars(b, carName),
+    hold_amount: formatUsd(Number(b.damage_hold_amount ?? 0)),
+    failure_reason: failureReason,
+    hold_link: holdLink(b),
   });
 }

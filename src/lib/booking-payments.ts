@@ -42,7 +42,7 @@ export async function applyDepositSucceeded(pi: Stripe.PaymentIntent): Promise<B
   if (pi.status !== "succeeded") return null;
   const { data: current } = await supabaseAdmin
     .from("bookings")
-    .select("id, payment_plan, balance_amount")
+    .select("id, payment_plan, balance_amount, damage_hold_amount")
     .eq("deposit_payment_intent_id", pi.id)
     .maybeSingle();
   if (!current) return null;
@@ -55,6 +55,8 @@ export async function applyDepositSucceeded(pi: Stripe.PaymentIntent): Promise<B
       deposit_paid_at: new Date().toISOString(),
       stripe_payment_method_id: paymentMethodId(pi),
       balance_status: scheduleBalance ? "scheduled" : "none",
+      // The card is now saved: the damage-deposit hold goes on it on pick-up day.
+      damage_hold_status: Number(current.damage_hold_amount ?? 0) > 0 ? "scheduled" : "none",
     })
     .eq("id", current.id)
     .is("deposit_paid_at", null)

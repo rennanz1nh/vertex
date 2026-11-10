@@ -4,6 +4,7 @@ import { stripe } from "@/lib/stripe";
 import { supabaseAdmin as supabase } from "@/lib/supabase-admin";
 import { sendAutomaticEmail } from "@/lib/automatic-emails";
 import { applyDepositSucceeded, markBalancePaid } from "@/lib/booking-payments";
+import { markHoldAuthorized } from "@/lib/damage-hold";
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
@@ -32,13 +33,29 @@ export async function POST(req: NextRequest) {
   // Sessions above and carry no booking_id, so they are ignored here.
   if (event.type === "payment_intent.succeeded") {
     const pi = event.data.object as Stripe.PaymentIntent;
-    if (pi.metadata?.booking_id) {
+    // The damage deposit (kind damage_hold / damage_charge) is recorded by src/lib/damage-hold.ts
+    // when it is captured or charged, not here.
+    if (pi.metadata?.booking_id && !["damage_hold", "damage_charge"].includes(pi.metadata.kind)) {
       try {
         if (pi.metadata.kind === "balance") await markBalancePaid(pi);
         else await applyDepositSucceeded(pi);
       } catch (err) {
         console.error("Failed to apply booking payment", pi.id, err);
         return NextResponse.json({ error: "Booking payment update failed" }, { status: 500 });
+      }
+    }
+  }
+
+  // The damage-deposit hold was authorized (customer's "authorize the hold" link). The link
+  // page and the hourly cron record it too; whichever lands first wins.
+  if (event.type === "payment_intent.amount_capturable_updated") {
+    const pi = event.data.object as Stripe.PaymentIntent;
+    if (pi.metadata?.booking_id && pi.metadata.kind === "damage_hold") {
+      try {
+        await markHoldAuthorized(pi);
+      } catch (err) {
+        console.error("Failed to record damage hold", pi.id, err);
+        return NextResponse.json({ error: "Damage hold update failed" }, { status: 500 });
       }
     }
   }

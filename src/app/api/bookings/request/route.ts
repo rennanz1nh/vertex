@@ -7,7 +7,7 @@ import {
   tripPriceBreakdown, ageFromDateOfBirth, MINIMUM_DRIVER_AGE, PROTECTION_PLANS, EXTRAS,
   type ProtectionPlanId, type ExtraId,
 } from "@/lib/trip-pricing";
-import { formatUsd, paymentPlan, shortRange, toCents } from "@/lib/booking-payment-plan";
+import { DAMAGE_HOLD_AMOUNT, formatUsd, paymentPlan, shortRange, toCents } from "@/lib/booking-payment-plan";
 import { getOrCreateStripeCustomer, type PaymentKind } from "@/lib/booking-payments";
 import { notifyPush } from "@/lib/notify";
 
@@ -247,6 +247,8 @@ export async function POST(req: NextRequest) {
       balance_amount: schedule.balanceAmount,
       balance_due_date: schedule.balanceDueDate,
       stripe_customer_id: stripeCustomerId,
+      // Held (not charged) on pick-up day once the booking is paid; see src/lib/damage-hold.ts.
+      damage_hold_amount: DAMAGE_HOLD_AMOUNT,
     }).select("id, payment_token").single();
     if (bookingError || !booking) throw bookingError ?? new Error("booking insert returned nothing");
 
@@ -258,7 +260,7 @@ export async function POST(req: NextRequest) {
           amount: toCents(schedule.depositAmount),
           currency: "usd",
           customer: stripeCustomerId,
-          // Saved for the automatic 80% charge 5 days before pickup.
+          // Saved for the automatic 80% charge 5 days before pickup and the damage-deposit hold.
           setup_future_usage: "off_session",
           payment_method_types: ["card"],
           description: `${schedule.plan === "full" ? "Full payment" : "20% deposit"} · ${carName} · ${pickupDate} → ${returnDate}`,
@@ -287,6 +289,7 @@ export async function POST(req: NextRequest) {
       token: booking.payment_token,
       clientSecret,
       schedule,
+      damageHold: DAMAGE_HOLD_AMOUNT,
     });
   } catch (e) {
     console.error("Failed to create booking request:", e);

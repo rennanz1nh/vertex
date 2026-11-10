@@ -26,6 +26,7 @@ export type PushTriggerKey =
   | "booking_checkout_abandoned"
   | "booking_balance_paid"
   | "booking_payment_failed"
+  | "booking_hold_failed"
   | "pickup_tomorrow"
   | "turo_new_trip"
   | "turo_trip_cancelled"
@@ -162,6 +163,7 @@ const DEFAULT_DESTINATIONS: Partial<Record<PushTriggerKey, string>> = {
   booking_checkout_abandoned: "/admin/bookings",
   booking_balance_paid: "/admin/bookings",
   booking_payment_failed: "/admin/bookings",
+  booking_hold_failed: "/admin/bookings",
   pickup_tomorrow: "/admin/calendar",
   turo_new_trip: "/admin/turo?tab=reservations",
   turo_trip_cancelled: "/admin/turo?tab=reservations",

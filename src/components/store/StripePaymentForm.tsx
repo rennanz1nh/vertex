@@ -75,7 +75,8 @@ export default function StripePaymentForm({ clientSecret, payLabel, returnUrl, c
       setPaying(false);
       return;
     }
-    if (paymentIntent && (paymentIntent.status === "succeeded" || paymentIntent.status === "processing")) {
+    // "requires_capture": an authorization (the damage-deposit hold) went through.
+    if (paymentIntent && ["succeeded", "processing", "requires_capture"].includes(paymentIntent.status)) {
       await onSuccess();
     } else {
       setError("The payment was not completed. Please try again.");

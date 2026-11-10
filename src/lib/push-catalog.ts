@@ -82,6 +82,17 @@ export const PUSH_CATALOG: PushCatalogEntry[] = [
     sample: { car: "2020 Kia Rio", customer: "Jane Doe", amount: "$249.60", reason: "your card was declined" },
   },
   {
+    key: "booking_hold_failed",
+    group: "reservas",
+    label: "Caução de dano não bloqueou",
+    description: "Quando o bloqueio da caução ($99) no cartão do cliente é recusado no dia da retirada (ou a renovação durante a locação falha). O cliente recebe um link para autorizar com outro cartão.",
+    defaultEnabled: true,
+    title: "Caução falhou: {car}",
+    message: "{customer} · {amount} · {reason}",
+    tags: ["warning"],
+    sample: { car: "2020 Kia Rio", customer: "Jane Doe", amount: "$99.00", reason: "your card was declined" },
+  },
+  {
     key: "pickup_tomorrow",
     group: "reservas",
     label: "Retiradas e devoluções de amanhã",

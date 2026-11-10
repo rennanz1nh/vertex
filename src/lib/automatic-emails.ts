@@ -4,6 +4,7 @@ import { sendTransactionalEmail } from "@/lib/brevo";
 export type EmailTriggerKey =
   | "booking_confirmed"
   | "booking_payment_failed"
+  | "booking_hold_failed"
   | "order_confirmation"
   | "order_shipped"
   | "order_delivered"

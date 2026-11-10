@@ -42,6 +42,8 @@ export type PendingPayment = {
   token: string;
   clientSecret: string;
   schedule: PaymentPlan;
+  /** Refundable damage deposit held (not charged) on pick-up day. */
+  damageHold: number;
 };
 
 type CheckoutContextValue = {
@@ -222,7 +224,7 @@ export function CheckoutProvider({ children }: { children: ReactNode }) {
         throw new Error(await res.text());
       }
       const data = (await res.json()) as PendingPayment & { ok: boolean };
-      setPayment({ bookingId: data.bookingId, token: data.token, clientSecret: data.clientSecret, schedule: data.schedule });
+      setPayment({ bookingId: data.bookingId, token: data.token, clientSecret: data.clientSecret, schedule: data.schedule, damageHold: Number(data.damageHold ?? 0) });
       return true;
     } catch (e) {
       console.error("Failed to submit booking request:", e);

@@ -30,6 +30,10 @@ import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortabl
 import { SortableHeader } from '@/components/table/SortableHeader';
 import { ColumnViewButtons } from '@/components/table/ColumnViewButtons';
 import { useColumnPreferences } from '@/hooks/useColumnPreferences';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { damageHoldReleaseAt } from '@/lib/booking-payment-plan';
 
 type CarOption = { id: string; name: string | null; make: string | null; model: string | null; year: number | null; image_url: string | null; daily_rate: string | null; min_driver_age: number };
 
@@ -61,6 +65,14 @@ type BookingRow = {
   balance_due_date: string | null;
   balance_status: 'none' | 'scheduled' | 'processing' | 'paid' | 'failed';
   balance_last_error: string | null;
+  damage_hold_amount: number | null;
+  damage_hold_status: 'none' | 'scheduled' | 'processing' | 'held' | 'failed' | 'released' | 'captured';
+  damage_hold_expires_at: string | null;
+  damage_hold_last_error: string | null;
+  damage_hold_released_at: string | null;
+  damage_charged_amount: number | null;
+  damage_charge_note: string | null;
+  returned_at: string | null;
   created_at: string;
   /** "turo" rows come from turo_trips (read-only here); everything else is ours. */
   source?: 'site' | 'turo';
@@ -131,6 +143,14 @@ function turoTripToRow(t: TuroTripRow, receipt: TuroReceiptRow | undefined): Boo
     balance_due_date: null,
     balance_status: 'none',
     balance_last_error: null,
+    damage_hold_amount: null,
+    damage_hold_status: 'none',
+    damage_hold_expires_at: null,
+    damage_hold_last_error: null,
+    damage_hold_released_at: null,
+    damage_charged_amount: null,
+    damage_charge_note: null,
+    returned_at: null,
     created_at: t.updated_at,
     source: 'turo',
     turo: {
@@ -271,6 +291,91 @@ export default function Bookings() {
       </div>
     );
   }, [chargingId, chargeBalanceNow]);
+
+  // ===== $99 damage deposit (hold placed on pick-up day, released 3 days after return) =====
+  const [holdBusyId, setHoldBusyId] = useState<string | null>(null);
+  const [damageFor, setDamageFor] = useState<BookingRow | null>(null);
+  const [damageAmount, setDamageAmount] = useState('');
+  const [damageNote, setDamageNote] = useState('');
+
+  const holdAction = useCallback(async (booking: BookingRow, body: Record<string, unknown>, okTitle: string) => {
+    setHoldBusyId(booking.id);
+    try {
+      const res = await authedFetch(`/api/admin/bookings/${booking.id}/damage-hold`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.ok) toast({ title: okTitle });
+      else toast({ title: 'Não foi possível', description: data.reason || data.error || 'Erro', variant: 'destructive' });
+      await fetchData();
+      return !!data.ok;
+    } finally {
+      setHoldBusyId(null);
+    }
+  }, [toast]);
+
+  const markReturned = useCallback((b: BookingRow) => {
+    const release = damageHoldReleaseAt({ returned_at: new Date().toISOString(), return_date: b.return_date });
+    if (!confirm(`Marcar o carro como devolvido agora?\n\nA caução será liberada automaticamente em ${release.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}, a menos que você clique em "Cobrar dano" antes.`)) return;
+    holdAction(b, { action: 'returned' }, 'Carro marcado como devolvido');
+  }, [holdAction]);
+
+  const holdCell = useCallback((b: BookingRow) => {
+    if (b.source === 'turo' || !Number(b.damage_hold_amount) || b.damage_hold_status === 'none') {
+      return <span className="text-muted-foreground text-xs">—</span>;
+    }
+    const amount = formatCurrency(Number(b.damage_hold_amount));
+    const releaseAt = damageHoldReleaseAt({ returned_at: b.returned_at, return_date: b.return_date, return_time: b.return_time });
+    const releaseLabel = releaseAt.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    const busy = holdBusyId === b.id;
+    const s = b.damage_hold_status;
+    const active = b.status !== 'cancelled' && ['scheduled', 'held', 'failed'].includes(s);
+    const linkBtn = 'self-start text-[11px] font-medium underline disabled:opacity-50';
+    return (
+      <div className="flex flex-col gap-0.5 text-xs min-w-[170px]">
+        {s === 'scheduled' && <span className="text-muted-foreground">{amount} bloqueia na retirada ({formatShortDate(parseLocalDate(b.pickup_date))})</span>}
+        {s === 'processing' && <span className="text-blue-700">Processando {amount}…</span>}
+        {s === 'held' && <span className="text-green-700">{amount} bloqueado no cartão</span>}
+        {s === 'failed' && <span className="text-red-700" title={b.damage_hold_last_error ?? ''}>Bloqueio de {amount} falhou · tenta de novo em 24h</span>}
+        {s === 'released' && <span className="text-muted-foreground">{amount} liberado{b.damage_hold_released_at ? ` em ${formatShortDate(new Date(b.damage_hold_released_at))}` : ''}</span>}
+        {s === 'captured' && (
+          <span className="text-amber-700" title={b.damage_charge_note ?? ''}>Dano cobrado: {formatCurrency(Number(b.damage_charged_amount))}</span>
+        )}
+        {s === 'held' && b.damage_hold_last_error && <span className="text-amber-700" title={b.damage_hold_last_error}>⚠ {b.damage_hold_last_error}</span>}
+        {b.returned_at && <span className="text-muted-foreground">Devolvido em {formatShortDate(new Date(b.returned_at))}</span>}
+        {active && (s === 'held' || s === 'scheduled' || s === 'failed') && (
+          <span className="text-muted-foreground">{b.returned_at ? 'Libera' : 'Libera (sem devolução marcada)'} em {releaseLabel}</span>
+        )}
+        {b.status !== 'cancelled' && !b.returned_at && (b.status === 'confirmed' || b.status === 'completed') && (
+          <Button size="sm" variant="outline" className="h-7 mt-1 self-start text-xs" disabled={busy} onClick={() => markReturned(b)}>
+            {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Carro devolvido'}
+          </Button>
+        )}
+        {active && (
+          <div className="flex flex-wrap gap-x-3">
+            {(s === 'held' || s === 'failed') && (
+              <button type="button" className={`${linkBtn} text-red-700`} disabled={busy} onClick={() => { setDamageFor(b); setDamageAmount(String(Number(b.damage_hold_amount))); setDamageNote(''); }}>
+                Cobrar dano
+              </button>
+            )}
+            {s === 'held' && (
+              <button type="button" className={linkBtn} disabled={busy}
+                onClick={() => confirm(`Liberar agora os ${amount} bloqueados no cartão do cliente? Depois disso não dá mais para cobrar dano pela caução.`) && holdAction(b, { action: 'release' }, 'Caução liberada')}>
+                Liberar agora
+              </button>
+            )}
+            {s === 'failed' && (
+              <button type="button" className={linkBtn} disabled={busy} onClick={() => holdAction(b, { action: 'retry' }, `${amount} bloqueado`)}>
+                Tentar de novo
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }, [holdBusyId, holdAction, markReturned]);
 
   const [turoSavingId, setTuroSavingId] = useState<string | null>(null);
   const toggleTuroBlocked = useCallback(async (booking: BookingRow) => {
@@ -462,6 +567,11 @@ export default function Bookings() {
       render: (booking) => <TableCell>{paymentCell(booking)}</TableCell>,
     },
     {
+      // Refundable $99 damage deposit: held on pick-up day, released 3 days after "Carro devolvido".
+      id: 'damage_hold', label: 'Caução',
+      render: (booking) => <TableCell>{holdCell(booking)}</TableCell>,
+    },
+    {
       id: 'daily_rate', label: 'Diária', headerClassName: 'text-right',
       render: (booking) => <TableCell className="text-right">{booking.daily_rate ? formatCurrency(Number(booking.daily_rate)) : '—'}</TableCell>,
     },
@@ -502,7 +612,7 @@ export default function Bookings() {
         </TableCell>
       ),
     },
-  ], [downloadingAgreementId, handleDownloadAgreement, turoSavingId, toggleTuroBlocked, paymentCell]);
+  ], [downloadingAgreementId, handleDownloadAgreement, turoSavingId, toggleTuroBlocked, paymentCell, holdCell]);
 
   const defaultOrder = useMemo(() => columns.map((c) => c.id), [columns]);
   const { columnOrder, columnVisibility, setColumnVisibility, handleDragEnd, reset, saveView, isDirty, visibleOrderedIds } =
@@ -700,6 +810,43 @@ export default function Bookings() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={!!damageFor} onOpenChange={(o) => { if (!o) setDamageFor(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Cobrar dano</DialogTitle>
+            <DialogDescription>
+              {damageFor?.damage_hold_status === 'held'
+                ? `Cobra da caução bloqueada (até ${formatCurrency(Number(damageFor?.damage_hold_amount))}). O que sobrar é liberado para o cliente na hora.`
+                : `O bloqueio da caução falhou, então o valor será cobrado direto no cartão salvo do cliente (até ${formatCurrency(Number(damageFor?.damage_hold_amount))}).`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label htmlFor="damage-amount">Valor (US$)</Label>
+              <Input id="damage-amount" type="number" min="0.5" step="0.01" max={Number(damageFor?.damage_hold_amount ?? 99)} value={damageAmount} onChange={(e) => setDamageAmount(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="damage-note">Motivo (fica registrado)</Label>
+              <Textarea id="damage-note" rows={3} placeholder="Ex.: risco no para-choque traseiro" value={damageNote} onChange={(e) => setDamageNote(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDamageFor(null)}>Cancelar</Button>
+            <Button
+              variant="destructive"
+              disabled={!damageFor || holdBusyId === damageFor.id || !(Number(damageAmount) > 0) || Number(damageAmount) > Number(damageFor?.damage_hold_amount ?? 0)}
+              onClick={async () => {
+                if (!damageFor) return;
+                const ok = await holdAction(damageFor, { action: 'charge', amount: Number(damageAmount), note: damageNote }, `Dano cobrado: ${formatCurrency(Number(damageAmount))}`);
+                if (ok) setDamageFor(null);
+              }}
+            >
+              {damageFor && holdBusyId === damageFor.id ? <Loader2 className="h-4 w-4 animate-spin" /> : `Cobrar ${formatCurrency(Number(damageAmount) || 0)}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <BookingModal
         booking={viewBooking}
