@@ -7,7 +7,7 @@ Plataforma de aluguel de carros da Vertex Rental Cars.
 - **Framework**: Next.js 16 (App Router)
 - **Banco de dados**: Supabase (produtos, pedidos, perfis admin)
 - **Pagamentos**: Stripe Checkout
-- **Deploy**: Vercel (auto-deploy via GitHub Actions no push para `master`)
+- **Deploy**: Vercel — branch `dev` (preview/teste) e `claude/vertex-rental-cars-setup-qfvbwx` (produção)
 - **Estilo**: Tailwind CSS + shadcn/ui (admin)
 
 ## Desenvolvimento local
@@ -41,11 +41,14 @@ Veja **`SOCIAL_MEDIA_MCP.md`** para a configuração completa do Social Media MC
 
 ## Deploy
 
-Push para `master` → GitHub Actions aciona deploy automático no Vercel com `--prod`.
+Só existem dois branches: **`dev`** e **produção** (`claude/vertex-rental-cars-setup-qfvbwx`).
 
-Push para `dev` → GitHub Actions publica um preview em `vertex-rental-cars-dev.vercel.app`, usado como staging antes de promover para `master`. Compartilha as mesmas variáveis de ambiente (banco, Stripe, etc.) de produção.
+1. Todo trabalho vai para **`dev`**. Cada push gera um preview na Vercel (alias `vertex-rental-cars-dev.vercel.app`, via `.github/workflows/preview.yml`). Preview e produção usam o mesmo banco e as mesmas chaves (Supabase, Stripe…).
+2. Depois de testar em `dev`, promova para produção avançando o branch de produção:
+   `git push origin dev:claude/vertex-rental-cars-setup-qfvbwx`
+   A Vercel publica automaticamente em `vertexrentalcar.com`.
 
-Para deploy manual: `vercel --prod`
+Não crie outros branches. Para deploy manual: `vercel --prod`.
 
 ## Versionamento
 
