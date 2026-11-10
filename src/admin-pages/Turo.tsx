@@ -15,6 +15,7 @@ import { EarningsTab } from "@/components/admin/turo/EarningsTab";
 import { ReviewsTab } from "@/components/admin/turo/ReviewsTab";
 import { PayoutTab } from "@/components/admin/turo/PayoutTab";
 import { SyncTab } from "@/components/admin/turo/SyncTab";
+import { MobilePageHeader } from "@/components/admin-v2/mobile";
 
 export const TURO_TABS = [
   { id: "overview", label: "Visão Geral" },
@@ -28,6 +29,9 @@ export const TURO_TABS = [
 ] as const;
 
 type TabId = (typeof TURO_TABS)[number]["id"];
+
+// These tabs render their own phone header (title + count + search/filter chips).
+const TABS_WITH_OWN_MOBILE_HEADER: TabId[] = ["reservations", "vehicles", "guests"];
 
 export default function TuroPage() {
   const { user, loading: authLoading } = useAuth();
@@ -93,8 +97,12 @@ export default function TuroPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="space-y-6 max-md:space-y-4">
+      {/* Phones: plain title for the current tab (the Turo tab band above is already sticky) */}
+      {(!TABS_WITH_OWN_MOBILE_HEADER.includes(activeTab) || (!connected && activeTab !== "sync")) && (
+        <MobilePageHeader title={TURO_TABS.find((t) => t.id === activeTab)?.label ?? "Turo"} sticky={false} />
+      )}
+      <div className="max-md:hidden">
         <h1 className="text-2xl font-bold">Turo</h1>
         <p className="text-sm text-muted-foreground">Integração completa com sua conta de host no Turo</p>
       </div>

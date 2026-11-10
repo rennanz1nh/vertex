@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Car as CarIcon } from "lucide-react";
 import { TuroTrip, TuroExtras, vehicleLabel, fmtDate, fmtMoney, durationDays, buildFinanceIndex } from "./shared";
+import { MobilePageHeader, MobileSearch, ChipRow, Chip } from "@/components/admin-v2/mobile";
 
 type VehicleAgg = {
   key: string;
@@ -93,7 +94,20 @@ export function VehiclesTab({ trips, extras }: { trips: TuroTrip[]; extras: Turo
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
+      {/* Phones: title + count, search and sort chips; the cards below stack one per row */}
+      <MobilePageHeader title="Veículos" count={filtered.length} sticky={false}>
+        <MobileSearch value={q} onChange={setQ} placeholder="Carro, placa, VIN..." />
+        <ChipRow>
+          <Chip on={sort === "revenue"} onClick={() => setSort("revenue")}>Maior receita</Chip>
+          <Chip on={sort === "trips"} onClick={() => setSort("trips")}>Mais viagens</Chip>
+          <Chip on={sort === "days"} onClick={() => setSort("days")}>Mais dias</Chip>
+        </ChipRow>
+        <p className="text-xs text-muted-foreground">
+          Receita total: <span className="font-semibold text-emerald-700">{fmtMoney(totalRevenue)}</span>
+        </p>
+      </MobilePageHeader>
+
+      <div className="flex flex-wrap items-center gap-2 max-md:hidden">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar carro, placa, VIN..." className="pl-8" />
@@ -111,7 +125,7 @@ export function VehiclesTab({ trips, extras }: { trips: TuroTrip[]; extras: Turo
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 max-md:gap-2">
         {filtered.map((v) => (
           <div key={v.key} className="rounded-xl border bg-card p-3 flex gap-3">
             <Thumb url={v.image} />
@@ -127,9 +141,9 @@ export function VehiclesTab({ trips, extras }: { trips: TuroTrip[]; extras: Turo
                 <p className="text-[10px] text-amber-700" title={[...v.vehicleIds].join(", ")}>{v.vehicleIds.size} anúncios na Turo (relistado)</p>
               )}
 
-              <div className="mt-1.5 flex items-baseline justify-between">
+              <div className="mt-1.5 flex items-baseline justify-between max-md:gap-2">
                 <span className="text-lg font-bold text-emerald-700 tabular-nums">{v.revenue > 0 ? fmtMoney(v.revenue) : "—"}</span>
-                <span className="text-[11px] text-muted-foreground">{v.trips} viagens · {v.days}d</span>
+                <span className="text-[11px] text-muted-foreground max-md:shrink-0">{v.trips} viagens · {v.days}d</span>
               </div>
               <div className="h-1.5 rounded-full bg-muted overflow-hidden mt-1">
                 <div className="h-full rounded-full bg-emerald-600" style={{ width: `${(v.revenue / revMax) * 100}%` }} />

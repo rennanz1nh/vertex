@@ -20,6 +20,7 @@ import {
   fmtShort,
   DOW,
 } from '@/components/admin/BookingTimeline';
+import { MobilePageHeader, ChipRow, Chip, MobileList, MobileRow, RowAvatar, RowBadge, MobileStats } from '@/components/admin-v2/mobile';
 
 function startOfDay(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -66,6 +67,10 @@ function tzTime(iso: string | null, tz?: string | null): string {
   return new Intl.DateTimeFormat('en-US', { timeZone: tz || 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false }).format(d);
 }
 
+function fmtPt(date: Date): string {
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+}
+
 function turoLabel(t: TuroTripRow): string {
   return [t.vehicle_year, t.vehicle_make, t.vehicle_model].filter(Boolean).join(' ') || 'Turo Vehicle';
 }
@@ -83,6 +88,9 @@ export default function CalendarPage() {
   const [timelineStart, setTimelineStart] = useState(() => addDays(today, -1));
   const [monthCursor, setMonthCursor] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
   const TL_DAYS = 14;
+  // Phones: a 7-day agenda (pickups/returns per day) instead of the wide timeline/grid.
+  const [agendaStart, setAgendaStart] = useState(today);
+  const AGENDA_DAYS = 7;
 
   useEffect(() => {
     (async () => {
@@ -170,6 +178,36 @@ export default function CalendarPage() {
       .slice(0, 8);
   }, [bookings, carById, today]);
 
+  // Phone agenda: pickups and returns (site + Turo) grouped by day for the visible week.
+  const agenda = useMemo(() => {
+    type AgendaEvent = { kind: 'Pickup' | 'Return'; time: string; booking: Booking; car: Car };
+    const byDay = new Map<string, AgendaEvent[]>();
+    for (const b of allBookings) {
+      const car = carById.get(b.car_id);
+      if (!car) continue;
+      const push = (key: string, ev: AgendaEvent) => {
+        if (!byDay.has(key)) byDay.set(key, []);
+        byDay.get(key)!.push(ev);
+      };
+      push(b.pickup_date, { kind: 'Pickup', time: b.pickup_time, booking: b, car });
+      push(b.return_date, { kind: 'Return', time: b.return_time, booking: b, car });
+    }
+    return Array.from({ length: AGENDA_DAYS }, (_, i) => {
+      const date = addDays(agendaStart, i);
+      const events = (byDay.get(isoOf(date)) ?? []).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+      return { date, events };
+    });
+  }, [allBookings, carById, agendaStart]);
+
+  const busyToday = useMemo(() => {
+    const t = isoOf(today);
+    const ids = new Set<string>();
+    for (const b of allBookings) {
+      if (carById.has(b.car_id) && b.pickup_date <= t && b.return_date >= t) ids.add(b.car_id);
+    }
+    return ids.size;
+  }, [allBookings, carById, today]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -180,7 +218,78 @@ export default function CalendarPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap justify-between items-center gap-4">
+      {/* Phones: sticky title + week navigation, then a day-by-day agenda of pickups/returns */}
+      <MobilePageHeader title="Calendário" count={allCars.length > 0 ? `${allCars.length} carros` : undefined}>
+        <div className="flex items-center gap-1">
+          <Button size="icon" variant="outline" className="h-9 w-9 shrink-0" onClick={() => setAgendaStart((s) => addDays(s, -AGENDA_DAYS))} aria-label="Semana anterior">
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="flex-1 truncate text-center text-sm font-semibold tabular-nums">
+            {fmtPt(agendaStart)} – {fmtPt(addDays(agendaStart, AGENDA_DAYS - 1))}
+          </span>
+          <Button size="icon" variant="outline" className="h-9 w-9 shrink-0" onClick={() => setAgendaStart((s) => addDays(s, AGENDA_DAYS))} aria-label="Próxima semana">
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+        <ChipRow>
+          <Chip on={isoOf(agendaStart) === isoOf(today)} onClick={() => setAgendaStart(today)}>Hoje</Chip>
+          {turoTrips.length > 0 && (
+            <Chip on={showTuro} onClick={() => setShowTuro((v) => !v)} count={turoTrips.length}>Turo</Chip>
+          )}
+        </ChipRow>
+      </MobilePageHeader>
+
+      {allCars.length > 0 && (
+        <MobileStats
+          items={[
+            { label: 'Em uso hoje', value: busyToday },
+            { label: 'Livres hoje', value: Math.max(allCars.length - busyToday, 0) },
+          ]}
+        />
+      )}
+
+      <div className="space-y-4 md:hidden">
+        {allCars.length === 0 ? (
+          <MobileList isEmpty empty="Nenhum carro cadastrado ainda. Adicione carros na página Carros primeiro." />
+        ) : (
+          agenda.map(({ date, events }) => {
+            const isToday = isoOf(date) === isoOf(today);
+            return (
+              <section key={isoOf(date)} className="space-y-1.5">
+                <h2 className="flex items-center gap-2 px-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                  <span className={isToday ? 'rounded px-1.5 py-0.5 text-white' : ''} style={isToday ? { background: TODAY_COLOR } : undefined}>
+                    {date.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' })}
+                  </span>
+                  {events.length > 0 && <span className="font-semibold normal-case">{events.length} {events.length === 1 ? 'evento' : 'eventos'}</span>}
+                </h2>
+                {events.length === 0 ? <p className="px-1 text-xs text-muted-foreground">Sem retiradas ou devoluções</p> : <MobileList>
+                  {events.map((e) => {
+                    const status = e.booking.source === 'turo' ? TURO_COLOR : (STATUS_COLOR[e.booking.status] ?? STATUS_COLOR.pending_payment);
+                    const renter = e.booking.customer_name || e.booking.driver_full_name || 'Guest';
+                    return (
+                      <MobileRow
+                        key={`${e.booking.id}:${e.kind}`}
+                        leading={<RowAvatar name={carLabel(e.car)} src={e.car.image_url} square />}
+                        title={carLabel(e.car)}
+                        meta={renter}
+                        badges={
+                          <>
+                            <RowBadge tone={e.kind === 'Pickup' ? 'green' : 'blue'}>{e.kind === 'Pickup' ? 'Retirada' : 'Devolução'}</RowBadge>
+                            <RowBadge style={{ color: status.fg, backgroundColor: status.bg }}>{status.label}</RowBadge>
+                          </>
+                        }
+                        trailing={e.time || '—'}
+                      />
+                    );
+                  })}
+                </MobileList>}
+              </section>
+            );
+          })
+        )}
+      </div>
+
+      <div className="flex flex-wrap justify-between items-center gap-4 max-md:hidden">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Calendário</h1>
           <p className="text-muted-foreground font-bold">Reservas da frota, por carro ou por mês</p>
@@ -218,6 +327,7 @@ export default function CalendarPage() {
         </div>
       </div>
 
+      <div className="max-md:hidden">
       {allCars.length === 0 ? (
         <Card>
           <CardContent className="py-16 text-center text-muted-foreground font-bold">
@@ -246,8 +356,9 @@ export default function CalendarPage() {
           onToday={() => setMonthCursor(new Date(today.getFullYear(), today.getMonth(), 1))}
         />
       )}
+      </div>
 
-      <Card>
+      <Card className="max-md:hidden">
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Próximos agendamentos</CardTitle>
           <p className="text-xs text-muted-foreground font-bold">Retiradas e devoluções que estão chegando</p>

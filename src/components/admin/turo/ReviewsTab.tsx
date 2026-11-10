@@ -78,15 +78,15 @@ export function ReviewsTab({ extras }: { extras: TuroExtras | null }) {
       {overall && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card className="md:col-span-1">
-            <CardContent className="pt-6 flex flex-col items-center justify-center text-center h-full">
-              <p className="text-5xl font-bold tabular-nums">{avg?.toFixed(2) ?? "—"}</p>
+            <CardContent className="pt-6 flex flex-col items-center justify-center text-center h-full max-md:py-4">
+              <p className="text-5xl font-bold tabular-nums max-md:text-4xl">{avg?.toFixed(2) ?? "—"}</p>
               {avg != null && <div className="mt-1"><Stars n={avg} size={18} /></div>}
               <p className="text-xs text-muted-foreground mt-1">{ratingCount} avaliações</p>
             </CardContent>
           </Card>
           <Card className="md:col-span-2">
-            <CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Distribuição de notas</CardTitle></CardHeader>
-            <CardContent className="space-y-1.5">
+            <CardHeader className="pb-1 max-md:px-4 max-md:pt-4"><CardTitle className="text-sm font-semibold">Distribuição de notas</CardTitle></CardHeader>
+            <CardContent className="space-y-1.5 max-md:px-4 max-md:pb-4">
               {[5, 4, 3, 2, 1].map((star) => {
                 const b = buckets.find((x) => x.score === star);
                 const count = b?.count ?? 0;
@@ -107,14 +107,14 @@ export function ReviewsTab({ extras }: { extras: TuroExtras | null }) {
 
       {/* Category scorecards */}
       {categories.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 max-md:gap-2">
           {categories.map((s) => {
             const label = CAT_PT[s.scorecardTitle?.value ?? ""] ?? s.scorecardTitle?.label ?? "—";
             const r = s.ratingAndMetric?.averageRating;
             return (
               <div key={s.scorecardTitle?.value} className="rounded-xl border bg-card p-3">
                 <p className="text-xs text-muted-foreground truncate">{label}</p>
-                <p className="text-xl font-bold tabular-nums">{r != null ? r.toFixed(2) : "—"}</p>
+                <p className="text-xl font-bold tabular-nums max-md:text-lg">{r != null ? r.toFixed(2) : "—"}</p>
                 {r != null && <Stars n={r} size={11} />}
               </div>
             );
@@ -124,13 +124,13 @@ export function ReviewsTab({ extras }: { extras: TuroExtras | null }) {
 
       {/* Reviews list */}
       {items.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-md:gap-2">
           {items.map((r, i) => {
             const name = authorName(r);
             const reply = replyText(r);
             return (
               <Card key={i}>
-                <CardContent className="pt-4 space-y-2">
+                <CardContent className="pt-4 space-y-2 max-md:px-4 max-md:pb-4">
                   <div className="flex items-start gap-2.5">
                     <span className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-semibold shrink-0" style={{ background: avatarColor(name) }}>
                       {initials(name)}
@@ -138,14 +138,14 @@ export function ReviewsTab({ extras }: { extras: TuroExtras | null }) {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-semibold text-sm truncate">{name}</span>
-                        {r.overallRating != null && <Stars n={r.overallRating} />}
+                        {r.overallRating != null && <span className="max-md:shrink-0"><Stars n={r.overallRating} /></span>}
                       </div>
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-[11px] text-muted-foreground max-md:truncate">
                         {vehicleName(r)}{vehicleName(r) && r.tripEnd ? " · " : ""}{r.tripEnd ? epochToDate(r.tripEnd) : ""}
                       </p>
                     </div>
                   </div>
-                  <p className="text-sm">{r.text?.trim() ? r.text : <span className="text-muted-foreground italic">Sem comentário escrito</span>}</p>
+                  <p className="text-sm max-md:[overflow-wrap:anywhere]">{r.text?.trim() ? r.text : <span className="text-muted-foreground italic">Sem comentário escrito</span>}</p>
                   {reply && (
                     <div className="flex gap-2 text-xs bg-muted/50 rounded-lg p-2">
                       <MessageSquare className="h-3.5 w-3.5 shrink-0 mt-0.5 text-muted-foreground" />

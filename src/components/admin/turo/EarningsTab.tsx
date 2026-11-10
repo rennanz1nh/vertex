@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { TuroExtras, JsonView, EmptyExtra, StatTile, fmtMoney, fmtDateTime } from "./shared";
+import { MobileList, MobileRow, RowBadge } from "@/components/admin-v2/mobile";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 const compactMoney = (n: number) => (n >= 1000 ? `$${(n / 1000).toFixed(1)}k` : `$${Math.round(n)}`);
@@ -50,6 +52,7 @@ export function EarningsTab({ extras }: { extras: TuroExtras | null }) {
   const years = earnings?.years ?? {};
   const yearKeys = Object.keys(years).filter((y) => (years[y]?.ownerEarningsList?.length ?? 0) > 0).sort((a, b) => Number(b) - Number(a));
   const [year, setYear] = useState<string>(yearKeys[0] ?? "");
+  const isMobile = useIsMobile();
 
   if (!earnings || yearKeys.length === 0) return <EmptyExtra label="Ganhos" />;
 
@@ -128,7 +131,7 @@ export function EarningsTab({ extras }: { extras: TuroExtras | null }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 max-md:flex-wrap">
         {yearKeys.map((y) => (
           <button key={y} onClick={() => setYear(y)}
             className={`px-3 py-1 rounded-full text-sm font-medium ${y === year ? "bg-indigo-600 text-white" : "bg-muted text-muted-foreground"}`}>
@@ -148,8 +151,8 @@ export function EarningsTab({ extras }: { extras: TuroExtras | null }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>
-          <CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Ganhos por mês · {year}</CardTitle></CardHeader>
-          <CardContent>
+          <CardHeader className="pb-1 max-md:px-4 max-md:pt-4"><CardTitle className="text-sm font-semibold">Ganhos por mês · {year}</CardTitle></CardHeader>
+          <CardContent className="max-md:px-2 max-md:pb-4">
             <ChartContainer config={revConfig} className="h-[220px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={revByMonth} margin={{ left: 4, right: 8, top: 8 }}>
@@ -171,14 +174,14 @@ export function EarningsTab({ extras }: { extras: TuroExtras | null }) {
         </Card>
 
         <Card>
-          <CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Ganhos por veículo · {year}</CardTitle></CardHeader>
-          <CardContent>
+          <CardHeader className="pb-1 max-md:px-4 max-md:pt-4"><CardTitle className="text-sm font-semibold">Ganhos por veículo · {year}</CardTitle></CardHeader>
+          <CardContent className="max-md:px-2 max-md:pb-4">
             <ChartContainer config={revConfig} className="h-[220px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={revByVehicle} layout="vertical" margin={{ left: 8, right: 16 }}>
                   <CartesianGrid horizontal={false} strokeDasharray="3 3" opacity={0.3} />
                   <XAxis type="number" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={compactMoney} />
-                  <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={120} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={isMobile ? 92 : 120} />
                   <ChartTooltip content={<ChartTooltipContent formatter={(v) => fmtMoney(Number(v), currency)} />} />
                   <Bar dataKey="revenue" fill="var(--color-revenue)" radius={[0, 4, 4, 0]} />
                 </BarChart>
@@ -190,12 +193,12 @@ export function EarningsTab({ extras }: { extras: TuroExtras | null }) {
 
       {feeSeries.length >= 2 && (
         <Card>
-          <CardHeader className="pb-1">
+          <CardHeader className="pb-1 max-md:px-4 max-md:pt-4">
             <CardTitle className="text-sm font-semibold">Taxa da Turo por mês</CardTitle>
             <p className="text-xs text-muted-foreground">Taxas ÷ total pago pelos hóspedes no mês. Pedágios e multas repassados reduzem o percentual.</p>
           </CardHeader>
-          <CardContent>
-            <ChartContainer config={feeConfig} className="h-[240px] w-full">
+          <CardContent className="max-md:px-2 max-md:pb-4">
+            <ChartContainer config={feeConfig} className="h-[240px] w-full max-md:h-[200px]">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={feeSeries} margin={{ left: 4, right: 12, top: 12 }}>
                   <CartesianGrid vertical={false} strokeDasharray="3 3" opacity={0.3} />
@@ -210,10 +213,22 @@ export function EarningsTab({ extras }: { extras: TuroExtras | null }) {
         </Card>
       )}
 
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Lançamentos {year}</CardTitle></CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto rounded-lg border">
+      <Card className="max-md:border-0 max-md:bg-transparent max-md:shadow-none">
+        <CardHeader className="pb-2 max-md:px-0 max-md:pt-0"><CardTitle className="text-sm font-semibold">Lançamentos {year}</CardTitle></CardHeader>
+        <CardContent className="max-md:px-0 max-md:pb-0">
+          {/* Phones: one row per entry */}
+          <MobileList isEmpty={list.length === 0} empty="Nenhum lançamento.">
+            {list.map((e, i) => (
+              <MobileRow
+                key={i}
+                title={e.description ?? e.detail ?? "—"}
+                meta={[e.createdDate, e.vehicleName].filter(Boolean).join(" · ") || "—"}
+                badges={isPayout(e) ? <RowBadge>repasse</RowBadge> : <RowBadge tone="green">viagem</RowBadge>}
+                trailing={fmtMoney(e.amount, e.amountWithCurrency?.currencyCode ?? currency)}
+              />
+            ))}
+          </MobileList>
+          <div className="overflow-x-auto rounded-lg border max-md:hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/40 text-left text-xs text-muted-foreground">
@@ -245,7 +260,7 @@ export function EarningsTab({ extras }: { extras: TuroExtras | null }) {
       </Card>
 
       {earnings.scorecard != null && (
-        <details className="rounded-lg border p-3">
+        <details className="rounded-lg border p-3 max-md:min-w-0 max-md:overflow-x-auto">
           <summary className="text-sm font-medium cursor-pointer">Resumo bruto (scorecard)</summary>
           <div className="mt-2"><JsonView value={earnings.scorecard} /></div>
         </details>

@@ -137,6 +137,12 @@ export function statusMeta(status: string): { label: string; cls: string } {
   return { label: status, cls: "bg-slate-100 text-slate-700 border-slate-200" };
 }
 
+/** Compact status pill for phone list rows (same colors as StatusBadge). */
+export function StatusPill({ status }: { status: string }) {
+  const m = statusMeta(status);
+  return <span className={`${m.cls} rounded-full border px-1.5 py-0.5 text-[10px] font-semibold`}>{m.label}</span>;
+}
+
 export function StatusBadge({ status }: { status: string }) {
   const m = statusMeta(status);
   return <Badge className={`${m.cls} border font-medium`}>{m.label}</Badge>;
@@ -218,10 +224,10 @@ export function EmptyExtra({ label }: { label: string }) {
 
 export function StatTile({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="rounded-xl border bg-card p-4">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="text-2xl font-bold tabular-nums">{value}</p>
-      {hint && <p className="text-[11px] text-muted-foreground mt-0.5">{hint}</p>}
+    <div className="rounded-xl border bg-card p-4 max-md:min-w-0 max-md:p-3">
+      <p className="text-xs text-muted-foreground max-md:truncate">{label}</p>
+      <p className="text-2xl font-bold tabular-nums max-md:truncate max-md:text-lg">{value}</p>
+      {hint && <p className="text-[11px] text-muted-foreground mt-0.5 max-md:line-clamp-2">{hint}</p>}
     </div>
   );
 }

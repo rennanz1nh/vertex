@@ -6,6 +6,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { TrendingUp, Car as CarIcon } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   TuroStats, TuroTrip, TuroExtras, StatTile, fmtMoney, vehicleLabel, fmtDate,
 } from "./shared";
@@ -30,6 +31,7 @@ export function OverviewTab({ stats, trips, extras }: { stats: TuroStats | null;
   const years = earnings?.years ?? {};
   const yearKeys = Object.keys(years).filter((y) => (years[y]?.ownerEarningsList?.length ?? 0) > 0).sort((a, b) => Number(b) - Number(a));
   const [year, setYear] = useState<string>(yearKeys[0] ?? String(new Date().getFullYear()));
+  const isMobile = useIsMobile();
 
   const fin = useMemo(() => {
     const list = (years[year]?.ownerEarningsList ?? []).filter((e) => !isPayout(e));
@@ -98,7 +100,7 @@ export function OverviewTab({ stats, trips, extras }: { stats: TuroStats | null;
     <div className="space-y-4">
       {/* Year switch */}
       {hasFin && (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 max-md:flex-wrap">
           {yearKeys.map((y) => (
             <button key={y} onClick={() => setYear(y)}
               className={`px-3 py-1 rounded-full text-sm font-medium ${y === year ? "bg-indigo-600 text-white" : "bg-muted text-muted-foreground"}`}>
@@ -111,9 +113,9 @@ export function OverviewTab({ stats, trips, extras }: { stats: TuroStats | null;
       {/* Hero KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <Card className="col-span-2 md:col-span-1 bg-emerald-600 text-white border-emerald-600">
-          <CardContent className="pt-4 pb-3">
+          <CardContent className="pt-4 pb-3 max-md:px-3 max-md:pt-3">
             <p className="text-xs opacity-80 flex items-center gap-1"><TrendingUp className="h-3.5 w-3.5" /> Receita {year}</p>
-            <p className="text-2xl font-bold tabular-nums">{fmtMoney(fin.total)}</p>
+            <p className="text-2xl font-bold tabular-nums max-md:text-xl">{fmtMoney(fin.total)}</p>
             <p className="text-[11px] opacity-80 mt-0.5">{fin.tripCount} viagens pagas</p>
           </CardContent>
         </Card>
@@ -127,8 +129,8 @@ export function OverviewTab({ stats, trips, extras }: { stats: TuroStats | null;
       {/* Revenue + trips over time */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>
-          <CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Receita por mês · {year}</CardTitle></CardHeader>
-          <CardContent>
+          <CardHeader className="pb-1 max-md:px-4 max-md:pt-4"><CardTitle className="text-sm font-semibold">Receita por mês · {year}</CardTitle></CardHeader>
+          <CardContent className="max-md:px-2 max-md:pb-4">
             <ChartContainer config={revConfig} className="h-[220px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={fin.revByMonth} margin={{ left: 4, right: 8, top: 8 }}>
@@ -150,8 +152,8 @@ export function OverviewTab({ stats, trips, extras }: { stats: TuroStats | null;
         </Card>
 
         <Card>
-          <CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Viagens por mês · {year}</CardTitle></CardHeader>
-          <CardContent>
+          <CardHeader className="pb-1 max-md:px-4 max-md:pt-4"><CardTitle className="text-sm font-semibold">Viagens por mês · {year}</CardTitle></CardHeader>
+          <CardContent className="max-md:px-2 max-md:pb-4">
             <ChartContainer config={tripsConfig} className="h-[220px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={tripsByMonth} margin={{ left: 4, right: 8, top: 8 }}>
@@ -170,14 +172,14 @@ export function OverviewTab({ stats, trips, extras }: { stats: TuroStats | null;
       {/* Revenue by vehicle + status mix */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="lg:col-span-2">
-          <CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Receita por veículo · {year}</CardTitle></CardHeader>
-          <CardContent>
-            <ChartContainer config={revConfig} className="h-[260px] w-full">
+          <CardHeader className="pb-1 max-md:px-4 max-md:pt-4"><CardTitle className="text-sm font-semibold">Receita por veículo · {year}</CardTitle></CardHeader>
+          <CardContent className="max-md:px-2 max-md:pb-4">
+            <ChartContainer config={revConfig} className="h-[260px] w-full max-md:h-[220px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={fin.revByVehicle} layout="vertical" margin={{ left: 8, right: 16 }}>
                   <CartesianGrid horizontal={false} strokeDasharray="3 3" opacity={0.3} />
                   <XAxis type="number" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={compactMoney} />
-                  <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={120} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={isMobile ? 92 : 120} />
                   <ChartTooltip content={<ChartTooltipContent formatter={(v) => fmtMoney(Number(v))} />} />
                   <Bar dataKey="revenue" fill="var(--color-revenue)" radius={[0, 4, 4, 0]} />
                 </BarChart>
@@ -187,8 +189,8 @@ export function OverviewTab({ stats, trips, extras }: { stats: TuroStats | null;
         </Card>
 
         <Card>
-          <CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Status das viagens</CardTitle></CardHeader>
-          <CardContent>
+          <CardHeader className="pb-1 max-md:px-4 max-md:pt-4"><CardTitle className="text-sm font-semibold">Status das viagens</CardTitle></CardHeader>
+          <CardContent className="max-md:px-4 max-md:pb-4">
             <ChartContainer config={{}} className="h-[180px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -215,8 +217,8 @@ export function OverviewTab({ stats, trips, extras }: { stats: TuroStats | null;
       {/* Upcoming trips */}
       {upcomingTrips.length > 0 && (
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Próximas viagens</CardTitle></CardHeader>
-          <CardContent>
+          <CardHeader className="pb-2 max-md:px-4 max-md:pt-4"><CardTitle className="text-sm font-semibold">Próximas viagens</CardTitle></CardHeader>
+          <CardContent className="max-md:px-4 max-md:pb-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
               {upcomingTrips.map((t) => (
                 <div key={t.id} className="flex items-center gap-3 p-2.5 rounded-xl border">

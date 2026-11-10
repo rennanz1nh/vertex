@@ -27,6 +27,7 @@ import { SortableHeader } from '@/components/table/SortableHeader';
 import { ColumnViewButtons } from '@/components/table/ColumnViewButtons';
 import { useColumnPreferences } from '@/hooks/useColumnPreferences';
 import { TuroGuestDialog, guestPhotoUrl, type TuroGuest } from '@/components/admin/TuroGuestDialog';
+import { MobilePageHeader, MobileSearch, ChipRow, Chip, ChipSelect, MobileList, MobileRow, RowAvatar, RowBadge, MobileFab, tinyDate } from '@/components/admin-v2/mobile';
 
 const CLIENT_TYPE_BADGE: Record<string, string> = {
   Individual: 'bg-gray-100 text-gray-700',
@@ -134,6 +135,24 @@ function turoGuestRows(trips: TuroGuestTrip[], receipts: Map<string, number>): C
   }
   return [...byGuest.values()];
 }
+
+const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+  { value: 'nome_asc', label: 'Nome (A-Z)' },
+  { value: 'nome_desc', label: 'Nome (Z-A)' },
+  { value: 'valor_desc', label: 'Maior gasto' },
+  { value: 'valor_asc', label: 'Menor gasto' },
+  { value: 'qtd_desc', label: 'Mais locações' },
+  { value: 'qtd_asc', label: 'Menos locações' },
+  { value: 'data_desc', label: 'Locação mais recente' },
+  { value: 'data_asc', label: 'Locação mais antiga' },
+];
+
+const LICENSE_TONE: Record<keyof typeof LICENSE_STATUS, 'green' | 'amber' | 'red' | 'muted'> = {
+  valid: 'green',
+  expiring: 'amber',
+  expired: 'red',
+  none: 'muted',
+};
 
 type SortOption =
   | 'nome_asc'
@@ -504,6 +523,15 @@ export default function Clients() {
     return visibleOrderedIds.map(id => map.get(id)).filter((c): c is ColumnDef => !!c);
   }, [columns, visibleOrderedIds]);
 
+  // Phones: client count per origin (search applied, origin filter not), for the chips.
+  const origemCount = (value: string) => {
+    const q = searchTerm.toLowerCase();
+    return clients.filter((c) =>
+      (value === 'all' || c.origemChannel === value) &&
+      (c.nome_razao.toLowerCase().includes(q) || (c.email && c.email.toLowerCase().includes(q)) || (c.telefone && c.telefone.includes(searchTerm)))
+    ).length;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -514,7 +542,86 @@ export default function Clients() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap justify-between items-center gap-4">
+      {/* Phones: sticky title, search and filter chips, then one row per client */}
+      <MobilePageHeader
+        title="Clientes"
+        count={filteredAndSortedClients.length}
+        actions={isAdmin ? [{ label: 'Selecionar para excluir', icon: <CheckSquare className="h-4 w-4" />, onSelect: () => { setSelectionMode(true); setSelectedClients(new Set()); } }] : undefined}
+      >
+        {selectionMode && isAdmin && (
+          <div className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2">
+            <span className="flex-1 text-sm font-medium">{selectedClients.size} selecionado(s)</span>
+            <Button size="sm" variant="destructive" disabled={saving || selectedClients.size === 0} onClick={handleDeleteSelected}>
+              <Trash2 className="mr-1.5 h-4 w-4" /> Excluir
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => { setSelectionMode(false); setSelectedClients(new Set()); }}>
+              Cancelar
+            </Button>
+          </div>
+        )}
+        <MobileSearch value={searchTerm} onChange={setSearchTerm} placeholder="Nome, email ou telefone" />
+        <ChipRow>
+          <Chip on={origemFilter === 'all'} onClick={() => setOrigemFilter('all')} count={origemCount('all')}>Todos</Chip>
+          <Chip on={origemFilter === 'Website'} onClick={() => setOrigemFilter(origemFilter === 'Website' ? 'all' : 'Website')} count={origemCount('Website')}>Site</Chip>
+          <Chip on={origemFilter === 'Turo'} onClick={() => setOrigemFilter(origemFilter === 'Turo' ? 'all' : 'Turo')} count={origemCount('Turo')}>Turo</Chip>
+          <ChipSelect
+            value={origemFilter}
+            onChange={setOrigemFilter}
+            defaultValue="all"
+            options={ORIGEM_OPTIONS.map((o) => (o.value === 'all' ? { value: 'all', label: 'Origem' } : o))}
+          />
+          <ChipSelect<SortOption> value={sortOption} onChange={setSortOption} options={SORT_OPTIONS} />
+        </ChipRow>
+      </MobilePageHeader>
+
+      <MobileList isEmpty={filteredAndSortedClients.length === 0} empty="Nenhum cliente encontrado">
+        {filteredAndSortedClients.map((client) => {
+          const selectable = selectionMode && isAdmin && !client.turo;
+          const guest = client.turo?.guest;
+          const meta = [
+            client.endereco_cidade,
+            `${client.totalRentals} ${client.totalRentals === 1 ? 'reserva' : 'reservas'}`,
+            client.lastRentalDate ? tinyDate(client.lastRentalDate) : null,
+          ].filter(Boolean).join(' · ');
+          const license = client.turo ? null : licenseStatus(client.license_expiration);
+          return (
+            <MobileRow
+              key={client.id}
+              selected={selectable && selectedClients.has(client.id)}
+              onClick={selectable ? () => toggleSelection(client.id) : guest && !selectionMode ? () => setOpenGuest(guest) : undefined}
+              chevron={!!guest && !selectionMode}
+              leading={
+                <>
+                  {selectable && <Checkbox checked={selectedClients.has(client.id)} className="pointer-events-none" aria-hidden />}
+                  <RowAvatar name={client.nome_razao} src={client.turo?.image} />
+                </>
+              }
+              title={client.nome_razao}
+              meta={meta}
+              badges={
+                <>
+                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${CLIENT_TYPE_BADGE[client.tipo] || 'bg-gray-100 text-gray-700'}`}>{client.tipo}</span>
+                  {license && license !== 'none' && <RowBadge tone={LICENSE_TONE[license]}>{LICENSE_STATUS[license].label}</RowBadge>}
+                  {client.turo && client.turo.cancelled > 0 && <RowBadge>+{client.turo.cancelled} cancelada(s)</RowBadge>}
+                </>
+              }
+              trailing={<span className="text-green-600">{formatCurrency(client.totalSpent)}</span>}
+              trailingSub={!client.turo && (client.telefone || client.email) ? (
+                <a
+                  href={client.telefone ? `tel:${client.telefone}` : `mailto:${client.email}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="max-w-[120px] truncate text-[11px] text-muted-foreground underline"
+                >
+                  {client.telefone || client.email}
+                </a>
+              ) : undefined}
+            />
+          );
+        })}
+      </MobileList>
+      {isAdmin && !selectionMode && <MobileFab onClick={() => setIsFormOpen(true)} />}
+
+      <div className="flex flex-wrap justify-between items-center gap-4 max-md:hidden">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Clientes</h1>
           <p className="text-muted-foreground font-bold">
@@ -567,7 +674,7 @@ export default function Clients() {
         </div>
       </div>
 
-      <Card>
+      <Card className="max-md:hidden">
         <CardHeader className="sticky top-[73px] z-10 bg-background border-b">
           <CardTitle>Lista de Clientes</CardTitle>
           <div className="flex items-center gap-4 flex-wrap">

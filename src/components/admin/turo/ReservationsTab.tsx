@@ -6,7 +6,8 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Search, ExternalLink, MapPin, Car as CarIcon, User, Calendar, Clock, DollarSign, Receipt, ChevronDown } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { authedFetch } from "@/lib/admin-fetch";
-import { TuroTrip, TuroExtras, StatusBadge, vehicleLabel, fmtDateTime, fmtDate, durationDays, fmtMoney, buildFinanceIndex } from "./shared";
+import { TuroTrip, TuroExtras, StatusBadge, StatusPill, statusMeta, vehicleLabel, fmtDateTime, fmtDate, durationDays, fmtMoney, buildFinanceIndex } from "./shared";
+import { MobilePageHeader, MobileSearch, ChipRow, Chip, ChipSelect, MobileList, MobileRow, RowBadge, tinyDate } from "@/components/admin-v2/mobile";
 
 type RawObj = Record<string, unknown>;
 function get(obj: unknown, ...path: string[]): unknown {
@@ -38,7 +39,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   return (
     <div className="flex justify-between gap-4 py-1.5 border-b last:border-0 text-sm">
       <span className="text-muted-foreground shrink-0">{label}</span>
-      <span className="text-right font-medium break-words">{children}</span>
+      <span className="text-right font-medium break-words max-md:min-w-0 max-md:[overflow-wrap:anywhere]">{children}</span>
     </div>
   );
 }
@@ -147,7 +148,7 @@ function DetailDialog({ tripId, earned, onClose }: { tripId: string | null; earn
 
   return (
     <Dialog open={!!tripId} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-3xl p-0 overflow-hidden gap-0 max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-3xl p-0 overflow-hidden gap-0 max-h-[90vh] flex flex-col max-md:max-h-[92dvh] max-md:w-[calc(100%-1.5rem)] max-md:rounded-xl">
         <DialogTitle className="sr-only">{detail ? vehicleLabel(detail) : "Reserva"}</DialogTitle>
         {loading && !detail && <p className="text-sm text-muted-foreground py-16 text-center">Carregando...</p>}
         {detail && (
@@ -159,7 +160,7 @@ function DetailDialog({ tripId, earned, onClose }: { tripId: string | null; earn
               <div className="absolute bottom-3 left-4 right-4 flex items-end justify-between gap-3">
                 <div className="min-w-0">
                   <StatusBadge status={detail.status} />
-                  <h2 className="text-white text-xl font-bold mt-1 truncate drop-shadow">{vehicleLabel(detail)}{detail.vehicle_trim ? ` ${detail.vehicle_trim}` : ""}</h2>
+                  <h2 className="text-white text-xl font-bold mt-1 truncate drop-shadow max-md:text-lg">{vehicleLabel(detail)}{detail.vehicle_trim ? ` ${detail.vehicle_trim}` : ""}</h2>
                   <p className="text-white/80 text-xs">{[detail.location_city, detail.location_state].filter(Boolean).join(", ")}</p>
                 </div>
                 {earned != null && earned > 0 && (
@@ -172,7 +173,7 @@ function DetailDialog({ tripId, earned, onClose }: { tripId: string | null; earn
             </div>
 
             {/* Body */}
-            <div className="p-5 space-y-5 overflow-y-auto">
+            <div className="p-5 space-y-5 overflow-y-auto max-md:p-4">
               {/* Mini stats */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
                 <MiniStat icon={Calendar} label="Retirada" value={fmtDate(detail.pickup_date)} />
@@ -191,10 +192,10 @@ function DetailDialog({ tripId, earned, onClose }: { tripId: string | null; earn
                       <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showBreakdown ? "rotate-180" : ""}`} />
                     </button>
                   </div>
-                  <div className="grid grid-cols-3 gap-3 text-center">
-                    <div><p className="text-[11px] text-muted-foreground">Hóspede pagou</p><p className="text-lg font-bold tabular-nums">{fmtMoney(receipt.trip_total)}</p></div>
-                    <div><p className="text-[11px] text-muted-foreground">Taxa da Turo</p><p className="text-lg font-bold tabular-nums text-indigo-700">{fmtMoney(receipt.turo_fee)}</p></div>
-                    <div><p className="text-[11px] text-muted-foreground">Você recebeu</p><p className="text-lg font-bold tabular-nums text-emerald-700">{fmtMoney(receipt.host_earned)}</p></div>
+                  <div className="grid grid-cols-3 gap-3 text-center max-md:gap-2">
+                    <div><p className="text-[11px] text-muted-foreground">Hóspede pagou</p><p className="text-lg font-bold max-md:text-sm tabular-nums">{fmtMoney(receipt.trip_total)}</p></div>
+                    <div><p className="text-[11px] text-muted-foreground">Taxa da Turo</p><p className="text-lg font-bold max-md:text-sm tabular-nums text-indigo-700">{fmtMoney(receipt.turo_fee)}</p></div>
+                    <div><p className="text-[11px] text-muted-foreground">Você recebeu</p><p className="text-lg font-bold max-md:text-sm tabular-nums text-emerald-700">{fmtMoney(receipt.host_earned)}</p></div>
                   </div>
                   <SplitBar total={receipt.trip_total} fee={receipt.turo_fee} earned={receipt.host_earned ?? receipt.trip_total - receipt.turo_fee} />
 
@@ -306,9 +307,57 @@ export function ReservationsTab({ trips, extras }: { trips: TuroTrip[]; extras: 
     });
   }, [trips, q, statusFilter, period, now]);
 
+  const listedRevenue = filtered.reduce((s, t) => s + (fin.byReservation.get(t.turo_trip_id) ?? 0), 0);
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
+      {/* Phones: title + count, search and filter chips, then one row per trip */}
+      <MobilePageHeader title="Reservas" count={filtered.length} sticky={false}>
+        <MobileSearch value={q} onChange={setQ} placeholder="Hóspede, carro, placa, ID..." />
+        <ChipRow>
+          <Chip on={period === "all"} onClick={() => setPeriod("all")}>Todas</Chip>
+          <Chip on={period === "upcoming"} onClick={() => setPeriod("upcoming")}>Próximas</Chip>
+          <Chip on={period === "history"} onClick={() => setPeriod("history")}>Histórico</Chip>
+          <ChipSelect
+            value={statusFilter}
+            onChange={setStatusFilter}
+            defaultValue="all"
+            options={[{ value: "all", label: "Status" }, ...statuses.map((st) => ({ value: st, label: statusMeta(st).label }))]}
+          />
+        </ChipRow>
+        {fin.byReservation.size > 0 && (
+          <p className="text-xs text-muted-foreground">
+            {filtered.length} de {trips.length} · Receita: <span className="font-semibold text-emerald-700">{fmtMoney(listedRevenue)}</span>
+          </p>
+        )}
+      </MobilePageHeader>
+
+      <MobileList isEmpty={filtered.length === 0} empty="Nenhuma reserva encontrada.">
+        {filtered.map((t) => {
+          const earned = fin.byReservation.get(t.turo_trip_id);
+          const days = durationDays(t.pickup_date, t.return_date);
+          return (
+            <MobileRow
+              key={t.id}
+              onClick={() => setOpenId(t.id)}
+              leading={<VehicleThumb url={t.vehicle_image_url} />}
+              title={t.guest_name || "—"}
+              meta={`${tinyDate(t.pickup_date)} → ${tinyDate(t.return_date)} · ${vehicleLabel(t)}`}
+              badges={
+                <>
+                  <StatusPill status={t.status} />
+                  {!t.product_id && <RowBadge>Turo</RowBadge>}
+                  {t.vehicle_license_plate && <RowBadge>{t.vehicle_license_plate}</RowBadge>}
+                </>
+              }
+              trailing={earned ? <span className="text-emerald-700">{fmtMoney(earned)}</span> : "—"}
+              trailingSub={days > 0 ? <span className="text-[11px] text-muted-foreground">{days} {days === 1 ? "dia" : "dias"}</span> : undefined}
+            />
+          );
+        })}
+      </MobileList>
+
+      <div className="flex flex-wrap items-center gap-2 max-md:hidden">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar hóspede, carro, placa, VIN, ID..." className="pl-8" />
@@ -330,16 +379,16 @@ export function ReservationsTab({ trips, extras }: { trips: TuroTrip[]; extras: 
         </Select>
       </div>
 
-      <div className="flex items-center justify-between flex-wrap gap-2">
+      <div className="flex items-center justify-between flex-wrap gap-2 max-md:hidden">
         <p className="text-xs text-muted-foreground">{filtered.length} de {trips.length} reserva(s)</p>
         {fin.byReservation.size > 0 && (
           <p className="text-xs text-muted-foreground">
-            Receita listada: <span className="text-emerald-700 font-semibold">{fmtMoney(filtered.reduce((s, t) => s + (fin.byReservation.get(t.turo_trip_id) ?? 0), 0))}</span>
+            Receita listada: <span className="text-emerald-700 font-semibold">{fmtMoney(listedRevenue)}</span>
           </p>
         )}
       </div>
 
-      <div className="overflow-x-auto rounded-lg border">
+      <div className="overflow-x-auto rounded-lg border max-md:hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/40 text-left text-xs text-muted-foreground">

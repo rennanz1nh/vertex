@@ -30,6 +30,7 @@ import { ColumnViewButtons } from '@/components/table/ColumnViewButtons';
 import { useColumnPreferences } from '@/hooks/useColumnPreferences';
 import { isInteractiveClickTarget } from '@/lib/utils';
 import { getRibbonClassName } from '@/lib/ribbon';
+import { MobilePageHeader, MobileSearch, ChipRow, Chip, ChipSelect, MobileList, MobileRow, RowAvatar, RowBadge, MobileFab } from '@/components/admin-v2/mobile';
 
 type CarColumn = {
   id: string;
@@ -48,6 +49,36 @@ const EMPTY_CAR: Record<string, unknown> = {
   mileage: '', transmission: '', fuel_type: '', seats: '', doors: '', pickup_city: '',
   min_driver_age: '18', features: [], daily_rate: '', description: '', image_url: '',
   ribbon_text: '', ribbon_color: ''
+};
+
+const CATEGORY_OPTIONS = [
+  { value: 'compact', label: 'Compact' },
+  { value: 'big-van', label: 'Big Van' },
+  { value: 'luxe', label: 'Luxe' },
+  { value: 'sport', label: 'Sport' },
+  { value: 'clearance', label: 'Special Offers' },
+];
+
+// The fields the phone list reads from a `products` row.
+type MobileCar = {
+  id: string;
+  name?: string | null;
+  make?: string | null;
+  model?: string | null;
+  year?: string | number | null;
+  license_plate?: string | null;
+  pickup_city?: string | null;
+  image_url?: string | null;
+  store_visible?: boolean | null;
+  ribbon_text?: string | null;
+  ribbon_color?: string | null;
+  daily_rate?: string | number | null;
+};
+
+const formatRate = (value: unknown) => {
+  const n = Number(value);
+  if (value === null || value === undefined || value === '' || !Number.isFinite(n)) return '—';
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
 };
 
 export default function Cars() {
@@ -319,7 +350,81 @@ export default function Cars() {
 
   return (
     <div className="space-y-6">
-      <div className="sticky top-0 z-20 bg-background pb-4 border-b flex flex-wrap justify-between items-center gap-4">
+      {/* Phones: sticky title, search and filter chips, then one row per car */}
+      <MobilePageHeader
+        title="Carros"
+        count={filteredCars.length}
+        actions={[
+          { label: 'Exportar Excel', icon: <Download className="h-4 w-4" />, onSelect: handleExport },
+          ...(isAdmin ? [{ label: 'Selecionar para excluir', icon: <CheckSquare className="h-4 w-4" />, onSelect: () => { setSelectionMode(true); setSelectedCars(new Set()); } }] : []),
+        ]}
+      >
+        {selectionMode && isAdmin && (
+          <div className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2">
+            <span className="flex-1 text-sm font-medium">{selectedCars.size} selecionado(s)</span>
+            <Button size="sm" variant="destructive" disabled={saving || selectedCars.size === 0} onClick={handleDeleteSelected}>
+              <Trash2 className="mr-1.5 h-4 w-4" /> Excluir
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => { setSelectionMode(false); setSelectedCars(new Set()); }}>
+              Cancelar
+            </Button>
+          </div>
+        )}
+        <MobileSearch value={searchTerm} onChange={setSearchTerm} placeholder="Nome, marca, modelo, VIN ou placa" />
+        <ChipRow>
+          <Chip on={!makeFilter && !categoryFilter} onClick={() => { setMakeFilter(''); setCategoryFilter(''); }}>Todos</Chip>
+          <ChipSelect
+            value={makeFilter || 'all'}
+            onChange={(v) => setMakeFilter(v === 'all' ? '' : v)}
+            defaultValue="all"
+            options={[{ value: 'all', label: 'Marca' }, ...makes.map((m) => ({ value: m, label: m }))]}
+          />
+          {CATEGORY_OPTIONS.map((c) => (
+            <Chip key={c.value} on={categoryFilter === c.value} onClick={() => setCategoryFilter(categoryFilter === c.value ? '' : c.value)}>
+              {c.label}
+            </Chip>
+          ))}
+        </ChipRow>
+      </MobilePageHeader>
+
+      <MobileList isEmpty={filteredCars.length === 0} empty="Nenhum carro encontrado">
+        {(filteredCars as unknown as MobileCar[]).map((car) => {
+          const carName = car.name || [car.year, car.make, car.model].filter(Boolean).join(' ') || 'Carro';
+          const selectable = selectionMode && isAdmin;
+          const meta = [car.year, car.license_plate, car.pickup_city].filter(Boolean).join(' · ');
+          return (
+            <MobileRow
+              key={car.id}
+              selected={selectable && selectedCars.has(car.id)}
+              onClick={() => (selectable ? toggleSelection(car.id) : setViewCar(car))}
+              leading={
+                <>
+                  {selectable && <Checkbox checked={selectedCars.has(car.id)} className="pointer-events-none" aria-hidden />}
+                  <RowAvatar name={carName} src={car.image_url} square />
+                </>
+              }
+              title={carName}
+              meta={meta || undefined}
+              badges={
+                car.store_visible || car.ribbon_text || editedCars[car.id] ? (
+                  <>
+                    {car.store_visible && <RowBadge tone="green">Na loja</RowBadge>}
+                    {car.ribbon_text && (
+                      <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase ${getRibbonClassName(car.ribbon_color)}`}>{car.ribbon_text}</span>
+                    )}
+                    {editedCars[car.id] && <RowBadge tone="amber">Não salvo</RowBadge>}
+                  </>
+                ) : undefined
+              }
+              trailing={formatRate(car.daily_rate)}
+              trailingSub={car.daily_rate ? <span className="text-[10px] text-muted-foreground">/dia</span> : undefined}
+            />
+          );
+        })}
+      </MobileList>
+      {!selectionMode && <MobileFab onClick={() => setViewCar(EMPTY_CAR)} />}
+
+      <div className="sticky top-0 z-20 bg-background pb-4 border-b flex flex-wrap justify-between items-center gap-4 max-md:hidden">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Carros</h1>
           <p className="text-muted-foreground font-bold">
@@ -372,7 +477,7 @@ export default function Cars() {
         </div>
       </div>
 
-      <Card>
+      <Card className="max-md:hidden">
         <CardHeader className="sticky top-[73px] z-10 bg-background border-b">
           <CardTitle>Lista de Carros</CardTitle>
           <div className="flex flex-col gap-4 md:flex-row md:items-center">

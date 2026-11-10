@@ -34,6 +34,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { damageHoldReleaseAt } from '@/lib/booking-payment-plan';
+import { MobilePageHeader, MobileSearch, ChipRow, Chip, ChipSelect, MobileList, MobileRow, RowAvatar, RowBadge, MobileFab, tinyDate } from '@/components/admin-v2/mobile';
 
 type CarOption = { id: string; name: string | null; make: string | null; model: string | null; year: number | null; image_url: string | null; daily_rate: string | null; min_driver_age: number };
 
@@ -188,6 +189,18 @@ function statusBadge(status: string) {
 }
 
 const EMPTY_BOOKING: Record<string, unknown> = {};
+
+/** One-line payment summary for phone rows (the full breakdown lives in the booking modal / desktop column). */
+function paymentLine(b: BookingRow): { text: string; tone: 'muted' | 'green' | 'amber' | 'red' | 'blue' } {
+  if (b.source === 'turo') return { text: 'Pago na Turo', tone: 'muted' };
+  if (!b.payment_plan) return { text: 'Manual', tone: 'muted' };
+  if (!b.deposit_paid_at) return { text: 'Aguardando cartão', tone: 'amber' };
+  if (b.payment_plan === 'full') return { text: 'Pago 100%', tone: 'green' };
+  if (b.balance_status === 'paid') return { text: 'Pago 100%', tone: 'green' };
+  if (b.balance_status === 'failed') return { text: 'Saldo falhou', tone: 'red' };
+  if (b.balance_status === 'processing') return { text: 'Cobrando saldo', tone: 'blue' };
+  return { text: `Sinal pago · saldo ${tinyDate(b.balance_due_date)}`, tone: 'green' };
+}
 
 export default function Bookings() {
   const [bookings, setBookings] = useState<BookingRow[]>([]);
@@ -635,9 +648,81 @@ export default function Bookings() {
 
   const totalCols = orderedColumns.length + (selectionMode && isAdmin ? 1 : 0);
 
+  const openBooking = (booking: BookingRow) => {
+    if (booking.source === 'turo') router.push(`/admin/turo?tab=reservations&trip=${booking.turo!.tripId}`);
+    else setViewBooking(booking);
+  };
+  const sourceCount = (src: 'all' | 'site' | 'turo') => bookings.filter((b) => src === 'all' || (b.source ?? 'site') === src).length;
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap justify-between items-center gap-4">
+    <div className="space-y-6 max-md:space-y-3">
+      {/* Phones: sticky title, search and filter chips, then one row per booking */}
+      <MobilePageHeader
+        title="Reservas"
+        count={filteredBookings.length}
+        actions={isAdmin ? [{ label: 'Selecionar para excluir', icon: <CheckSquare className="h-4 w-4" />, onSelect: () => { setSelectionMode(true); setSelectedBookings(new Set()); } }] : undefined}
+      >
+        {selectionMode && isAdmin && (
+          <div className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2">
+            <span className="flex-1 text-sm font-medium">{selectedBookings.size} selecionada(s)</span>
+            <Button size="sm" variant="destructive" disabled={saving || selectedBookings.size === 0} onClick={handleDeleteSelected}>
+              <Trash2 className="mr-1.5 h-4 w-4" /> Excluir
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => { setSelectionMode(false); setSelectedBookings(new Set()); }}>
+              Cancelar
+            </Button>
+          </div>
+        )}
+        <MobileSearch value={searchTerm} onChange={setSearchTerm} placeholder="Cliente, email ou carro" />
+        <ChipRow>
+          <Chip on={sourceFilter === 'all'} onClick={() => setSourceFilter('all')} count={sourceCount('all')}>Todas</Chip>
+          <Chip on={sourceFilter === 'site'} onClick={() => setSourceFilter('site')} count={sourceCount('site')}>Site</Chip>
+          <Chip on={sourceFilter === 'turo'} onClick={() => setSourceFilter('turo')} count={sourceCount('turo')}>Turo</Chip>
+          <ChipSelect
+            value={statusFilter}
+            onChange={setStatusFilter}
+            defaultValue="all"
+            options={[{ value: 'all', label: 'Status' }, ...(Object.keys(BOOKING_STATUS_LABEL) as BookingStatus[]).map((st) => ({ value: st, label: BOOKING_STATUS_LABEL[st] }))]}
+          />
+        </ChipRow>
+      </MobilePageHeader>
+
+      <MobileList isEmpty={filteredBookings.length === 0} empty="Nenhuma reserva encontrada">
+        {filteredBookings.map((booking) => {
+          const car = carsById.get(booking.car_id);
+          const carName = car ? (car.name || [car.year, car.make, car.model].filter(Boolean).join(' ')) : (booking.turo?.vehicle ?? '—');
+          const selectable = selectionMode && isAdmin && booking.source !== 'turo';
+          const dates = `${tinyDate(booking.pickup_date)} → ${tinyDate(booking.return_date)}`;
+          const pay = paymentLine(booking);
+          return (
+            <MobileRow
+              key={booking.id}
+              selected={selectable && selectedBookings.has(booking.id)}
+              onClick={() => (selectable ? toggleSelection(booking.id) : selectionMode ? undefined : openBooking(booking))}
+              leading={
+                <>
+                  {selectable && <Checkbox checked={selectedBookings.has(booking.id)} className="pointer-events-none" aria-hidden />}
+                  <RowAvatar name={carName} src={car?.image_url || booking.turo?.image} square />
+                </>
+              }
+              title={booking.customer_name || '—'}
+              meta={`${dates} · ${carName}`}
+              badges={
+                <>
+                  {statusBadge(booking.status)}
+                  {booking.source === 'turo' && <RowBadge style={{ color: '#593cfb', backgroundColor: '#efecff' }}>Turo</RowBadge>}
+                  <RowBadge tone={pay.tone}>{pay.text}</RowBadge>
+                </>
+              }
+              trailing={booking.source === 'turo' ? (booking.turo?.hostEarned != null ? formatCurrency(Number(booking.turo.hostEarned)) : '—') : formatCurrency(Number(booking.estimated_total))}
+              trailingSub={booking.source === 'turo' && booking.turo?.hostEarned != null ? <span className="text-[10px] text-muted-foreground">você recebe</span> : undefined}
+            />
+          );
+        })}
+      </MobileList>
+      {isAdmin && !selectionMode && <MobileFab onClick={() => setViewBooking(EMPTY_BOOKING)} label="Nova" />}
+
+      <div className="flex flex-wrap justify-between items-center gap-4 max-md:hidden">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Reservas</h1>
           <p className="text-muted-foreground font-bold">
@@ -680,7 +765,7 @@ export default function Bookings() {
         </div>
       </div>
 
-      <Card>
+      <Card className="max-md:hidden">
         <CardHeader className="sticky top-[73px] z-10 bg-background border-b">
           <CardTitle>Lista de Reservas</CardTitle>
           <div className="flex flex-col gap-4 md:flex-row md:items-center">

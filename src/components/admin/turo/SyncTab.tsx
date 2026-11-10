@@ -93,7 +93,7 @@ export function SyncTab({ config, connected, onChanged }: { config: TuroConfig |
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 max-md:flex-wrap max-md:text-xl">
             <Image src="/turo-logo.png" alt="Turo" width={56} height={20} className="object-contain" /> Conectar conta Turo
           </CardTitle>
           <CardDescription>Cole o cookie header completo do turo.com (uma única vez).</CardDescription>
@@ -104,7 +104,7 @@ export function SyncTab({ config, connected, onChanged }: { config: TuroConfig |
               <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
               <p className="text-sm font-medium text-amber-800">Como obter os cookies:</p>
             </div>
-            <ol className="text-sm text-amber-700 space-y-1 list-decimal list-inside ml-4">
+            <ol className="text-sm text-amber-700 space-y-1 list-decimal list-inside ml-4 max-md:ml-0 max-md:[overflow-wrap:anywhere]">
               <li>Acesse <strong>turo.com</strong> e faça login</li>
               <li>Abra o DevTools (<strong>F12</strong>) → aba <strong>Network</strong>, recarregue</li>
               <li>Clique numa requisição para <strong>turo.com/api/</strong></li>
@@ -114,7 +114,7 @@ export function SyncTab({ config, connected, onChanged }: { config: TuroConfig |
           </div>
           <form onSubmit={handleConnect} className="space-y-3">
             <Input value={token} onChange={(e) => setToken(e.target.value)} placeholder="cf_clearance=xxx; access_token=eyJ..." className="font-mono text-xs" required />
-            <Button type="submit" disabled={saving || !token.trim()}>
+            <Button type="submit" disabled={saving || !token.trim()} className="max-md:w-full">
               <Link2 className="mr-2 h-4 w-4" />{saving ? "Conectando..." : "Conectar"}
             </Button>
           </form>
@@ -126,7 +126,7 @@ export function SyncTab({ config, connected, onChanged }: { config: TuroConfig |
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 max-md:min-w-0">
           <div className="p-1 rounded-lg bg-black"><Image src="/turo-logo.png" alt="Turo" width={60} height={22} className="object-contain" /></div>
           <div>
             <p className="font-semibold text-green-700">Conectado</p>
@@ -135,11 +135,11 @@ export function SyncTab({ config, connected, onChanged }: { config: TuroConfig |
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={handleSyncClick} disabled={generating} size="sm">
+        <div className="flex gap-2 max-md:w-full max-md:flex-col">
+          <Button onClick={handleSyncClick} disabled={generating} size="sm" className="max-md:h-10 max-md:w-full">
             <RefreshCw className={`mr-2 h-4 w-4 ${generating ? "animate-spin" : ""}`} /> Sincronizar
           </Button>
-          <Button onClick={handleDisconnect} disabled={disconnecting} size="sm" variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10">
+          <Button onClick={handleDisconnect} disabled={disconnecting} size="sm" variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10 max-md:h-10 max-md:w-full">
             <Link2Off className="mr-2 h-4 w-4" /> Desconectar
           </Button>
         </div>
@@ -154,16 +154,16 @@ export function SyncTab({ config, connected, onChanged }: { config: TuroConfig |
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-emerald-900">
-            <ol className="list-decimal list-inside space-y-1">
+            <ol className="list-decimal list-inside space-y-1 max-md:[overflow-wrap:anywhere]">
               <li>Baixe e descompacte: <a href="/downloads/vertex-turo-sync.zip" download className="inline-flex items-center gap-1 font-semibold underline"><Download className="h-3.5 w-3.5" />vertex-turo-sync.zip</a></li>
               <li>No Chrome, abra <code className="rounded bg-white px-1">chrome://extensions</code> e ligue o <strong>Modo do desenvolvedor</strong></li>
               <li>Clique em <strong>Carregar sem compactação</strong> e escolha a pasta descompactada</li>
               <li>Clique no ícone da extensão, cole a chave abaixo, <strong>Salvar</strong> e <strong>Sincronizar agora</strong></li>
               <li>Deixe o turo.com logado nesse Chrome. Se a Turo deslogar, a extensão avisa.</li>
             </ol>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 max-md:flex-col max-md:items-stretch">
               <code className="flex-1 truncate rounded bg-white px-2 py-1.5 font-mono text-xs">{config.sync_key}</code>
-              <Button size="sm" variant="outline" className="h-8 text-xs" onClick={async () => { await navigator.clipboard.writeText(config.sync_key!); setCopiedKey(true); setTimeout(() => setCopiedKey(false), 2000); }}>
+              <Button size="sm" variant="outline" className="h-8 text-xs max-md:h-10 max-md:w-full" onClick={async () => { await navigator.clipboard.writeText(config.sync_key!); setCopiedKey(true); setTimeout(() => setCopiedKey(false), 2000); }}>
                 {copiedKey ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}{copiedKey ? "Copiada!" : "Copiar chave"}
               </Button>
             </div>
@@ -184,8 +184,8 @@ export function SyncTab({ config, connected, onChanged }: { config: TuroConfig |
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-md cursor-grab select-none">
                 <Image src="/turo-logo.png" alt="" width={32} height={12} className="object-contain brightness-0 invert" /> Sync Turo
               </a>
-              <span className="text-xs text-indigo-600">← arraste para os favoritos</span>
-              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={async () => { await navigator.clipboard.writeText(bookmarklet); setCopiedBookmark(true); setTimeout(() => setCopiedBookmark(false), 2000); }}>
+              <span className="text-xs text-indigo-600 max-md:hidden">← arraste para os favoritos</span>
+              <Button size="sm" variant="outline" className="h-7 text-xs max-md:h-10 max-md:w-full" onClick={async () => { await navigator.clipboard.writeText(bookmarklet); setCopiedBookmark(true); setTimeout(() => setCopiedBookmark(false), 2000); }}>
                 {copiedBookmark ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}{copiedBookmark ? "Copiado!" : "Copiar link"}
               </Button>
             </div>
@@ -201,12 +201,12 @@ export function SyncTab({ config, connected, onChanged }: { config: TuroConfig |
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="relative">
-              <pre className="bg-gray-900 text-green-300 text-xs p-3 rounded-lg overflow-x-auto whitespace-pre-wrap break-all font-mono leading-relaxed">{script}</pre>
+              <pre className="bg-gray-900 text-green-300 text-xs p-3 rounded-lg overflow-x-auto whitespace-pre-wrap break-all font-mono leading-relaxed max-md:whitespace-pre max-md:break-normal max-md:pt-12">{script}</pre>
               <Button size="sm" variant="secondary" className="absolute top-2 right-2" onClick={async () => { await navigator.clipboard.writeText(script); setCopied(true); setTimeout(() => setCopied(false), 2000); }}>
                 {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}<span className="ml-1">{copied ? "Copiado!" : "Copiar"}</span>
               </Button>
             </div>
-            <Button onClick={() => { setScript(null); onChanged(); }} size="sm"><Check className="mr-2 h-4 w-4" /> Já executei — Atualizar dados</Button>
+            <Button onClick={() => { setScript(null); onChanged(); }} size="sm" className="max-md:h-10 max-md:w-full"><Check className="mr-2 h-4 w-4" /> Já executei — Atualizar dados</Button>
           </CardContent>
         </Card>
       )}

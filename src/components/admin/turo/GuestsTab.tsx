@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search } from "lucide-react";
 import { TuroTrip, TuroExtras, vehicleLabel, fmtDate, fmtMoney, buildFinanceIndex } from "./shared";
+import { MobilePageHeader, MobileSearch, ChipRow, Chip, MobileList, MobileRow, RowBadge, tinyDate } from "@/components/admin-v2/mobile";
 
 type GuestAgg = {
   name: string;
@@ -57,10 +58,45 @@ export function GuestsTab({ trips, extras }: { trips: TuroTrip[]; extras: TuroEx
   }, [guests, q, sort]);
 
   const totalRevenue = guests.reduce((s, g) => s + g.revenue, 0);
+  const repeatCount = guests.filter((g) => g.trips > 1).length;
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
+      {/* Phones: title + count, search and sort chips, then one row per guest */}
+      <MobilePageHeader title="Hóspedes" count={filtered.length} sticky={false}>
+        <MobileSearch value={q} onChange={setQ} placeholder="Buscar hóspede..." />
+        <ChipRow>
+          <Chip on={sort === "revenue"} onClick={() => setSort("revenue")}>Maior receita</Chip>
+          <Chip on={sort === "trips"} onClick={() => setSort("trips")}>Mais viagens</Chip>
+        </ChipRow>
+        <p className="text-xs text-muted-foreground">
+          {repeatCount} recorrentes · <span className="font-semibold text-emerald-700">{fmtMoney(totalRevenue)}</span>
+        </p>
+      </MobilePageHeader>
+
+      <MobileList isEmpty={filtered.length === 0} empty="Nenhum hóspede encontrado.">
+        {filtered.map((g) => (
+          <MobileRow
+            key={g.name}
+            leading={
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-semibold text-white" style={{ background: avatarColor(g.name) }}>
+                {initials(g.name)}
+              </span>
+            }
+            title={g.name}
+            meta={`${[...g.vehicles].join(", ")} · última ${tinyDate(g.last)}`}
+            badges={
+              <>
+                <RowBadge>{g.trips} {g.trips === 1 ? "viagem" : "viagens"}</RowBadge>
+                {g.trips > 1 && <RowBadge style={{ color: "#4338ca", backgroundColor: "#e0e7ff" }}>recorrente</RowBadge>}
+              </>
+            }
+            trailing={g.revenue > 0 ? <span className="text-emerald-700">{fmtMoney(g.revenue)}</span> : "—"}
+          />
+        ))}
+      </MobileList>
+
+      <div className="flex flex-wrap items-center gap-2 max-md:hidden">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar hóspede..." className="pl-8" />
@@ -73,11 +109,11 @@ export function GuestsTab({ trips, extras }: { trips: TuroTrip[]; extras: TuroEx
           </SelectContent>
         </Select>
         <p className="text-xs text-muted-foreground ml-auto">
-          {filtered.length} hóspedes · {guests.filter((g) => g.trips > 1).length} recorrentes · <span className="text-emerald-700 font-semibold">{fmtMoney(totalRevenue)}</span>
+          {filtered.length} hóspedes · {repeatCount} recorrentes · <span className="text-emerald-700 font-semibold">{fmtMoney(totalRevenue)}</span>
         </p>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border">
+      <div className="overflow-x-auto rounded-lg border max-md:hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/40 text-left text-xs text-muted-foreground">

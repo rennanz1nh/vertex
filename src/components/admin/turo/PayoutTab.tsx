@@ -31,22 +31,22 @@ export function PayoutTab({ extras }: { extras: TuroExtras | null }) {
       </div>
 
       <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Conta de pagamento</CardTitle></CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          <div className="flex justify-between border-b py-1.5">
+        <CardHeader className="pb-2 max-md:px-4 max-md:pt-4"><CardTitle className="text-sm font-semibold">Conta de pagamento</CardTitle></CardHeader>
+        <CardContent className="space-y-2 text-sm max-md:px-4 max-md:pb-4">
+          <div className="flex justify-between border-b py-1.5 max-md:gap-3">
             <span className="text-muted-foreground">Tipo</span><span className="font-medium">{payout.payoutType ?? "—"}</span>
           </div>
           {payout.achResponse?.bankAccountNumber && (
-            <div className="flex justify-between border-b py-1.5">
-              <span className="text-muted-foreground">Conta bancária</span><span className="font-medium font-mono">{payout.achResponse.bankAccountNumber}</span>
+            <div className="flex justify-between border-b py-1.5 max-md:gap-3">
+              <span className="text-muted-foreground">Conta bancária</span><span className="font-medium font-mono max-md:min-w-0 max-md:break-all max-md:text-right">{payout.achResponse.bankAccountNumber}</span>
             </div>
           )}
-          <div className="flex justify-between border-b py-1.5">
+          <div className="flex justify-between border-b py-1.5 max-md:gap-3">
             <span className="text-muted-foreground">Status</span>
             <Badge className="bg-green-100 text-green-800 border-green-200 border">{statusLabel}</Badge>
           </div>
           {payout.achResponse?.paymentFailed != null && (
-            <div className="flex justify-between border-b py-1.5">
+            <div className="flex justify-between border-b py-1.5 max-md:gap-3">
               <span className="text-muted-foreground">Pagamento falhou?</span><span className="font-medium">{payout.achResponse.paymentFailed ? "Sim" : "Não"}</span>
             </div>
           )}
@@ -58,7 +58,7 @@ export function PayoutTab({ extras }: { extras: TuroExtras | null }) {
         </CardContent>
       </Card>
 
-      <details className="rounded-lg border p-3">
+      <details className="rounded-lg border p-3 max-md:min-w-0 max-md:overflow-x-auto">
         <summary className="text-sm font-medium cursor-pointer">Dados brutos</summary>
         <div className="mt-2"><JsonView value={payout} /></div>
       </details>
