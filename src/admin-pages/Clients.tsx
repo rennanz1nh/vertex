@@ -29,6 +29,7 @@ import { useColumnPreferences } from '@/hooks/useColumnPreferences';
 
 const CLIENT_TYPE_BADGE: Record<string, string> = {
   Individual: 'bg-gray-100 text-gray-700',
+  Turo: 'bg-[#efecff] text-[#593cfb]',
   Corporate: 'bg-blue-100 text-blue-700',
   'Insurance Replacement': 'bg-purple-100 text-purple-700',
 };
@@ -36,6 +37,7 @@ const CLIENT_TYPE_BADGE: Record<string, string> = {
 const ORIGEM_OPTIONS = [
   { value: 'all', label: 'All Sources' },
   { value: 'Website', label: 'Website' },
+  { value: 'Turo', label: 'Turo' },
   { value: 'Phone', label: 'Phone' },
   { value: 'Walk-in', label: 'Walk-in' },
   { value: 'Referral', label: 'Referral' },
@@ -74,6 +76,62 @@ interface ClientWithBookings {
   totalSpent: number;
   lastRentalDate: string | null;
   origemChannel: string | null;
+  /** Guests synced from Turo: read-only here, Turo doesn't share email/phone with hosts. */
+  turo?: { profileUrl: string | null; image: string | null; cancelled: number };
+}
+
+type TuroGuestTrip = {
+  renter_id: string | null;
+  guest_name: string | null;
+  status: string;
+  turo_trip_id: string;
+  pickup_date: string | null;
+  location_timezone: string | null;
+  raw_data: { renter?: { url?: string; image?: { thumbnails?: Record<string, string>; originalImageUrl?: string } } } | null;
+};
+
+/** One client row per Turo guest (grouped by Turo renter id), with their trips and spend. */
+function turoGuestRows(trips: TuroGuestTrip[], receipts: Map<string, number>): ClientWithBookings[] {
+  const byGuest = new Map<string, ClientWithBookings>();
+  for (const t of trips) {
+    const key = t.renter_id || (t.guest_name || '').trim().toLowerCase();
+    if (!key) continue;
+    let g = byGuest.get(key);
+    if (!g) {
+      const renter = t.raw_data?.renter;
+      const thumbs = renter?.image?.thumbnails;
+      g = {
+        id: `turo:${key}`,
+        nome_razao: (t.guest_name || 'Hóspede Turo').trim(),
+        tipo: 'Turo',
+        telefone: null,
+        email: null,
+        endereco_cidade: null,
+        license_expiration: null,
+        totalRentals: 0,
+        totalSpent: 0,
+        lastRentalDate: null,
+        origemChannel: 'Turo',
+        turo: {
+          profileUrl: renter?.url ? (renter.url.startsWith('http') ? renter.url : `https://turo.com${renter.url}`) : null,
+          image: (thumbs && Object.values(thumbs)[0]) || renter?.image?.originalImageUrl || null,
+          cancelled: 0,
+        },
+      };
+      byGuest.set(key, g);
+    }
+    if (/cancel/i.test(t.status)) {
+      g.turo!.cancelled += 1;
+      continue;
+    }
+    g.totalRentals += 1;
+    g.totalSpent += receipts.get(String(t.turo_trip_id)) ?? 0;
+    if (t.pickup_date) {
+      const day = new Intl.DateTimeFormat('en-CA', { timeZone: t.location_timezone || 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(t.pickup_date));
+      if (!g.lastRentalDate || day > g.lastRentalDate) g.lastRentalDate = day;
+    }
+  }
+  return [...byGuest.values()];
 }
 
 type SortOption =
@@ -162,7 +220,19 @@ export default function Clients() {
         };
       });
 
-      setClients(clientsWithBookings);
+      // Turo guests (read-only). If Turo can't be read, the site clients still show.
+      const untyped = supabase as unknown as { from: (t: string) => { select: (c: string) => Promise<{ data: unknown[] | null; error: unknown }> } };
+      const [turoRes, receiptsRes] = await Promise.all([
+        untyped.from('turo_trips').select('renter_id, guest_name, status, turo_trip_id, pickup_date, location_timezone, raw_data'),
+        untyped.from('turo_receipts').select('reservation_id, trip_total'),
+      ]);
+      if (turoRes.error) console.error('Error fetching Turo guests:', turoRes.error);
+      const receipts = new Map(
+        ((receiptsRes.data ?? []) as { reservation_id: string; trip_total: number | null }[]).map((r) => [String(r.reservation_id), Number(r.trip_total) || 0]),
+      );
+      const turoClients = turoGuestRows((turoRes.data ?? []) as TuroGuestTrip[], receipts);
+
+      setClients([...clientsWithBookings, ...turoClients]);
     } catch (error) {
       console.error('Error fetching clients:', error);
     } finally {
@@ -291,6 +361,9 @@ export default function Clients() {
   };
 
   const renderEditableCell = (client: ClientWithBookings, field: keyof ClientWithBookings, value: string | null) => {
+    if (client.turo) {
+      return <span className="text-muted-foreground">{value || (field === 'telefone' || field === 'email' ? 'via Turo' : '-')}</span>;
+    }
     if (!isAdmin) {
       return <span>{value || '-'}</span>;
     }
@@ -312,7 +385,29 @@ export default function Clients() {
   const columns: ColumnDef[] = useMemo(() => [
     {
       id: 'nome_razao', label: 'Client Name',
-      render: (client) => <TableCell className="font-medium">{renderEditableCell(client, 'nome_razao', client.nome_razao)}</TableCell>,
+      render: (client) =>
+        client.turo ? (
+          <TableCell className="font-medium">
+            <div className="flex items-center gap-2">
+              {client.turo.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={client.turo.image} alt="" className="h-8 w-8 rounded-full object-cover shrink-0" />
+              ) : (
+                <span className="h-8 w-8 rounded-full bg-muted shrink-0" />
+              )}
+              <div className="flex flex-col">
+                <span>{client.nome_razao}</span>
+                {client.turo.profileUrl && (
+                  <a href={client.turo.profileUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-[#593cfb] hover:underline">
+                    Perfil na Turo
+                  </a>
+                )}
+              </div>
+            </div>
+          </TableCell>
+        ) : (
+          <TableCell className="font-medium">{renderEditableCell(client, 'nome_razao', client.nome_razao)}</TableCell>
+        ),
     },
     {
       id: 'tipo', label: 'Type',
@@ -335,6 +430,7 @@ export default function Clients() {
     {
       id: 'license', label: "License",
       render: (client) => {
+        if (client.turo) return <TableCell><span className="text-xs text-muted-foreground">Verificada pela Turo</span></TableCell>;
         const status = LICENSE_STATUS[licenseStatus(client.license_expiration)];
         return (
           <TableCell>
@@ -345,7 +441,14 @@ export default function Clients() {
     },
     {
       id: 'qtd', label: 'Total Rentals', headerClassName: 'text-right',
-      render: (client) => <TableCell className="text-right font-medium">{client.totalRentals}</TableCell>,
+      render: (client) => (
+        <TableCell className="text-right font-medium">
+          {client.totalRentals}
+          {client.turo && client.turo.cancelled > 0 && (
+            <span className="block text-[11px] font-normal text-muted-foreground">+{client.turo.cancelled} cancelada(s)</span>
+          )}
+        </TableCell>
+      ),
     },
     {
       id: 'valor', label: 'Total Spent', headerClassName: 'text-right',
@@ -390,7 +493,7 @@ export default function Clients() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Clientes</h1>
           <p className="text-muted-foreground font-bold">
-            Locatários e contas corporativas {isAdmin && '(Admin)'}
+            Clientes do site e hóspedes da Turo {isAdmin && '(Admin)'}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -531,10 +634,12 @@ export default function Clients() {
                     <TableRow key={client.id}>
                       {selectionMode && isAdmin && (
                         <TableCell>
-                          <Checkbox
-                            checked={selectedClients.has(client.id)}
-                            onCheckedChange={() => toggleSelection(client.id)}
-                          />
+                          {!client.turo && (
+                            <Checkbox
+                              checked={selectedClients.has(client.id)}
+                              onCheckedChange={() => toggleSelection(client.id)}
+                            />
+                          )}
                         </TableCell>
                       )}
                       {orderedColumns.map(col => (
