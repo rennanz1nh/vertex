@@ -19,7 +19,7 @@ export default function SeoSettingsPage() {
   const [tab, setTab] = useState<SubTab>("geral");
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-md:space-y-4">
       <SettingsHeader />
 
       <div className="flex gap-1 border-b">
@@ -28,7 +28,7 @@ export default function SeoSettingsPage() {
             key={t.key}
             onClick={() => setTab(t.key)}
             className={cn(
-              "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
+              "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors max-md:flex-1 max-md:px-2",
               tab === t.key
                 ? "border-black text-black"
                 : "border-transparent text-muted-foreground hover:text-foreground"

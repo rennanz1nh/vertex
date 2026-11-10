@@ -28,15 +28,15 @@ export function usePersisted<T extends string>(key: string, initial: T, allowed:
 
 export function Segmented<T extends string>({ options, value, onChange, label }: { options: { key: T; label: string }[]; value: T; onChange: (k: T) => void; label?: string }) {
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {label && <span className="mr-0.5 text-[11px] uppercase tracking-wide text-muted-foreground">{label}</span>}
+    <div className="flex flex-wrap items-center gap-1.5 max-md:-mx-4 max-md:flex-nowrap max-md:overflow-x-auto max-md:px-4 max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden">
+      {label && <span className="mr-0.5 text-[11px] uppercase tracking-wide text-muted-foreground max-md:shrink-0">{label}</span>}
       {options.map((o) => (
         <button
           key={o.key}
           type="button"
           onClick={() => onChange(o.key)}
           className={cn(
-            "h-7 rounded-md border px-2.5 text-xs font-medium transition-colors",
+            "h-7 rounded-md border px-2.5 text-xs font-medium transition-colors max-md:shrink-0 max-md:whitespace-nowrap",
             value === o.key ? "border-black bg-black text-white" : "border-input bg-background text-muted-foreground hover:bg-muted",
           )}
         >
@@ -47,7 +47,7 @@ export function Segmented<T extends string>({ options, value, onChange, label }:
   );
 }
 
-/** A row of option groups shown at the top of a card's body. */
+/** A row of option groups shown at the top of a card's body. On phones each group gets its own scrolling line. */
 export function OptionBar({ children }: { children: ReactNode }) {
-  return <div className="flex flex-wrap items-center gap-x-4 gap-y-2">{children}</div>;
+  return <div className="flex flex-wrap items-center gap-x-4 gap-y-2 max-md:flex-col max-md:flex-nowrap max-md:items-stretch">{children}</div>;
 }

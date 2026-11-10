@@ -141,7 +141,7 @@ export default function BannerModal({ banner, open, onClose, onChanged, defaultP
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto max-md:max-h-[90dvh] max-md:p-4">
         <DialogHeader>
           <DialogTitle>
             {banner ? "Editar" : "Novo"} {form.placement === "popup" ? "Pop-up" : "Banner"}
@@ -154,7 +154,7 @@ export default function BannerModal({ banner, open, onClose, onChanged, defaultP
             <Input value={form.title} onChange={(e) => set("title", e.target.value)} placeholder="Ex: Promoção de verão" />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 max-md:grid-cols-1">
             <div className="space-y-1.5">
               <Label>Página</Label>
               <Select value={form.page} onValueChange={(v) => set("page", v)}>
@@ -186,7 +186,7 @@ export default function BannerModal({ banner, open, onClose, onChanged, defaultP
           <div className="space-y-1.5">
             <Label>Imagem ou vídeo</Label>
             <div className="flex items-center gap-3">
-              <div className="relative w-28 h-16 rounded overflow-hidden bg-muted flex items-center justify-center shrink-0 border">
+              <div className="relative w-28 h-16 rounded overflow-hidden bg-muted flex items-center justify-center shrink-0 border max-md:w-24 max-md:h-14">
                 {form.media_url ? (
                   form.media_type === "video" ? (
                     <video src={form.media_url} className="w-full h-full object-cover" muted />
@@ -198,7 +198,7 @@ export default function BannerModal({ banner, open, onClose, onChanged, defaultP
                   <ImageIcon className="h-5 w-5 text-muted-foreground" />
                 )}
               </div>
-              <label className="flex-1">
+              <label className="flex-1 max-md:min-w-0">
                 <div className="flex items-center justify-center gap-2 border rounded-md py-2 text-sm cursor-pointer hover:bg-muted transition-colors">
                   {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                   {uploading ? "Enviando..." : "Enviar arquivo"}
@@ -322,15 +322,15 @@ export default function BannerModal({ banner, open, onClose, onChanged, defaultP
             )}
           </div>
 
-          <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+          <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30 max-md:gap-3">
             <div>
               <Label className="font-semibold">Ativo</Label>
               <p className="text-xs text-muted-foreground mt-0.5">Desative para esconder sem perder a configuração.</p>
             </div>
-            <Switch checked={form.active} onCheckedChange={(v) => set("active", v)} className="data-[state=checked]:bg-black" />
+            <Switch checked={form.active} onCheckedChange={(v) => set("active", v)} className="data-[state=checked]:bg-black max-md:shrink-0" />
           </div>
 
-          <div className="flex gap-2 pt-2">
+          <div className="flex gap-2 pt-2 max-md:flex-wrap">
             <Button className="flex-1 bg-black hover:bg-black/80 text-white" onClick={handleSave} disabled={saving || uploading}>
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
               {saving ? "Salvando..." : "Salvar"}

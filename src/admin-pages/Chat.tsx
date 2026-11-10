@@ -10,6 +10,7 @@ import { Send, MessageCircle, ArrowLeft } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { MobilePageHeader } from "@/components/admin-v2/mobile";
 
 type Conversation = {
   id: string;
@@ -114,16 +115,28 @@ export default function Chat() {
   const selected = conversations.find((c) => c.id === selectedId) ?? null;
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-semibold text-gray-900 mb-1">Mensagens</h1>
-      <p className="text-sm text-gray-500 mb-5">Conversas iniciadas pelo chat do site</p>
+    <div className="p-6 max-md:p-0">
+      <h1 className="text-2xl font-semibold text-gray-900 mb-1 max-md:hidden">Mensagens</h1>
+      <p className="text-sm text-gray-500 mb-5 max-md:hidden">Conversas iniciadas pelo chat do site</p>
 
-      <Card className="flex h-[calc(100vh-220px)] min-h-[420px] overflow-hidden p-0">
-        {/* On mobile, list and conversation are two full-width panes, one at a time
-            (like a typical chat app) — from sm: up they sit side by side as before. */}
-        <div className={cn("w-full sm:w-72 sm:shrink-0 border-r border-gray-100 overflow-y-auto", selected && "hidden sm:block")}>
+      {/* Phones: sticky title over the conversation list */}
+      <MobilePageHeader title="Mensagens" count={loadingList ? undefined : conversations.length} />
+
+      <Card
+        className={cn(
+          "flex h-[calc(100vh-220px)] min-h-[420px] overflow-hidden p-0",
+          // Phones: the list flows with the page; an open conversation fills the screen
+          // between the top bar and the bottom tab bar, like a chat app.
+          selected
+            ? "max-md:fixed max-md:inset-x-0 max-md:bottom-[68px] max-md:top-14 max-md:z-[25] max-md:h-auto max-md:min-h-0 max-md:rounded-none max-md:border-0 max-md:shadow-none"
+            : "max-md:mt-3 max-md:h-auto max-md:min-h-0"
+        )}
+      >
+        {/* On phones, list and conversation are two full-width panes, one at a time
+            (like a typical chat app) — from md: up they sit side by side as before. */}
+        <div className={cn("w-full md:w-72 md:shrink-0 border-r border-gray-100 overflow-y-auto max-md:border-r-0 max-md:overflow-visible", selected && "hidden md:block")}>
           {loadingList ? (
-            <div className="flex items-center justify-center h-full">
+            <div className="flex items-center justify-center h-full max-md:py-16">
               <LoadingSpinner />
             </div>
           ) : conversations.length === 0 ? (
@@ -133,7 +146,7 @@ export default function Chat() {
               <button
                 key={c.id}
                 onClick={() => setSelectedId(c.id)}
-                className={`w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors ${
+                className={`w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors max-md:border-gray-100 max-md:last:border-b-0 max-md:active:bg-gray-50 ${
                   selectedId === c.id ? "bg-gray-50" : ""
                 }`}
               >
@@ -156,7 +169,7 @@ export default function Chat() {
           )}
         </div>
 
-        <div className={cn("flex-1 flex-col min-w-0", selected ? "flex" : "hidden sm:flex")}>
+        <div className={cn("flex-1 flex-col min-w-0", selected ? "flex" : "hidden md:flex")}>
           {!selected ? (
             <div className="flex-1 flex flex-col items-center justify-center text-gray-300">
               <MessageCircle size={40} />
@@ -164,23 +177,23 @@ export default function Chat() {
             </div>
           ) : (
             <>
-              <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100">
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100 max-md:shrink-0 max-md:bg-white max-md:py-2">
                 <button
                   type="button"
                   onClick={() => setSelectedId(null)}
-                  className="sm:hidden -ml-1 p-1 text-gray-500 hover:text-gray-900"
+                  className="md:hidden -ml-2 flex h-10 w-10 items-center justify-center rounded-full text-gray-500 hover:text-gray-900 active:bg-gray-100"
                   aria-label="Voltar para conversas"
                 >
-                  <ArrowLeft size={18} />
+                  <ArrowLeft size={20} />
                 </button>
-                <p className="text-sm font-semibold text-gray-900">{selected.visitor_name?.trim() || "Visitante do site"}</p>
+                <p className="text-sm font-semibold text-gray-900 max-md:min-w-0 max-md:flex-1 max-md:truncate max-md:text-base">{selected.visitor_name?.trim() || "Visitante do site"}</p>
               </div>
 
               <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-gray-50">
                 {messages.map((m) => (
                   <div key={m.id} className={`flex ${m.sender_type === "admin" ? "justify-end" : "justify-start"}`}>
                     <div
-                      className={`max-w-[70%] px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words ${
+                      className={`max-w-[70%] max-md:max-w-[85%] px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words ${
                         m.sender_type === "admin"
                           ? "bg-brand text-white rounded-br-sm"
                           : "bg-white text-gray-800 border border-gray-200 rounded-bl-sm"
@@ -197,18 +210,18 @@ export default function Chat() {
                   e.preventDefault();
                   send();
                 }}
-                className="flex items-center gap-2 border-t border-gray-100 px-4 py-3 shrink-0"
+                className="flex items-center gap-2 border-t border-gray-100 px-4 py-3 shrink-0 max-md:bg-white max-md:px-3 max-md:py-2"
               >
                 <input
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   placeholder="Responder…"
-                  className="flex-1 text-sm border border-gray-300 rounded-full px-4 py-2 focus:outline-none focus:border-brand transition-colors"
+                  className="flex-1 max-md:min-w-0 text-sm max-md:text-base border border-gray-300 rounded-full px-4 py-2 focus:outline-none focus:border-brand transition-colors"
                 />
                 <button
                   type="submit"
                   disabled={!draft.trim() || sending}
-                  className="bg-brand text-white rounded-full w-9 h-9 flex items-center justify-center shrink-0 hover:bg-brand-hover transition-colors disabled:opacity-40"
+                  className="bg-brand text-white rounded-full w-9 h-9 max-md:w-10 max-md:h-10 flex items-center justify-center shrink-0 hover:bg-brand-hover transition-colors disabled:opacity-40"
                   aria-label="Enviar"
                 >
                   <Send size={16} />

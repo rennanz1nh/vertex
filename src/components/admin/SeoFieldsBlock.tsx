@@ -45,7 +45,7 @@ export function SeoFieldsBlock({ values, onChange, fallbackTitle, fallbackDescri
         onChange={(v) => onChange("og_image", v)}
         placeholder="https://... (imagem exibida ao compartilhar no WhatsApp/Facebook)"
       />
-      <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+      <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30 max-md:gap-3">
         <div>
           <Label className="font-semibold">Ocultar do Google (noindex)</Label>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -55,7 +55,7 @@ export function SeoFieldsBlock({ values, onChange, fallbackTitle, fallbackDescri
         <Switch
           checked={values.noindex}
           onCheckedChange={(v) => onChange("noindex", v)}
-          className="data-[state=checked]:bg-black"
+          className="data-[state=checked]:bg-black max-md:shrink-0"
         />
       </div>
     </div>

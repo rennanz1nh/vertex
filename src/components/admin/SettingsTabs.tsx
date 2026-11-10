@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ComponentType } from "react";
+import { useEffect, useRef, type ComponentType } from "react";
 import { Bell, Image as ImageIcon, Search, Mail, Ticket, Users, Link2 } from "lucide-react";
 import { GoogleLogo, FacebookLogo } from "@/components/brand-logos";
 import { cn } from "@/lib/utils";
@@ -34,8 +34,19 @@ export function SettingsTabs() {
   const { profile } = useAuth();
   const isAdmin = profile?.role === "admin";
   const visibleTabs = TABS.filter((t) => !t.adminOnly || isAdmin);
+  const barRef = useRef<HTMLDivElement>(null);
+  // Phones: the bar scrolls sideways, so bring the active tab into view.
+  useEffect(() => {
+    const bar = barRef.current;
+    const el = bar?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!bar || !el || !window.matchMedia("(max-width: 767px)").matches || bar.scrollWidth <= bar.clientWidth) return;
+    bar.scrollLeft = el.offsetLeft - (bar.clientWidth - el.offsetWidth) / 2;
+  }, [pathname]);
   return (
-    <div className="flex gap-2 border-b pb-3 overflow-x-auto">
+    <div
+      ref={barRef}
+      className="flex gap-2 border-b pb-3 overflow-x-auto max-md:-mx-4 max-md:gap-1.5 max-md:px-4 max-md:pb-2.5 max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden"
+    >
       {visibleTabs.map((t) => {
         const active = pathname === t.href;
         const Icon = t.icon;
@@ -46,8 +57,9 @@ export function SettingsTabs() {
             href={t.href}
             title={t.label}
             aria-label={t.label}
+            aria-current={active ? "page" : undefined}
             className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap shrink-0",
+              "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap shrink-0 max-md:gap-1.5 max-md:px-3",
               active ? "bg-black text-white" : "text-muted-foreground hover:bg-muted"
             )}
           >

@@ -35,6 +35,13 @@ import { SettingsHeader } from "@/components/admin/SettingsHeader";
 import { authedFetch } from "@/lib/admin-fetch";
 import { useAuth } from "@/hooks/useAuth";
 
+// Phone rows show the last login in the same format as the table.
+function formatLastLogin(at: string | null | undefined) {
+  return at
+    ? new Date(at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })
+    : "Nunca";
+}
+
 type AppUser = {
   id: string;
   email: string;
@@ -168,7 +175,7 @@ export default function UsersSettingsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-md:space-y-4">
       <SettingsHeader />
 
       {error && (
@@ -185,28 +192,58 @@ export default function UsersSettingsPage() {
       )}
 
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
+        <CardHeader className="max-md:p-4">
+          <div className="flex items-center justify-between max-md:flex-col max-md:items-stretch max-md:gap-3">
             <div>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 max-md:text-xl">
                 <Users className="h-5 w-5" />
                 Gerenciar Usuários
               </CardTitle>
               <CardDescription>Criar usuários, alterar senhas e gerenciar permissões.</CardDescription>
             </div>
-            <Button onClick={() => setShowCreate(true)} className="bg-black hover:bg-black/80 text-white">
+            <Button onClick={() => setShowCreate(true)} className="bg-black hover:bg-black/80 text-white max-md:w-full">
               <UserPlus className="h-4 w-4 mr-2" />
               Novo Usuário
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="max-md:px-4 max-md:pb-4">
           {loading ? (
             <div className="flex items-center justify-center py-10 gap-2 text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin" />
               Carregando...
             </div>
           ) : (
+            <>
+            {/* Phones: one block per user with the two actions side by side */}
+            <ul className="-mx-4 divide-y border-y md:hidden">
+              {users.map((u) => (
+                <li key={u.id} className="space-y-2 px-4 py-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold">{u.display_name || u.email}</p>
+                      {u.display_name && <p className="truncate text-xs text-muted-foreground">{u.email}</p>}
+                      <p className="text-[11px] text-muted-foreground">Último login: {formatLastLogin(u.last_sign_in_at)}</p>
+                    </div>
+                    <Badge variant={u.role === "admin" ? "default" : "secondary"} className="shrink-0">
+                      {u.role === "admin" ? "Admin" : "Usuário"}
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button size="sm" variant="outline" onClick={() => { setResetTarget(u); setNewPassword(""); }}>
+                      <KeyRound className="h-3.5 w-3.5 mr-1" />
+                      Senha
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => { setRoleTarget(u); setNewRole(u.role === "admin" ? "user" : "admin"); }}>
+                      <Shield className="h-3.5 w-3.5 mr-1" />
+                      Role
+                    </Button>
+                  </div>
+                </li>
+              ))}
+              {users.length === 0 && <li className="px-4 py-8 text-center text-sm text-muted-foreground">Nenhum usuário encontrado.</li>}
+            </ul>
+            <div className="max-md:hidden">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -275,6 +312,8 @@ export default function UsersSettingsPage() {
                 )}
               </TableBody>
             </Table>
+            </div>
+            </>
           )}
         </CardContent>
       </Card>

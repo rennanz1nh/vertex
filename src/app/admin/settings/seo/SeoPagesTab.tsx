@@ -100,7 +100,7 @@ export default function SeoPagesTab() {
         ) : (
           <>
             <SeoFieldsBlock values={values} onChange={set} fallbackTitle={current?.label} />
-            <Button className="bg-black hover:bg-black/80 text-white" onClick={handleSave} disabled={saving}>
+            <Button className="bg-black hover:bg-black/80 text-white max-md:w-full" onClick={handleSave} disabled={saving}>
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
               Salvar
             </Button>

@@ -117,7 +117,7 @@ function ImageUploadField({
         <div className="flex items-center gap-3 p-2 border rounded-lg bg-muted/20">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={value} alt="Preview" className="w-16 h-16 rounded object-cover" />
-          <span className="text-xs text-muted-foreground truncate flex-1">{value}</span>
+          <span className="text-xs text-muted-foreground truncate flex-1 max-md:min-w-0">{value}</span>
         </div>
       )}
       {uploadError && <p className="text-xs text-destructive">{uploadError}</p>}
@@ -381,7 +381,7 @@ export default function LinkBioSettingsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-md:space-y-4">
       <SettingsHeader />
 
       {error && (
@@ -410,7 +410,7 @@ export default function LinkBioSettingsPage() {
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-2">
-            <Input value={publicUrl} readOnly className="font-mono text-sm" />
+            <Input value={publicUrl} readOnly className="font-mono text-sm max-md:min-w-0 max-md:text-xs" />
             <Button variant="outline" size="sm" onClick={handleCopyUrl}>
               {copied ? <CheckCircle2 className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
             </Button>
@@ -482,7 +482,7 @@ export default function LinkBioSettingsPage() {
             hint="Se preenchido, a imagem substitui cor e gradiente. Máximo 5MB."
           />
 
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 max-md:grid-cols-1 max-md:gap-3">
             <div className="space-y-1.5">
               <Label>Cor de fundo</Label>
               <div className="flex items-center gap-2">
@@ -537,7 +537,7 @@ export default function LinkBioSettingsPage() {
           <div className="border rounded-lg p-4 space-y-3">
             <Label className="text-sm font-semibold">Gradiente (opcional)</Label>
             <p className="text-xs text-muted-foreground">Preencha ambas as cores para ativar o gradiente.</p>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-4 max-md:grid-cols-1 max-md:gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs">Cor inicial</Label>
                 <div className="flex items-center gap-2">
@@ -616,7 +616,7 @@ export default function LinkBioSettingsPage() {
           <CardDescription>Estilo dos botões, sombras, animações e tipografia.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 max-md:grid-cols-1 max-md:gap-3">
             <div className="space-y-1.5">
               <Label>Estilo dos botões</Label>
               <Select
@@ -667,7 +667,7 @@ export default function LinkBioSettingsPage() {
               </Select>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 max-md:grid-cols-1 max-md:gap-3">
             <div className="space-y-1.5">
               <Label>Fonte</Label>
               <Select
@@ -703,7 +703,7 @@ export default function LinkBioSettingsPage() {
           </div>
 
           <div className="flex justify-end pt-2">
-            <Button onClick={handleSaveSettings} disabled={savingSettings} className="bg-black hover:bg-black/80 text-white">
+            <Button onClick={handleSaveSettings} disabled={savingSettings} className="bg-black hover:bg-black/80 text-white max-md:w-full">
               {savingSettings ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
               Salvar Aparência
             </Button>
@@ -714,14 +714,14 @@ export default function LinkBioSettingsPage() {
       {/* Links list */}
       <Card className="max-w-3xl">
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between max-md:flex-col max-md:items-stretch max-md:gap-3">
             <div>
               <CardTitle>Links</CardTitle>
               <CardDescription>Adicione, edite e organize seus links. Cada link pode ter cores individuais.</CardDescription>
             </div>
             <Button
               onClick={() => { setEditingLink({}); setShowEditor(true); }}
-              className="bg-black hover:bg-black/80 text-white"
+              className="bg-black hover:bg-black/80 text-white max-md:w-full"
             >
               <Plus className="h-4 w-4 mr-2" />
               Novo Link
@@ -736,9 +736,9 @@ export default function LinkBioSettingsPage() {
               {links.map((link, i) => (
                 <div
                   key={link.id}
-                  className="flex items-center gap-3 p-3 border rounded-lg bg-muted/20 hover:bg-muted/40 transition-colors"
+                  className="flex items-center gap-3 p-3 border rounded-lg bg-muted/20 hover:bg-muted/40 transition-colors max-md:gap-2 max-md:p-2.5"
                 >
-                  <div className="flex flex-col gap-0.5">
+                  <div className="flex flex-col gap-0.5 max-md:shrink-0">
                     <button
                       onClick={() => handleMoveUp(i)}
                       disabled={i === 0}
@@ -758,7 +758,7 @@ export default function LinkBioSettingsPage() {
 
                   {link.button_color && (
                     <div
-                      className="w-4 h-10 rounded shrink-0"
+                      className="w-4 h-10 rounded shrink-0 max-md:w-1.5"
                       style={{ backgroundColor: link.button_color }}
                       title={`Cor: ${link.button_color}`}
                     />
@@ -791,11 +791,13 @@ export default function LinkBioSettingsPage() {
                   <Switch
                     checked={link.enabled}
                     onCheckedChange={() => handleToggle(link)}
+                    className="max-md:shrink-0"
                   />
 
                   <Button
                     size="sm"
                     variant="ghost"
+                    className="max-md:h-8 max-md:w-8 max-md:shrink-0 max-md:p-0"
                     onClick={() => { setEditingLink(link); setShowEditor(true); }}
                   >
                     <Pencil className="h-3.5 w-3.5" />
@@ -804,7 +806,7 @@ export default function LinkBioSettingsPage() {
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="text-destructive hover:text-destructive"
+                    className="text-destructive hover:text-destructive max-md:h-8 max-md:w-8 max-md:shrink-0 max-md:p-0"
                     onClick={() => handleDelete(link.id)}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -881,7 +883,7 @@ export default function LinkBioSettingsPage() {
                 Cores individuais (opcional)
               </Label>
               <p className="text-xs text-muted-foreground">Se vazio, usa a cor de destaque padrão.</p>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4 max-md:grid-cols-1 max-md:gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Cor do botão</Label>
                   <div className="flex items-center gap-2">

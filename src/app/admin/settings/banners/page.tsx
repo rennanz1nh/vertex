@@ -63,16 +63,16 @@ export default function BannersSettingsPage() {
   const newLabel = activeTab === "popup" ? "Novo Pop-up" : "Novo Banner";
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <SettingsIcon className="h-7 w-7" />
+    <div className="space-y-6 max-md:space-y-4">
+      <div className="flex items-center justify-between gap-3 max-md:flex-col max-md:items-stretch">
+        <div className="flex items-center gap-3 max-md:gap-2.5">
+          <SettingsIcon className="h-7 w-7 max-md:shrink-0 max-md:h-6 max-md:w-6" />
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Configurações</h1>
-            <p className="text-muted-foreground text-sm">Preferências gerais do sistema</p>
+            <p className="text-muted-foreground text-sm max-md:text-xs">Preferências gerais do sistema</p>
           </div>
         </div>
-        <Button className="bg-black hover:bg-black/80 text-white" onClick={() => setCreating(true)}>
+        <Button className="bg-black hover:bg-black/80 text-white max-md:order-last max-md:w-full" onClick={() => setCreating(true)}>
           <Plus className="mr-2 h-4 w-4" />
           {newLabel}
         </Button>
@@ -81,12 +81,12 @@ export default function BannersSettingsPage() {
       <SettingsTabs />
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as BannerPlacement)}>
-        <TabsList>
+        <TabsList className="max-md:grid max-md:w-full max-md:grid-cols-2">
           <TabsTrigger value="hero">Banners</TabsTrigger>
           <TabsTrigger value="popup">Pop-ups</TabsTrigger>
         </TabsList>
       </Tabs>
-      <p className="text-sm text-muted-foreground -mt-4">
+      <p className="text-sm text-muted-foreground -mt-4 max-md:-mt-2 max-md:text-xs">
         {activeTab === "hero"
           ? "Faixas fixas no topo das páginas (ex: a foto grande da Home). Mais de uma ativa na mesma página gira em carrossel automaticamente."
           : "Janelas que aparecem sobre a página ao carregar."}

@@ -50,8 +50,8 @@ function EbayListingRow({ listing, metric }: { listing: EbayListingSummary; metr
         // eslint-disable-next-line @next/next/no-img-element
         <img src={listing.imageUrl} alt="" className="w-9 h-9 object-cover rounded border shrink-0" />
       )}
-      <span className="flex-1 truncate">{listing.title ?? listing.itemId}</span>
-      <span className="font-medium shrink-0">
+      <span className="flex-1 truncate max-md:min-w-0">{listing.title ?? listing.itemId}</span>
+      <span className="font-medium shrink-0 max-md:text-xs">
         {metric === "views" ? listing.views : listing.impressions} {metric === "views" ? "visualizações" : "impressões"}
       </span>
     </div>
@@ -100,13 +100,13 @@ export default function DailyReportPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <Newspaper className="h-7 w-7" />
+          <Newspaper className="h-7 w-7 max-md:shrink-0" />
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Resumo Diário</h1>
             <p className="text-muted-foreground text-sm">Vendas, acessos e catálogo consolidados — gerado toda manhã às 08:00.</p>
           </div>
         </div>
-        <Button variant="outline" onClick={handleGenerate} disabled={generating}>
+        <Button variant="outline" onClick={handleGenerate} disabled={generating} className="max-md:w-full">
           {generating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
           Gerar agora
         </Button>
@@ -253,7 +253,7 @@ export default function DailyReportPage() {
                 <p className="text-xs text-muted-foreground">{report.data.ebayTraffic.error}</p>
               ) : (
                 <>
-                  <div className="flex gap-6 mb-4">
+                  <div className="flex gap-6 mb-4 max-md:flex-wrap max-md:gap-x-4 max-md:gap-y-2">
                     <div>
                       <p className="text-2xl font-bold">{report.data.ebayTraffic.impressions}</p>
                       <p className="text-xs text-muted-foreground">impressões</p>
@@ -311,7 +311,7 @@ export default function DailyReportPage() {
                 <p className="text-sm text-muted-foreground py-2">Nenhuma campanha ativa ontem.</p>
               ) : (
                 <>
-                  <div className="flex flex-wrap gap-6 mb-4">
+                  <div className="flex flex-wrap gap-6 mb-4 max-md:gap-x-4 max-md:gap-y-2">
                     <div>
                       <p className="text-2xl font-bold">{fmtUSD(report.data.ebayCampaigns.totals.spend)}</p>
                       <p className="text-xs text-muted-foreground">gasto</p>
@@ -333,11 +333,11 @@ export default function DailyReportPage() {
                   </div>
                   <div className="space-y-2">
                     {report.data.ebayCampaigns.campaigns.map((c) => (
-                      <div key={c.campaignId} className="flex items-center justify-between gap-3 text-sm">
-                        <span className="truncate flex-1">{c.name}</span>
+                      <div key={c.campaignId} className="flex items-center justify-between gap-3 text-sm max-md:gap-2 max-md:text-xs">
+                        <span className="truncate flex-1 max-md:min-w-0">{c.name}</span>
                         <span className="text-muted-foreground shrink-0">{c.clicks} cliques</span>
-                        <span className="font-medium shrink-0 w-20 text-right">{fmtUSD(c.spend)}</span>
-                        <span className="font-medium shrink-0 w-16 text-right">{c.roas.toFixed(2)}x</span>
+                        <span className="font-medium shrink-0 w-20 text-right max-md:w-auto">{fmtUSD(c.spend)}</span>
+                        <span className="font-medium shrink-0 w-16 text-right max-md:w-auto">{c.roas.toFixed(2)}x</span>
                       </div>
                     ))}
                   </div>

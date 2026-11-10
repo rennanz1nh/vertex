@@ -28,14 +28,14 @@ export function WCard({ title, icon, description, action, children, className, b
 }) {
   return (
     <Card className={cn("flex h-full flex-col overflow-hidden", className)}>
-      <CardHeader className="shrink-0 space-y-1 pb-2">
+      <CardHeader className="shrink-0 space-y-1 pb-2 max-md:px-4 max-md:pt-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle className="flex items-center gap-2 text-base">{icon}{title}</CardTitle>
           {action}
         </div>
         {description && <CardDescription>{description}</CardDescription>}
       </CardHeader>
-      <CardContent className={cn("flex min-h-0 flex-1 flex-col gap-3 overflow-auto", bodyClassName)}>{children}</CardContent>
+      <CardContent className={cn("flex min-h-0 flex-1 flex-col gap-3 overflow-auto max-md:px-4 max-md:pb-4", bodyClassName)}>{children}</CardContent>
     </Card>
   );
 }
@@ -80,19 +80,19 @@ export function ChannelTile({ name, selected, onClick, cur, prev, hasPrev, color
       onClick={onClick}
       title={hint}
       className={cn(
-        "rounded-xl border bg-card p-3 text-left transition-colors hover:border-foreground/40",
+        "rounded-xl border bg-card p-3 text-left transition-colors hover:border-foreground/40 max-md:min-w-0 max-md:p-2.5",
         selected && "border-foreground ring-1 ring-foreground",
       )}
     >
       <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-        <span className="h-2.5 w-2.5 rounded-full" style={{ background: color ?? "#111827" }} />
-        {name}
+        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: color ?? "#111827" }} />
+        <span className="max-md:truncate">{name}</span>
       </div>
-      <div className="mt-1 flex items-baseline gap-2">
-        <span className="text-lg font-bold tabular-nums">{usd0(cur.gross)}</span>
+      <div className="mt-1 flex items-baseline gap-2 max-md:flex-wrap max-md:gap-x-1.5 max-md:gap-y-0">
+        <span className="text-lg font-bold tabular-nums max-md:text-base">{usd0(cur.gross)}</span>
         <Delta cur={cur.gross} prev={prev.gross} hasPrev={hasPrev} />
       </div>
-      <p className="text-[11px] text-muted-foreground">{cur.trips} locações · {cur.days} diárias</p>
+      <p className="text-[11px] text-muted-foreground max-md:truncate">{cur.trips} locações · {cur.days} diárias</p>
     </button>
   );
 }
@@ -123,12 +123,12 @@ export function KpiGrid({ cur, prev, hasPrev, fleetSize, occupancy, prevOccupanc
   ];
   return (
     <WCard title="Resumo do período" icon={<TrendingUp className="h-4 w-4" />}>
-      <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(150px,1fr))]">
+      <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(150px,1fr))] max-md:grid-cols-2 max-md:gap-2">
         {items.map((i) => (
-          <div key={i.label} className="rounded-lg border p-3" title={i.hint}>
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">{i.icon}{i.label}</div>
-            <div className="mt-1 flex items-baseline gap-2">
-              <span className="text-lg font-bold tabular-nums">{i.value}</span>
+          <div key={i.label} className="rounded-lg border p-3 max-md:min-w-0 max-md:p-2.5" title={i.hint}>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground max-md:text-[11px] max-md:[&>svg]:h-3.5 max-md:[&>svg]:w-3.5 max-md:[&>svg]:shrink-0">{i.icon}<span className="max-md:truncate">{i.label}</span></div>
+            <div className="mt-1 flex items-baseline gap-2 max-md:flex-wrap max-md:gap-x-1.5 max-md:gap-y-0">
+              <span className="text-lg font-bold tabular-nums max-md:text-base">{i.value}</span>
               <Delta cur={i.cur} prev={i.prev} hasPrev={hasPrev} invert={i.invert} />
             </div>
           </div>
@@ -149,7 +149,7 @@ export function Waterfall({ cur }: { cur: Summary }) {
   return (
     <WCard title="Para onde vai a receita" icon={<Wallet className="h-4 w-4" />} description="Do que o cliente paga até o que fica com vocês">
       {cur.gross === 0 ? <Empty /> : (
-        <ChartBox height={220}>
+        <ChartBox height={220} phoneHeight={180}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data}>
               <CartesianGrid vertical={false} strokeDasharray="3 3" />
@@ -274,7 +274,7 @@ export function MonthlyChart({ byMonths, channelLabel }: { byMonths: (months: nu
         {(type === "bars" || type === "lines" || type === "area") && <Segmented label="Mostrar" options={MONTHLY_METRICS} value={metric} onChange={setMetric} />}
         <Segmented label="Período" options={MONTHLY_SPANS} value={span} onChange={setSpan} />
       </OptionBar>
-      <ChartBox height={280}>
+      <ChartBox height={280} phoneHeight={220}>
         <ResponsiveContainer width="100%" height="100%">{chart as React.ReactElement}</ResponsiveContainer>
       </ChartBox>
     </WCard>
@@ -313,7 +313,7 @@ export function FleetPerformance({ cars }: { cars: CarStat[] }) {
       </OptionBar>
       {rows.length === 0 ? <Empty /> : view === "list" ? (
         <ScrollBox maxHeight={360}>
-          <table className="w-full text-sm">
+          <table className="w-full text-sm max-md:text-xs">
             <thead className="text-xs text-muted-foreground">
               <tr><th className="py-1 text-left font-medium">Carro</th><th className="text-right font-medium">Locações</th><th className="text-right font-medium">Diárias</th><th className="text-right font-medium">Ocupação</th><th className="text-right font-medium">Receita</th></tr>
             </thead>
@@ -380,7 +380,7 @@ export function Breakdown({ data, type, isMoneyValue, colors }: { data: { label:
   if (type === "donut" || type === "pie") {
     return (
       <div className="flex flex-wrap items-center gap-4">
-        <ChartBox height={200} className="min-w-[180px] flex-1">
+        <ChartBox height={200} phoneHeight={170} className="min-w-[180px] flex-1">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie data={data} dataKey="value" nameKey="label" innerRadius={type === "donut" ? "58%" : 0} outerRadius="90%" paddingAngle={type === "donut" ? 2 : 0}>
@@ -390,7 +390,7 @@ export function Breakdown({ data, type, isMoneyValue, colors }: { data: { label:
             </PieChart>
           </ResponsiveContainer>
         </ChartBox>
-        <ul className="min-w-[160px] flex-1 space-y-1.5 text-sm">
+        <ul className="min-w-[160px] flex-1 space-y-1.5 text-sm max-md:min-w-full">
           {data.map((d, i) => (
             <li key={d.label} className="flex items-center justify-between gap-3">
               <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full" style={{ background: palette[i % palette.length] }} />{d.label}</span>
@@ -403,7 +403,7 @@ export function Breakdown({ data, type, isMoneyValue, colors }: { data: { label:
   }
   const vertical = type === "hbars";
   return (
-    <ChartBox height={vertical ? Math.max(180, data.length * 32) : 220}>
+    <ChartBox height={vertical ? Math.max(180, data.length * 32) : 220} phoneHeight={vertical ? undefined : 180}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} layout={vertical ? "vertical" : "horizontal"} margin={vertical ? { right: 24 } : undefined}>
           <CartesianGrid {...(vertical ? { horizontal: false } : { vertical: false })} strokeDasharray="3 3" />
@@ -472,7 +472,7 @@ export function WeekdayChart({ data }: { data: { label: string; trips: number; g
         <Segmented label="Gráfico" options={[{ key: "bars", label: "Barras" }, { key: "line", label: "Linha" }, { key: "area", label: "Área" }]} value={type} onChange={setType} />
         <Segmented label="Mostrar" options={[{ key: "trips", label: "Locações" }, { key: "gross", label: "Receita" }, { key: "days", label: "Diárias" }]} value={metric} onChange={setMetric} />
       </OptionBar>
-      <ChartBox height={220}>
+      <ChartBox height={220} phoneHeight={180}>
         <ResponsiveContainer width="100%" height="100%">
           {type === "bars" ? (
             <BarChart data={data}>

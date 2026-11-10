@@ -47,13 +47,13 @@ export default function FacebookSettingsPage() {
   const feedUrl = `${resolveSiteUrl(row)}/feed/products`;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-md:space-y-4">
       <SettingsHeader />
 
-      <div className="max-w-3xl space-y-6">
+      <div className="max-w-3xl space-y-6 max-md:space-y-4">
         <div className="flex items-center gap-3">
           <FacebookLogo className="h-8 w-8" />
-          <h2 className="text-2xl font-bold tracking-tight">Facebook</h2>
+          <h2 className="text-2xl font-bold tracking-tight max-md:text-xl">Facebook</h2>
         </div>
 
         <Card>
@@ -117,7 +117,7 @@ export default function FacebookSettingsPage() {
         </Card>
 
         <div className="flex">
-          <Button className="bg-black hover:bg-black/80 text-white" onClick={handleSave} disabled={saving}>
+          <Button className="bg-black hover:bg-black/80 text-white max-md:w-full" onClick={handleSave} disabled={saving}>
             {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
             Salvar
           </Button>

@@ -6,6 +6,7 @@ import { SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordi
 import { CSS } from "@dnd-kit/utilities";
 import { GripHorizontal, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export type GridWidget = {
   id: string;
@@ -30,11 +31,15 @@ const ExplicitHeight = createContext(false);
 /** True when the user gave this card a fixed height (its content then fills and scrolls); false when it fits its content. */
 export const useExplicitHeight = () => useContext(ExplicitHeight);
 
-/** Wrapper for charts: a fixed starting height while the card fits its content, fills the card once the user resizes it. */
-export function ChartBox({ height = 240, className, children }: { height?: number; className?: string; children: ReactNode }) {
+/**
+ * Wrapper for charts: a fixed starting height while the card fits its content, fills the card once the user resizes it.
+ * `phoneHeight` (optional) is the height used below `md`, where cards always fit their content.
+ */
+export function ChartBox({ height = 240, phoneHeight, className, children }: { height?: number; phoneHeight?: number; className?: string; children: ReactNode }) {
   const explicit = useExplicitHeight();
+  const style = explicit ? undefined : ({ height, ...(phoneHeight ? { "--ph": `${phoneHeight}px` } : {}) } as CSSProperties);
   return (
-    <div className={cn(explicit ? "min-h-[120px] flex-1" : "shrink-0", className)} style={explicit ? undefined : { height }}>
+    <div className={cn(explicit ? "min-h-[120px] flex-1" : "shrink-0", !explicit && phoneHeight && "max-md:h-[var(--ph)]!", className)} style={style}>
       {children}
     </div>
   );
@@ -72,13 +77,14 @@ function loadLayout(storageKey: string, legacyKeys: string[], widgets: GridWidge
   return [...saved, ...defaults.filter((d) => !keptIds.has(d.id))];
 }
 
-function GridItem({ item, widget, onResize }: { item: Item; widget: GridWidget; onResize: (id: string, w: number, h: number | undefined) => void }) {
+function GridItem({ item, widget, onResize, phone }: { item: Item; widget: GridWidget; onResize: (id: string, w: number, h: number | undefined) => void; phone: boolean }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
   const elRef = useRef<HTMLDivElement | null>(null);
   const [resizing, setResizing] = useState(false);
   const minW = widget.minW ?? 3;
   const minH = widget.minH ?? 140;
-  const fixedHeight = item.h !== undefined;
+  // Phones stack the cards in one column and ignore saved heights: every card fits its content there.
+  const fixedHeight = item.h !== undefined && !phone;
 
   const style = {
     transform: CSS.Translate.toString(transform),
@@ -166,9 +172,10 @@ function GridItem({ item, widget, onResize }: { item: Item; widget: GridWidget; 
  * Flexible dashboard grid: every card can be dragged (handle at the top, on hover) and resized (corner, on hover).
  * Widths snap to 12 columns and rows always fill the whole width. Heights fit the content until a card is resized
  * vertically; double-click the corner to give it the automatic height back. Layout persists in localStorage. On phones
- * the cards stack in one column.
+ * the cards stack in one column, saved heights are ignored and the move/resize handles are hidden.
  */
 export function ResizableGrid({ widgets, storageKey, legacyKeys = [] }: { widgets: GridWidget[]; storageKey: string; legacyKeys?: string[] }) {
+  const phone = useIsMobile();
   const [layout, setLayout] = useState<Item[]>(() => loadLayout(storageKey, legacyKeys, widgets));
 
   useEffect(() => {
@@ -214,9 +221,9 @@ export function ResizableGrid({ widgets, storageKey, legacyKeys = [] }: { widget
       </div>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <SortableContext items={items.map((i) => i.id)} strategy={rectSortingStrategy}>
-          <div className="flex flex-wrap gap-4">
+          <div className="flex flex-wrap gap-4 max-md:gap-3">
             {items.map((item) => (
-              <GridItem key={item.id} item={item} widget={widgetById.get(item.id)!} onResize={onResize} />
+              <GridItem key={item.id} item={item} widget={widgetById.get(item.id)!} onResize={onResize} phone={phone} />
             ))}
           </div>
         </SortableContext>

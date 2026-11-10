@@ -98,7 +98,7 @@ function NotificationRow({ item, entry, masterOn, onChange }: {
 
   return (
     <AccordionItem value={item.trigger_key} className="border-b last:border-b-0">
-      <div className="flex items-start gap-3 py-3">
+      <div className="flex items-start gap-3 py-3 max-md:gap-2.5">
         <Switch
           checked={item.enabled}
           onCheckedChange={toggle}
@@ -115,7 +115,7 @@ function NotificationRow({ item, entry, masterOn, onChange }: {
         <AccordionTrigger className="py-0 text-xs text-muted-foreground hover:no-underline shrink-0">Editar</AccordionTrigger>
       </div>
       <AccordionContent>
-        <div className="space-y-4 pb-2 pl-12">
+        <div className="space-y-4 pb-2 pl-12 max-md:pl-0">
           <div className="space-y-1.5">
             <Label>Título</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} />
@@ -136,7 +136,7 @@ function NotificationRow({ item, entry, masterOn, onChange }: {
               <AlertDescription>{testResult.message}</AlertDescription>
             </Alert>
           )}
-          <div className="flex flex-wrap justify-end gap-2">
+          <div className="flex flex-wrap justify-end gap-2 max-md:flex-col-reverse max-md:[&>button]:w-full">
             <Button size="sm" variant="ghost" onClick={() => { setTitle(entry.title); setMessage(entry.message); }}>
               Texto padrão
             </Button>
@@ -216,12 +216,12 @@ export default function SettingsPage() {
   const onCount = (notifications ?? []).filter((n) => n.enabled).length;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <SettingsIcon className="h-7 w-7" />
+    <div className="space-y-6 max-md:space-y-4">
+      <div className="flex items-center gap-3 max-md:gap-2.5">
+        <SettingsIcon className="h-7 w-7 max-md:shrink-0 max-md:h-6 max-md:w-6" />
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Configurações</h1>
-          <p className="text-muted-foreground text-sm">Notificações e preferências do sistema</p>
+          <p className="text-muted-foreground text-sm max-md:text-xs">Notificações e preferências do sistema</p>
         </div>
       </div>
 
@@ -242,8 +242,8 @@ export default function SettingsPage() {
       ) : (
         <>
           <Card className="max-w-3xl">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+            <CardHeader className="max-md:p-4">
+              <CardTitle className="flex items-center gap-2 max-md:text-xl">
                 <Smartphone className="h-5 w-5" />
                 Notificações no celular
               </CardTitle>
@@ -253,8 +253,8 @@ export default function SettingsPage() {
                 : instale, toque em + e assine o tópico abaixo. Quem tiver o nome do tópico recebe os avisos, então não divulgue.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between gap-4 p-3 border rounded-lg bg-muted/30">
+            <CardContent className="space-y-4 max-md:px-4 max-md:pb-4">
+              <div className="flex items-center justify-between gap-4 p-3 border rounded-lg bg-muted/30 max-md:gap-3">
                 <div>
                   <Label className="font-semibold">Todas as notificações</Label>
                   <p className="text-xs text-muted-foreground mt-0.5">Chave geral: desligue para pausar tudo sem perder as escolhas abaixo.</p>
@@ -263,14 +263,14 @@ export default function SettingsPage() {
                   checked={master.enabled}
                   disabled={saving}
                   onCheckedChange={(v) => saveMaster({ ...master, enabled: v })}
-                  className="data-[state=checked]:bg-black"
+                  className="data-[state=checked]:bg-black max-md:shrink-0"
                 />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="ntfy_topic">Tópico ntfy</Label>
-                <div className="flex gap-2">
+                <div className="flex gap-2 max-md:flex-col">
                   <Input id="ntfy_topic" value={master.ntfy_topic} onChange={(e) => setMaster((s) => ({ ...s, ntfy_topic: e.target.value }))} placeholder="ex: vertex-reservas-1a2b3c" />
-                  <Button className="bg-black hover:bg-black/80 text-white shrink-0" onClick={() => saveMaster(master)} disabled={saving}>
+                  <Button className="bg-black hover:bg-black/80 text-white shrink-0 max-md:w-full" onClick={() => saveMaster(master)} disabled={saving}>
                     {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                     <span className="ml-2">Salvar</span>
                   </Button>
@@ -280,7 +280,7 @@ export default function SettingsPage() {
           </Card>
 
           <Card className="max-w-3xl">
-            <CardHeader>
+            <CardHeader className="max-md:p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <CardTitle>O que avisar</CardTitle>
@@ -288,7 +288,7 @@ export default function SettingsPage() {
                     {onCount} de {PUSH_CATALOG.length} ligados. Ligue ou desligue cada aviso; em &quot;Editar&quot; você muda o texto e manda um teste.
                   </CardDescription>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 max-md:w-full max-md:[&>button]:flex-1">
                   <Button size="sm" variant="outline" onClick={() => setAll(true)}>Ligar todos</Button>
                   <Button size="sm" variant="outline" onClick={() => setAll(false)}>Desligar todos</Button>
                 </div>
@@ -297,7 +297,7 @@ export default function SettingsPage() {
                 <p className="text-xs text-amber-700 mt-2">A chave geral está desligada: nenhum aviso é enviado até você ligá-la acima.</p>
               )}
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-6 max-md:px-4 max-md:pb-4">
               {PUSH_GROUPS.map((group) => {
                 const entries = PUSH_CATALOG.filter((e) => e.group === group.id);
                 return (

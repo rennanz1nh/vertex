@@ -50,7 +50,7 @@ export function Customers({ split }: { split: CustomerSplit }) {
         <ScrollBox maxHeight={320}>
           <ol className="space-y-1.5 text-sm">
             {split.top.map((c, i) => (
-              <li key={c.key} className="flex items-center justify-between gap-3 rounded-md border px-2.5 py-1.5">
+              <li key={c.key} className="flex items-center justify-between gap-3 rounded-md border px-2.5 py-1.5 max-md:gap-2">
                 <span className="flex min-w-0 items-center gap-2">
                   <span className="w-4 text-xs text-muted-foreground">{i + 1}</span>
                   <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: CHANNEL_COLORS[c.channel] }} title={c.channel} />
@@ -159,12 +159,12 @@ export function MonthPace({ byMetric, monthLabel }: { byMetric: (m: GoalMetric) 
         <Segmented label="Mostrar" options={[{ key: "gross", label: "Bruta" }, { key: "net", label: "Líquida" }]} value={metric} onChange={setMetric} />
         <Segmented label="Gráfico" options={[{ key: "area", label: "Área" }, { key: "line", label: "Linhas" }]} value={type} onChange={setType} />
       </OptionBar>
-      <div className="grid grid-cols-3 gap-2 text-center">
-        <div className="rounded-lg border p-2"><p className="text-[11px] text-muted-foreground">Até hoje</p><p className="font-bold tabular-nums">{usd0(p.soFar)}</p></div>
-        <div className="rounded-lg border p-2"><p className="text-[11px] text-muted-foreground">Já reservado no mês</p><p className="font-bold tabular-nums">{usd0(p.booked)}</p></div>
-        <div className="rounded-lg border p-2"><p className="text-[11px] text-muted-foreground">Mês passado</p><p className="font-bold tabular-nums">{usd0(p.prevTotal)}</p></div>
+      <div className="grid grid-cols-3 gap-2 text-center max-md:gap-1.5">
+        <div className="rounded-lg border p-2 max-md:min-w-0"><p className="text-[11px] text-muted-foreground">Até hoje</p><p className="font-bold tabular-nums max-md:text-sm">{usd0(p.soFar)}</p></div>
+        <div className="rounded-lg border p-2 max-md:min-w-0"><p className="text-[11px] text-muted-foreground"><span className="max-md:hidden">Já reservado no mês</span><span className="md:hidden">Reservado</span></p><p className="font-bold tabular-nums max-md:text-sm">{usd0(p.booked)}</p></div>
+        <div className="rounded-lg border p-2 max-md:min-w-0"><p className="text-[11px] text-muted-foreground">Mês passado</p><p className="font-bold tabular-nums max-md:text-sm">{usd0(p.prevTotal)}</p></div>
       </div>
-      <ChartBox height={200}>
+      <ChartBox height={200} phoneHeight={170}>
         <ResponsiveContainer width="100%" height="100%">
           <Chart data={p.daily}>
             <CartesianGrid vertical={false} strokeDasharray="3 3" />
@@ -213,7 +213,7 @@ export function ForwardBookings({ byHorizon }: { byHorizon: (days: number) => Fo
         ))}
       </div>
       {f.trips === 0 ? <Empty>Nada reservado nesse período.</Empty> : (
-        <ChartBox height={180}>
+        <ChartBox height={180} phoneHeight={160}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={f.byWeek}>
               <CartesianGrid vertical={false} strokeDasharray="3 3" />

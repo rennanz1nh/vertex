@@ -6,8 +6,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 export default function AdminDashboardPage() {
   return (
-    <Tabs defaultValue="dashboard" className="space-y-6">
-      <TabsList>
+    <Tabs defaultValue="dashboard" className="space-y-6 max-md:space-y-4">
+      <TabsList className="max-md:grid max-md:w-full max-md:grid-cols-2">
         <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
         <TabsTrigger value="acessos">Acessos ao Site</TabsTrigger>
       </TabsList>

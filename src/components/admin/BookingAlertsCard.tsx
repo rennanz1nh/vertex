@@ -89,8 +89,8 @@ export function BookingAlertsCard() {
 
   return (
     <Card className="max-w-3xl">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+      <CardHeader className="max-md:p-4">
+        <CardTitle className="flex items-center gap-2 max-md:text-xl">
           <CalendarCheck className="h-5 w-5" />
           Avisos de nova reserva
         </CardTitle>
@@ -98,7 +98,7 @@ export function BookingAlertsCard() {
           A cada reserva paga no site, enviamos um e-mail (e SMS, se ligado) com carro, datas, cliente e valores, mais o lembrete de bloquear na Turo. O push no celular segue a notificação &quot;Nova reserva no site&quot; logo abaixo.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-5">
+      <CardContent className="space-y-5 max-md:px-4 max-md:pb-4">
         {!form ? (
           <p className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Carregando...</p>
         ) : (
@@ -121,14 +121,14 @@ export function BookingAlertsCard() {
               </p>
             </div>
 
-            <div className="flex items-start justify-between gap-4 p-3 border rounded-lg bg-muted/30">
+            <div className="flex items-start justify-between gap-4 p-3 border rounded-lg bg-muted/30 max-md:gap-3">
               <div>
                 <Label className="font-semibold">Enviar SMS</Label>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Pelo Brevo. Precisa de créditos de SMS na conta Brevo e, para números dos EUA, de um número toll-free aprovado (Brevo → SMS → Senders; a aprovação leva semanas). Enquanto isso, deixe desligado.
                 </p>
               </div>
-              <Switch checked={form.smsEnabled} onCheckedChange={(v) => setForm({ ...form, smsEnabled: v })} className="data-[state=checked]:bg-black" />
+              <Switch checked={form.smsEnabled} onCheckedChange={(v) => setForm({ ...form, smsEnabled: v })} className="data-[state=checked]:bg-black max-md:shrink-0" />
             </div>
 
             {form.smsEnabled && (
@@ -151,7 +151,7 @@ export function BookingAlertsCard() {
               </ul>
             )}
 
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-end gap-2 pt-2 max-md:flex-col-reverse max-md:[&>button]:w-full">
               <Button variant="outline" onClick={test} disabled={testing}>
                 {testing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}Enviar teste
               </Button>

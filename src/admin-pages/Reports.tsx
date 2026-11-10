@@ -551,65 +551,65 @@ export default function Reports() {
     switch (id) {
       case 'stats':
         return (
-          <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 max-md:gap-2">
             <Card className="min-w-0">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total de Carros</CardTitle>
-                <CarIcon className="h-4 w-4 text-[#994a00]" />
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 max-md:gap-1.5 max-md:p-3 max-md:pb-1">
+                <CardTitle className="text-sm font-medium max-md:min-w-0 max-md:truncate max-md:text-xs">Total de Carros</CardTitle>
+                <CarIcon className="h-4 w-4 text-[#994a00] max-md:shrink-0" />
               </CardHeader>
-              <CardContent><div className="text-2xl font-bold text-primary">{cars.length}</div></CardContent>
+              <CardContent className="max-md:px-3 max-md:pb-3"><div className="text-2xl font-bold text-primary max-md:truncate max-md:text-lg">{cars.length}</div></CardContent>
             </Card>
             <Card className="min-w-0 overflow-hidden">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total de Clientes</CardTitle>
-                <Users className="h-4 w-4 text-[#0563e6]" />
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 max-md:gap-1.5 max-md:p-3 max-md:pb-1">
+                <CardTitle className="text-sm font-medium max-md:min-w-0 max-md:truncate max-md:text-xs">Total de Clientes</CardTitle>
+                <Users className="h-4 w-4 text-[#0563e6] max-md:shrink-0" />
               </CardHeader>
-              <CardContent><div className="text-2xl font-bold text-primary">{totalClients}</div></CardContent>
+              <CardContent className="max-md:px-3 max-md:pb-3"><div className="text-2xl font-bold text-primary max-md:truncate max-md:text-lg">{totalClients}</div></CardContent>
             </Card>
             <Card className="min-w-0 overflow-hidden">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
-                <DollarSign className="h-4 w-4 text-[#008512]" />
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 max-md:gap-1.5 max-md:p-3 max-md:pb-1">
+                <CardTitle className="text-sm font-medium max-md:min-w-0 max-md:truncate max-md:text-xs">Receita Total</CardTitle>
+                <DollarSign className="h-4 w-4 text-[#008512] max-md:shrink-0" />
               </CardHeader>
-              <CardContent><div className="text-2xl font-bold text-primary">{formatCurrency(totalRevenue)}</div></CardContent>
+              <CardContent className="max-md:px-3 max-md:pb-3"><div className="text-2xl font-bold text-primary max-md:truncate max-md:text-lg">{formatCurrency(totalRevenue)}</div></CardContent>
             </Card>
             <Card className="min-w-0 overflow-hidden">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total de Reservas</CardTitle>
-                <CalendarClock className="h-4 w-4 text-[#3f01a2]" />
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 max-md:gap-1.5 max-md:p-3 max-md:pb-1">
+                <CardTitle className="text-sm font-medium max-md:min-w-0 max-md:truncate max-md:text-xs">Total de Reservas</CardTitle>
+                <CalendarClock className="h-4 w-4 text-[#3f01a2] max-md:shrink-0" />
               </CardHeader>
-              <CardContent><div className="text-2xl font-bold text-primary">{totalBookingsCount}</div></CardContent>
+              <CardContent className="max-md:px-3 max-md:pb-3"><div className="text-2xl font-bold text-primary max-md:truncate max-md:text-lg">{totalBookingsCount}</div></CardContent>
             </Card>
             <Card className="min-w-0 overflow-hidden">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Reservas Canceladas</CardTitle>
-                <XCircle className="h-4 w-4 text-destructive" />
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 max-md:gap-1.5 max-md:p-3 max-md:pb-1">
+                <CardTitle className="text-sm font-medium max-md:min-w-0 max-md:truncate max-md:text-xs">Reservas Canceladas</CardTitle>
+                <XCircle className="h-4 w-4 text-destructive max-md:shrink-0" />
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-destructive">{cancelledCount}</div>
+              <CardContent className="max-md:px-3 max-md:pb-3">
+                <div className="text-2xl font-bold text-destructive max-md:truncate max-md:text-lg">{cancelledCount}</div>
                 <p className="text-xs text-muted-foreground mt-0.5">{formatCurrency(cancelledTotal)}</p>
               </CardContent>
             </Card>
             <Card className="min-w-0 overflow-hidden">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Diárias Reservadas</CardTitle>
-                <CalendarIcon className="h-4 w-4 text-[#028d5c]" />
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 max-md:gap-1.5 max-md:p-3 max-md:pb-1">
+                <CardTitle className="text-sm font-medium max-md:min-w-0 max-md:truncate max-md:text-xs">Diárias Reservadas</CardTitle>
+                <CalendarIcon className="h-4 w-4 text-[#028d5c] max-md:shrink-0" />
               </CardHeader>
-              <CardContent><div className="text-2xl font-bold text-primary">{totalRentalDays}</div></CardContent>
+              <CardContent className="max-md:px-3 max-md:pb-3"><div className="text-2xl font-bold text-primary max-md:truncate max-md:text-lg">{totalRentalDays}</div></CardContent>
             </Card>
             <Card className="min-w-0 overflow-hidden">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Ticket Médio</CardTitle>
-                <TrendingUp className="h-4 w-4 text-[#eb7100]" />
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 max-md:gap-1.5 max-md:p-3 max-md:pb-1">
+                <CardTitle className="text-sm font-medium max-md:min-w-0 max-md:truncate max-md:text-xs">Ticket Médio</CardTitle>
+                <TrendingUp className="h-4 w-4 text-[#eb7100] max-md:shrink-0" />
               </CardHeader>
-              <CardContent><div className="text-2xl font-bold text-primary">{formatCurrency(avgBookingValue)}</div></CardContent>
+              <CardContent className="max-md:px-3 max-md:pb-3"><div className="text-2xl font-bold text-primary max-md:truncate max-md:text-lg">{formatCurrency(avgBookingValue)}</div></CardContent>
             </Card>
             <Card className="min-w-0 overflow-hidden">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Taxa de Ocupação Hoje</CardTitle>
-                <Gauge className="h-4 w-4 text-[#c2185b]" />
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 max-md:gap-1.5 max-md:p-3 max-md:pb-1">
+                <CardTitle className="text-sm font-medium max-md:min-w-0 max-md:truncate max-md:text-xs">Taxa de Ocupação Hoje</CardTitle>
+                <Gauge className="h-4 w-4 text-[#c2185b] max-md:shrink-0" />
               </CardHeader>
-              <CardContent><div className="text-2xl font-bold text-primary">{occupancyRate.toFixed(0)}%</div></CardContent>
+              <CardContent className="max-md:px-3 max-md:pb-3"><div className="text-2xl font-bold text-primary max-md:truncate max-md:text-lg">{occupancyRate.toFixed(0)}%</div></CardContent>
             </Card>
           </div>
         );

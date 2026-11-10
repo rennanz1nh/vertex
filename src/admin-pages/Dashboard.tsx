@@ -12,6 +12,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ResizableGrid, type GridWidget } from "@/components/dashboard/ResizableGrid";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   CHANNELS, CHANNEL_COLORS, CHANNEL_HINT, PRESETS, buildRentals, businessToday, byChannel, byLength, byWeekday, carStats,
   compareWindow, customerSplit, inRange, monthPace, monthly, overlapDays, pct, presetRange, summarize, usd0,
@@ -41,6 +42,7 @@ export default function Dashboard() {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [draft, setDraft] = useState<DateRange | undefined>(undefined);
   const [channel, setChannel] = useState<Channel | "all">("all");
+  const phone = useIsMobile();
 
   const apply = useCallback((d: Loaded) => {
     setRentals(d.rentals);
@@ -227,7 +229,7 @@ export default function Dashboard() {
       id: "channels",
       w: 12,
       node: (
-        <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(160px,1fr))]">
+        <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(160px,1fr))] max-md:grid-cols-2 max-md:gap-2">
           <ChannelTile name="Todos os canais" selected={channel === "all"} onClick={() => setChannel("all")} {...tile("all")} hasPrev={hasPrev} />
           {CHANNELS.map((c) => (
             <ChannelTile key={c} name={c} color={CHANNEL_COLORS[c]} hint={CHANNEL_HINT[c]} selected={channel === c} onClick={() => setChannel(c)} {...tile(c)} hasPrev={hasPrev} />
@@ -259,20 +261,21 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 max-md:space-y-3">
       <div className="space-y-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-sm text-muted-foreground">Receita, frota e clientes de todos os canais: Turo, site e links de pagamento</p>
+          <p className="text-sm text-muted-foreground max-md:text-xs">Receita, frota e clientes de todos os canais: Turo, site e links de pagamento</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex flex-wrap gap-1 rounded-lg border bg-muted/40 p-1">
+          {/* Phones: the presets scroll sideways on one line, the date and refresh buttons share the next one. */}
+          <div className="inline-flex flex-wrap gap-1 rounded-lg border bg-muted/40 p-1 max-md:flex max-md:w-full max-md:flex-nowrap max-md:overflow-x-auto max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden">
             {PRESETS.map((p) => (
               <button
                 key={p.key}
                 type="button"
                 onClick={() => pickPreset(p.key)}
-                className={cn("rounded-md px-3 py-1.5 text-sm transition-colors", sel.preset === p.key ? "bg-background font-medium shadow-sm" : "text-muted-foreground hover:text-foreground")}
+                className={cn("rounded-md px-3 py-1.5 text-sm transition-colors max-md:shrink-0 max-md:whitespace-nowrap", sel.preset === p.key ? "bg-background font-medium shadow-sm" : "text-muted-foreground hover:text-foreground")}
               >
                 {p.label}
               </button>
@@ -280,21 +283,21 @@ export default function Dashboard() {
           </div>
           <Popover open={calendarOpen} onOpenChange={(o) => { setCalendarOpen(o); if (o) setDraft(undefined); }}>
             <PopoverTrigger asChild>
-              <Button variant="outline" className={cn("h-10 gap-2 font-normal", sel.preset === "custom" && "border-primary")}>
+              <Button variant="outline" className={cn("h-10 gap-2 font-normal max-md:min-w-0 max-md:flex-1", sel.preset === "custom" && "border-primary")}>
                 <CalendarIcon className="h-4 w-4" />
                 {rangeLabel}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar mode="range" numberOfMonths={2} selected={draft} onSelect={onPickRange} defaultMonth={subMonths(sel.range.to ?? today, 1)} locale={ptBR} />
+            <PopoverContent className="w-auto p-0 max-md:max-w-[calc(100vw-2rem)]" align="start">
+              <Calendar mode="range" numberOfMonths={phone ? 1 : 2} selected={draft} onSelect={onPickRange} defaultMonth={phone ? (sel.range.to ?? today) : subMonths(sel.range.to ?? today, 1)} locale={ptBR} />
               <p className="max-w-[34rem] border-t px-3 py-2 text-xs text-muted-foreground">Clique no dia inicial e depois no final. Datas futuras mostram o que já está reservado.</p>
             </PopoverContent>
           </Popover>
-          <Button variant="outline" className="h-10" onClick={refresh} disabled={refreshing}>
+          <Button variant="outline" className="h-10 max-md:shrink-0" onClick={refresh} disabled={refreshing}>
             <RefreshCw className={cn("mr-2 h-4 w-4", refreshing && "animate-spin")} />
             {refreshing ? "Atualizando..." : "Atualizar"}
           </Button>
-          {cmp && <span className="text-xs text-muted-foreground">Comparando {cmp.label}</span>}
+          {cmp && <span className="text-xs text-muted-foreground max-md:w-full">Comparando {cmp.label}</span>}
         </div>
       </div>
 

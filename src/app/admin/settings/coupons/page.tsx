@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Ticket } from "lucide-react";
 import { authedFetch } from "@/lib/admin-fetch";
+import { MobileRow, RowBadge } from "@/components/admin-v2/mobile";
 
 type Coupon = {
   id: string;
@@ -91,14 +92,14 @@ export default function CouponsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 max-md:space-y-4">
+      <div className="flex items-center justify-between max-md:flex-col max-md:items-stretch max-md:gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Configurações</h1>
-          <p className="text-muted-foreground text-sm">Cupons de desconto usados no checkout da loja (via Stripe Promotion Codes).</p>
+          <p className="text-muted-foreground text-sm max-md:text-xs">Cupons de desconto usados no checkout da loja (via Stripe Promotion Codes).</p>
         </div>
         {!creating && (
-          <Button onClick={() => setCreating(true)}>
+          <Button onClick={() => setCreating(true)} className="max-md:order-last max-md:w-full">
             <Plus className="h-4 w-4 mr-2" /> Novo cupom
           </Button>
         )}
@@ -108,7 +109,7 @@ export default function CouponsPage() {
 
       {creating && (
         <Card>
-          <CardContent className="pt-6 grid gap-4 sm:grid-cols-4 items-end">
+          <CardContent className="pt-6 grid gap-4 sm:grid-cols-4 items-end max-md:p-4">
             <div>
               <Label>Código</Label>
               <Input
@@ -144,7 +145,7 @@ export default function CouponsPage() {
               <Label>Descrição (opcional, uso interno)</Label>
               <Input value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder="Ex: usado no e-mail de boas-vindas" />
             </div>
-            <div className="sm:col-span-4 flex justify-end gap-2">
+            <div className="sm:col-span-4 flex justify-end gap-2 max-md:[&>button]:flex-1">
               <Button variant="outline" onClick={() => setCreating(false)} disabled={saving}>
                 Cancelar
               </Button>
@@ -169,6 +170,22 @@ export default function CouponsPage() {
               <p className="text-sm">Nenhum cupom cadastrado ainda.</p>
             </div>
           ) : (
+            <>
+            {/* Phones: one row per coupon instead of the table */}
+            <div className="divide-y md:hidden">
+              {coupons.map((c) => (
+                <MobileRow
+                  key={c.id}
+                  title={<span className="font-mono">{c.code}</span>}
+                  meta={[formatDiscount(c), c.description].filter(Boolean).join(" · ")}
+                  badges={
+                    c.stripe_promotion_code_id ? <RowBadge>Sincronizado</RowBadge> : <RowBadge tone="red">Falhou ao sincronizar</RowBadge>
+                  }
+                  trailingSub={<Switch checked={c.active} onCheckedChange={(v) => toggleActive(c, v)} aria-label={c.active ? "Desativar cupom" : "Ativar cupom"} />}
+                />
+              ))}
+            </div>
+            <div className="max-md:hidden">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -199,6 +216,8 @@ export default function CouponsPage() {
                 ))}
               </TableBody>
             </Table>
+            </div>
+            </>
           )}
         </CardContent>
       </Card>

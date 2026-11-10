@@ -30,7 +30,7 @@ export default function SeoGeneralTab() {
   }
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="max-w-3xl space-y-6 max-md:space-y-4">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -73,7 +73,7 @@ export default function SeoGeneralTab() {
             onChange={(v) => setField("default_og_image", v)}
             placeholder="https://... imagem exibida ao compartilhar links do site"
           />
-          <Button className="bg-black hover:bg-black/80 text-white" onClick={handleSave} disabled={saving}>
+          <Button className="bg-black hover:bg-black/80 text-white max-md:w-full" onClick={handleSave} disabled={saving}>
             {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
             Salvar
           </Button>

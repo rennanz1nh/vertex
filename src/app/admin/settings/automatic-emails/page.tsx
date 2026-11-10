@@ -142,8 +142,9 @@ function EmailRow({ email, onSaved }: { email: AutomaticEmail; onSaved: (e: Auto
   return (
     <AccordionItem value={email.trigger_key}>
       <AccordionTrigger className="hover:no-underline">
-        <div className="flex items-center gap-3 flex-1">
+        <div className="flex items-center gap-3 flex-1 max-md:min-w-0 max-md:gap-2.5">
           <span
+            className="max-md:shrink-0"
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
           >
@@ -159,11 +160,11 @@ function EmailRow({ email, onSaved }: { email: AutomaticEmail; onSaved: (e: Auto
               }}
             />
           </span>
-          <div className="text-left">
-            <div className="font-medium">{info.title}</div>
+          <div className="text-left max-md:min-w-0 max-md:flex-1">
+            <div className="font-medium max-md:text-sm">{info.title}</div>
             <div className="text-xs text-muted-foreground font-normal">{info.description}</div>
           </div>
-          {!form.enabled && <Badge variant="secondary" className="ml-auto mr-2 text-[10px]">Desativado</Badge>}
+          {!form.enabled && <Badge variant="secondary" className="ml-auto mr-2 text-[10px] max-md:mr-0 max-md:shrink-0">Desativado</Badge>}
         </div>
       </AccordionTrigger>
       <AccordionContent>
@@ -174,7 +175,7 @@ function EmailRow({ email, onSaved }: { email: AutomaticEmail; onSaved: (e: Auto
           </div>
 
           {email.trigger_key === "abandoned_cart" && (
-            <div className="w-48">
+            <div className="w-48 max-md:w-full">
               <Label>Disparar após (horas)</Label>
               <Input
                 type="number"
@@ -194,7 +195,7 @@ function EmailRow({ email, onSaved }: { email: AutomaticEmail; onSaved: (e: Auto
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 max-md:grid-cols-1">
             <div>
               <Label>Nome do remetente (opcional)</Label>
               <Input value={form.sender_name ?? ""} onChange={(e) => setForm((f) => ({ ...f, sender_name: e.target.value }))} placeholder="Vertex Rental Cars" />
@@ -205,20 +206,20 @@ function EmailRow({ email, onSaved }: { email: AutomaticEmail; onSaved: (e: Auto
             </div>
           </div>
 
-          <div className="flex items-center justify-between pt-2 border-t">
+          <div className="flex items-center justify-between pt-2 border-t max-md:flex-col max-md:items-stretch max-md:gap-3">
             <div className="flex items-center gap-2">
               <Input
                 placeholder="seu@email.com"
                 value={testEmail}
                 onChange={(e) => setTestEmail(e.target.value)}
-                className="w-56"
+                className="w-56 max-md:w-auto max-md:min-w-0 max-md:flex-1"
               />
-              <Button size="sm" variant="outline" onClick={handleTest} disabled={testing}>
+              <Button size="sm" variant="outline" onClick={handleTest} disabled={testing} className="max-md:shrink-0">
                 {testing ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1.5" />}
                 Enviar teste
               </Button>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 max-md:[&>button]:flex-1">
               <Button size="sm" variant="outline" onClick={() => setPreviewOpen(true)}>
                 <Eye className="h-3.5 w-3.5 mr-1.5" />
                 Ver e-mail
@@ -233,7 +234,7 @@ function EmailRow({ email, onSaved }: { email: AutomaticEmail; onSaved: (e: Auto
       </AccordionContent>
 
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-md:max-h-[90dvh] max-md:overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Pré-visualização — {info.title}</DialogTitle>
           </DialogHeader>
@@ -245,7 +246,7 @@ function EmailRow({ email, onSaved }: { email: AutomaticEmail; onSaved: (e: Auto
               title="Pré-visualização do e-mail"
               sandbox=""
               srcDoc={renderTemplate(form.html_content, SAMPLE_VARS)}
-              className="w-full h-[500px]"
+              className="w-full h-[500px] max-md:h-[60dvh]"
             />
           </div>
           <p className="text-xs text-muted-foreground">
@@ -303,14 +304,14 @@ function EmailLogSection() {
 
   return (
     <Card>
-      <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
+      <CardHeader className="flex-row items-center justify-between space-y-0 pb-3 max-md:flex-col max-md:items-stretch max-md:gap-3 max-md:p-4">
         <div>
           <CardTitle className="text-base">Histórico de envios</CardTitle>
           <p className="text-xs text-muted-foreground mt-1">Últimos e-mails automáticos disparados (não inclui envios de teste).</p>
         </div>
         <div className="flex items-center gap-2">
           <Select value={triggerFilter} onValueChange={(v) => setTriggerFilter(v as TriggerKey | "all")}>
-            <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-[200px] max-md:w-auto max-md:min-w-0 max-md:flex-1"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os tipos</SelectItem>
               {ORDER.map((key) => (<SelectItem key={key} value={key}>{LABELS[key].title}</SelectItem>))}
@@ -321,7 +322,7 @@ function EmailLogSection() {
           </Button>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="max-md:px-4 max-md:pb-4">
         {!log ? (
           <div className="flex items-center gap-2 text-muted-foreground py-10 justify-center">
             <Loader2 className="h-5 w-5 animate-spin" /> Carregando...
@@ -329,7 +330,26 @@ function EmailLogSection() {
         ) : log.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">Nenhum e-mail enviado ainda.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Phones: one compact entry per e-mail instead of the wide table */}
+          <ul className="-mx-4 divide-y border-y md:hidden">
+            {log.map((entry) => (
+              <li key={entry.id} className="space-y-0.5 px-4 py-2.5">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="min-w-0 truncate text-sm font-medium">{LABELS[entry.trigger_key]?.title ?? entry.trigger_key}</p>
+                  <span className="shrink-0"><LogStatusBadge status={entry.status} /></span>
+                </div>
+                <p className="truncate text-xs text-muted-foreground">
+                  {entry.recipient_name ? `${entry.recipient_name} — ` : ""}
+                  {entry.recipient_email}
+                </p>
+                {entry.subject && <p className="truncate text-xs">{entry.subject}</p>}
+                {entry.error_message && <p className="line-clamp-2 break-words text-[11px] text-red-600">{entry.error_message}</p>}
+                <p className="text-[11px] text-muted-foreground">{new Date(entry.created_at).toLocaleString("pt-BR")}</p>
+              </li>
+            ))}
+          </ul>
+          <div className="overflow-x-auto max-md:hidden">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -367,6 +387,7 @@ function EmailLogSection() {
               </TableBody>
             </Table>
           </div>
+          </>
         )}
       </CardContent>
     </Card>
@@ -389,16 +410,16 @@ export default function AutomaticEmailsPage() {
   const sorted = emails ? [...emails].sort((a, b) => ORDER.indexOf(a.trigger_key) - ORDER.indexOf(b.trigger_key)) : null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-md:space-y-4">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Configurações</h1>
-        <p className="text-muted-foreground text-sm">E-mails automáticos enviados pela loja em cada etapa da venda.</p>
+        <p className="text-muted-foreground text-sm max-md:text-xs">E-mails automáticos enviados pela loja em cada etapa da venda.</p>
       </div>
 
       <SettingsTabs />
 
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="pt-6 max-md:px-4 max-md:pb-2 max-md:pt-2">
           {!sorted ? (
             <div className="flex items-center gap-2 text-muted-foreground py-10 justify-center">
               <Loader2 className="h-5 w-5 animate-spin" /> Carregando...
