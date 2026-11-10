@@ -31,7 +31,7 @@ function schedule() {
  * Runs inside a turo.com tab (MAIN world), so the requests are first-party with the user's
  * cookies and pass Cloudflare exactly like the page itself. Must stay self-contained.
  */
-async function collectFromTuroPage() {
+async function collectFromTuroPage(withProfiles) {
   const gj = async (u) => {
     try {
       const r = await fetch(u, { credentials: "include", headers: { Accept: "application/json" } });
@@ -86,7 +86,38 @@ async function collectFromTuroPage() {
   };
   await Promise.all([worker(), worker(), worker(), worker(), worker(), worker()]);
 
-  return { upcomingData: u, historyData: h, earnings, reviews, feedback, payout, receipts };
+  // Public Turo profile of each guest. The endpoint isn't documented, so try the likely
+  // ones on the first guest and use whichever answers; if none does, skip the rest.
+  const guestProfiles = [];
+  if (withProfiles) {
+    const renterIds = new Set();
+    for (const it of (u.upcomingTripItems || [])) { const a = it.actor || it.renter; if (a && a.id) renterIds.add(String(a.id)); }
+    const feeds = (h.tripHistoryFeeds && (h.tripHistoryFeeds.list || h.tripHistoryFeeds)) || [];
+    for (const m of feeds) for (const t of (m.trips || [])) { const r = t.renter || t.driver; if (r && r.id) renterIds.add(String(r.id)); }
+    const ids = [...renterIds];
+    const candidates = (id) => ["/api/drivers/" + id, "/api/v2/drivers/" + id, "/api/drivers/" + id + "/profile"];
+    let endpoint = null;
+    if (ids.length) {
+      for (const make of [0, 1, 2]) {
+        const url = candidates(ids[0])[make];
+        const res = await gj(url);
+        if (res && !res._status && !res._error) { endpoint = make; guestProfiles.push({ renterId: ids[0], data: res }); break; }
+      }
+    }
+    if (endpoint !== null) {
+      let pi = 1;
+      const pworker = async () => {
+        while (pi < ids.length) {
+          const id = ids[pi++];
+          const res = await gj(candidates(id)[endpoint]);
+          if (res && !res._status && !res._error) guestProfiles.push({ renterId: id, data: res });
+        }
+      };
+      await Promise.all([pworker(), pworker(), pworker()]);
+    }
+  }
+
+  return { upcomingData: u, historyData: h, earnings, reviews, feedback, payout, receipts, guestProfiles };
 }
 
 function waitForLoad(tabId, timeoutMs = 45000) {
@@ -104,7 +135,7 @@ function waitForLoad(tabId, timeoutMs = 45000) {
 }
 
 /** Uses an open turo.com tab if there is one, otherwise opens one in the background and closes it after. */
-async function collect() {
+async function collect(withProfiles) {
   const open = await chrome.tabs.query({ url: "https://turo.com/*" });
   let tab = open.find((t) => t.status === "complete") || null;
   let created = false;
@@ -114,7 +145,7 @@ async function collect() {
     await waitForLoad(tab.id);
   }
   try {
-    const [res] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, world: "MAIN", func: collectFromTuroPage });
+    const [res] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, world: "MAIN", func: collectFromTuroPage, args: [withProfiles] });
     return res?.result ?? { error: "sem resposta da página da Turo" };
   } catch (e) {
     if (/error page/i.test(String(e))) return { error: "não consegui abrir o turo.com (sem internet?)" };
@@ -146,19 +177,29 @@ async function doSync(reason) {
   if (!syncKey) return finish(false, "Cole a chave de sincronização (admin → Turo → Sincronização).", reason);
   const site = siteUrl || DEFAULT_SITE;
   try {
-    const data = await collect();
+    // Guest profiles change rarely: fetch them at most once a day (and on manual sync).
+    const { lastProfilesAt } = await chrome.storage.local.get("lastProfilesAt");
+    const withProfiles = reason === "manual" || !lastProfilesAt || Date.now() - lastProfilesAt > 20 * 3600 * 1000;
+    const data = await collect(withProfiles);
     if (data.error) {
       const loggedOut = data.error === 401 || data.error === 403;
       return finish(false, loggedOut ? "Você não está logado na Turo neste Chrome. Entre no turo.com e tente de novo." : "Erro ao ler a Turo: " + data.error, reason);
     }
-    const { receipts, ...main } = data;
+    const { receipts, guestProfiles = [], ...main } = data;
     const r = await post(site, syncKey, main);
     let saved = 0;
     for (let o = 0; o < receipts.length; o += RECEIPT_BATCH) {
       const rr = await post(site, syncKey, { receipts: receipts.slice(o, o + RECEIPT_BATCH) });
       saved += rr.receiptsSaved || 0;
     }
-    return finish(true, `${r.synced ?? 0} viagens e ${saved} recibos enviados.`, reason);
+    let lastGuests = r.guests;
+    for (let o = 0; o < guestProfiles.length; o += RECEIPT_BATCH) {
+      const rr = await post(site, syncKey, { guestProfiles: guestProfiles.slice(o, o + RECEIPT_BATCH) });
+      lastGuests = rr.guests || lastGuests;
+    }
+    if (withProfiles) await chrome.storage.local.set({ lastProfilesAt: Date.now() });
+    const g = lastGuests ? `, ${lastGuests.guests} hóspedes` : "";
+    return finish(true, `${r.synced ?? 0} viagens, ${saved} recibos${g} enviados.`, reason);
   } catch (e) {
     return finish(false, String(e.message || e), reason);
   }

@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { requireMasterAdmin } from "@/lib/admin-auth";
 import { activeTuroTokenRow } from "@/lib/turo-token-row";
+import { refreshTuroGuests } from "@/lib/turo-guests";
 import { collectTrips, linkTrips, upsertTrips, fillCarInfoFromTuro, type RawTrip } from "@/lib/turo-trips";
 
 const CORS_HEADERS = {
@@ -127,6 +128,7 @@ export async function POST(request: NextRequest) {
     upcomingData?: unknown; historyData?: unknown; probe?: unknown;
     earnings?: unknown; reviews?: unknown; feedback?: unknown; payout?: unknown;
     receipts?: { id?: string; data?: RawTrip }[];
+    guestProfiles?: { renterId?: string; data?: unknown }[];
   };
   const errors: string[] = [];
   const rows = collectTrips(body.upcomingData, body.historyData);
@@ -163,8 +165,19 @@ export async function POST(request: NextRequest) {
     await supabase.from("turo_tokens").update(update).eq("id", rowId);
   }
 
+  // Rebuild the guest records from everything stored so far (trips, receipts, reviews).
+  let guests: Awaited<ReturnType<typeof refreshTuroGuests>> | null = null;
+  try {
+    const profiles = (Array.isArray(body.guestProfiles) ? body.guestProfiles : [])
+      .filter((p) => p?.renterId && p.data)
+      .map((p) => ({ renterId: String(p.renterId), data: p.data }));
+    guests = await refreshTuroGuests(supabase, profiles);
+  } catch (e) {
+    errors.push(`guests: ${(e as Error).message}`);
+  }
+
   return new NextResponse(
-    JSON.stringify({ ok: true, synced, errors, totalFetched: rows.length, receiptsSaved, unlinkedVehicleIds, carsUpdated }),
+    JSON.stringify({ ok: true, synced, errors, totalFetched: rows.length, receiptsSaved, unlinkedVehicleIds, carsUpdated, guests }),
     { status: 200, headers: { "Content-Type": "application/json", ...CORS_HEADERS } }
   );
 }

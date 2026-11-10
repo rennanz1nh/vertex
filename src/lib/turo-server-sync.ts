@@ -4,6 +4,7 @@
 // outcome on turo_tokens so the UI can say plainly whether automatic updates are working.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { activeTuroTokenRow } from "@/lib/turo-token-row";
+import { refreshTuroGuests } from "@/lib/turo-guests";
 import { collectTrips, linkTrips, upsertTrips, fillCarInfoFromTuro } from "@/lib/turo-trips";
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36";
@@ -137,6 +138,7 @@ export async function runServerSync(supabase: SupabaseClient): Promise<ServerSyn
   const { unlinkedVehicleIds } = await linkTrips(supabase, trips);
   const up = await upsertTrips(supabase, trips);
   const carsUpdated = await fillCarInfoFromTuro(supabase, trips);
+  await refreshTuroGuests(supabase).catch((e) => console.error("refreshTuroGuests failed", e));
   await supabase.from("turo_tokens").update({ last_synced_at: new Date().toISOString() }).eq("id", row.id);
 
   const message = up.errors.length

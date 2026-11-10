@@ -26,6 +26,7 @@ import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortabl
 import { SortableHeader } from '@/components/table/SortableHeader';
 import { ColumnViewButtons } from '@/components/table/ColumnViewButtons';
 import { useColumnPreferences } from '@/hooks/useColumnPreferences';
+import { TuroGuestDialog, guestPhotoUrl, type TuroGuest } from '@/components/admin/TuroGuestDialog';
 
 const CLIENT_TYPE_BADGE: Record<string, string> = {
   Individual: 'bg-gray-100 text-gray-700',
@@ -77,7 +78,7 @@ interface ClientWithBookings {
   lastRentalDate: string | null;
   origemChannel: string | null;
   /** Guests synced from Turo: read-only here, Turo doesn't share email/phone with hosts. */
-  turo?: { profileUrl: string | null; image: string | null; cancelled: number };
+  turo?: { profileUrl: string | null; image: string | null; cancelled: number; guest?: TuroGuest };
 }
 
 type TuroGuestTrip = {
@@ -162,6 +163,7 @@ export default function Clients() {
   const [sortOption, setSortOption] = useState<SortOption>('nome_asc');
   const [origemFilter, setOrigemFilter] = useState<string>('all');
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [openGuest, setOpenGuest] = useState<TuroGuest | null>(null);
 
   const { profile } = useAuth();
   const { toast } = useToast();
@@ -222,6 +224,29 @@ export default function Clients() {
 
       // Turo guests (read-only). If Turo can't be read, the site clients still show.
       const untyped = supabase as unknown as { from: (t: string) => { select: (c: string) => Promise<{ data: unknown[] | null; error: unknown }> } };
+      // Prefer the consolidated turo_guests records (photo, reviews, our notes); fall back
+      // to computing from the raw trips until the first sync has filled that table.
+      const guestsRes = await untyped.from('turo_guests').select('*');
+      const storedGuests = (guestsRes.data ?? []) as TuroGuest[];
+      if (!guestsRes.error && storedGuests.length) {
+        const guestClients: ClientWithBookings[] = storedGuests.map((g) => ({
+          id: `turo:${g.renter_id}`,
+          nome_razao: g.name,
+          tipo: 'Turo',
+          telefone: g.our_phone,
+          email: g.our_email,
+          endereco_cidade: null,
+          license_expiration: null,
+          totalRentals: g.trips_count,
+          totalSpent: Number(g.total_spent) || 0,
+          lastRentalDate: g.last_trip_at ? g.last_trip_at.slice(0, 10) : null,
+          origemChannel: 'Turo',
+          turo: { profileUrl: g.profile_url, image: guestPhotoUrl(g), cancelled: g.cancelled_count, guest: g },
+        }));
+        setClients([...clientsWithBookings, ...guestClients]);
+        return;
+      }
+
       const [turoRes, receiptsRes] = await Promise.all([
         untyped.from('turo_trips').select('renter_id, guest_name, status, turo_trip_id, pickup_date, location_timezone, raw_data'),
         untyped.from('turo_receipts').select('reservation_id, trip_total'),
@@ -631,7 +656,15 @@ export default function Clients() {
                 </TableHeader>
                 <TableBody>
                   {filteredAndSortedClients.map((client) => (
-                    <TableRow key={client.id}>
+                    <TableRow
+                      key={client.id}
+                      className={client.turo?.guest ? 'cursor-pointer' : undefined}
+                      onClick={(e) => {
+                        if (!client.turo?.guest) return;
+                        if ((e.target as HTMLElement).closest('a, button, input')) return;
+                        setOpenGuest(client.turo.guest);
+                      }}
+                    >
                       {selectionMode && isAdmin && (
                         <TableCell>
                           {!client.turo && (
@@ -655,6 +688,17 @@ export default function Clients() {
           </div>
         </CardContent>
       </Card>
+
+      <TuroGuestDialog
+        guest={openGuest}
+        onClose={() => setOpenGuest(null)}
+        onSaved={(g) => {
+          setOpenGuest(g);
+          setClients((prev) =>
+            prev.map((c) => (c.turo?.guest?.renter_id === g.renter_id ? { ...c, telefone: g.our_phone, email: g.our_email, turo: { ...c.turo!, guest: g } } : c)),
+          );
+        }}
+      />
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
