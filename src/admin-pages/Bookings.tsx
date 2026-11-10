@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useRouter } from 'next/navigation';
 import { authedFetch } from '@/lib/admin-fetch';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -61,7 +62,87 @@ type BookingRow = {
   balance_status: 'none' | 'scheduled' | 'processing' | 'paid' | 'failed';
   balance_last_error: string | null;
   created_at: string;
+  /** "turo" rows come from turo_trips (read-only here); everything else is ours. */
+  source?: 'site' | 'turo';
+  turo?: { tripId: string; vehicle: string; image: string | null; hostEarned: number | null; turoFee: number | null; rawStatus: string };
 };
+
+type TuroTripRow = {
+  id: string;
+  turo_trip_id: string;
+  status: string;
+  guest_name: string | null;
+  product_id: string | null;
+  vehicle_make: string | null;
+  vehicle_model: string | null;
+  vehicle_year: number | null;
+  vehicle_image_url: string | null;
+  pickup_date: string | null;
+  return_date: string | null;
+  location_timezone: string | null;
+  earnings_amount: number | null;
+  updated_at: string;
+};
+
+type TuroReceiptRow = { reservation_id: string; trip_total: number | null; host_earned: number | null; turo_fee: number | null };
+
+function localParts(iso: string, timeZone: string): { date: string; time: string } {
+  const d = new Date(iso);
+  const date = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+  const time = new Intl.DateTimeFormat('en-US', { timeZone, hour: '2-digit', minute: '2-digit', hour12: false }).format(d);
+  return { date, time };
+}
+
+/** A Turo trip shaped like one of our bookings, so both live in the same table. */
+function turoTripToRow(t: TuroTripRow, receipt: TuroReceiptRow | undefined): BookingRow | null {
+  if (!t.pickup_date || !t.return_date) return null;
+  const tz = t.location_timezone || 'America/New_York';
+  const start = localParts(t.pickup_date, tz);
+  const end = localParts(t.return_date, tz);
+  const cancelled = /cancel/i.test(t.status);
+  const finished = /complete/i.test(t.status) || new Date(t.return_date).getTime() < Date.now();
+  const total = receipt?.trip_total ?? t.earnings_amount ?? 0;
+  const days = Math.max(1, Math.round((new Date(t.return_date).getTime() - new Date(t.pickup_date).getTime()) / 86_400_000));
+  return {
+    id: `turo:${t.id}`,
+    car_id: t.product_id ?? '',
+    status: cancelled ? 'cancelled' : finished ? 'completed' : 'confirmed',
+    pickup_date: start.date,
+    pickup_time: start.time,
+    return_date: end.date,
+    return_time: end.time,
+    daily_rate: total ? Number(total) / days : 0,
+    estimated_total: Number(total) || 0,
+    customer_name: t.guest_name || 'Hóspede Turo',
+    customer_email: null,
+    driver_full_name: t.guest_name || '',
+    driver_date_of_birth: '',
+    driver_license_number: '',
+    driver_license_state: '',
+    driver_license_expiration: '',
+    rental_agreement_signed_at: null,
+    rental_agreement_signature_path: null,
+    rental_agreement_version: null,
+    turo_blocked_at: null,
+    payment_plan: null,
+    deposit_amount: null,
+    deposit_paid_at: null,
+    balance_amount: null,
+    balance_due_date: null,
+    balance_status: 'none',
+    balance_last_error: null,
+    created_at: t.updated_at,
+    source: 'turo',
+    turo: {
+      tripId: t.id,
+      vehicle: [t.vehicle_year, t.vehicle_make, t.vehicle_model].filter(Boolean).join(' ') || 'Carro Turo',
+      image: t.vehicle_image_url,
+      hostEarned: receipt?.host_earned ?? null,
+      turoFee: receipt?.turo_fee ?? null,
+      rawStatus: t.status,
+    },
+  };
+}
 
 type ColumnDef = {
   id: string;
@@ -94,6 +175,8 @@ export default function Bookings() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'site' | 'turo'>('all');
+  const router = useRouter();
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedBookings, setSelectedBookings] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
@@ -152,6 +235,14 @@ export default function Bookings() {
   }, [toast]);
 
   const paymentCell = useCallback((b: BookingRow) => {
+    if (b.source === 'turo') {
+      return (
+        <div className="flex flex-col gap-0.5 text-xs">
+          <span className="text-muted-foreground">Pago na Turo</span>
+          {b.turo?.hostEarned != null && <span className="text-green-700">Você recebe {formatCurrency(Number(b.turo.hostEarned))}</span>}
+        </div>
+      );
+    }
     if (!b.payment_plan) return <span className="text-muted-foreground text-xs">Manual</span>;
     if (!b.deposit_paid_at) return <span className="text-xs text-amber-700">Aguardando cartão</span>;
     if (b.payment_plan === 'full') return <span className="text-xs text-green-700">Pago 100%</span>;
@@ -201,15 +292,27 @@ export default function Bookings() {
 
   const fetchData = async () => {
     try {
-      const [{ data: bookingsData, error: bookingsError }, { data: carsData, error: carsError }] = await Promise.all([
+      // turo_trips / turo_receipts aren't in the generated Database types.
+      const untyped = supabase as unknown as { from: (t: string) => { select: (c: string) => Promise<{ data: unknown[] | null; error: unknown }> } };
+      const [{ data: bookingsData, error: bookingsError }, { data: carsData, error: carsError }, turoRes, receiptsRes] = await Promise.all([
         supabase.from('bookings').select('*').order('created_at', { ascending: false }),
         supabase.from('products').select('id, name, make, model, year, image_url, daily_rate, min_driver_age'),
+        untyped.from('turo_trips').select('id, turo_trip_id, status, guest_name, product_id, vehicle_make, vehicle_model, vehicle_year, vehicle_image_url, pickup_date, return_date, location_timezone, earnings_amount, updated_at'),
+        untyped.from('turo_receipts').select('reservation_id, trip_total, host_earned, turo_fee'),
       ]);
 
       if (bookingsError) throw bookingsError;
       if (carsError) throw carsError;
+      // Turo is a bonus here: if it can't be read (no access, table missing) the site bookings still show.
+      if (turoRes.error) console.error('Error fetching Turo trips:', turoRes.error);
 
-      setBookings((bookingsData || []) as unknown as BookingRow[]);
+      const receipts = new Map(((receiptsRes.data ?? []) as TuroReceiptRow[]).map((r) => [String(r.reservation_id), r]));
+      const turoRows = ((turoRes.data ?? []) as TuroTripRow[])
+        .map((t) => turoTripToRow(t, receipts.get(String(t.turo_trip_id))))
+        .filter((r): r is BookingRow => !!r);
+      const siteRows = ((bookingsData || []) as unknown as BookingRow[]).map((b) => ({ ...b, source: 'site' as const }));
+      // Newest trip first, whichever side it came from.
+      setBookings([...siteRows, ...turoRows].sort((a, b) => (b.pickup_date || '').localeCompare(a.pickup_date || '')));
       setCars((carsData || []) as CarOption[]);
     } catch (error) {
       console.error('Error fetching bookings:', error);
@@ -223,17 +326,18 @@ export default function Bookings() {
   const filteredBookings = useMemo(() => {
     return bookings.filter((booking) => {
       const car = carsById.get(booking.car_id);
-      const carLabel = car ? (car.name || [car.year, car.make, car.model].filter(Boolean).join(' ')) : '';
+      const carLabel = car ? (car.name || [car.year, car.make, car.model].filter(Boolean).join(' ')) : (booking.turo?.vehicle ?? '');
       const matchesSearch =
         (booking.customer_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (booking.customer_email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         carLabel.toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesStatus = statusFilter === 'all' || booking.status === statusFilter;
+      const matchesSource = sourceFilter === 'all' || (booking.source ?? 'site') === sourceFilter;
 
-      return matchesSearch && matchesStatus;
+      return matchesSearch && matchesStatus && matchesSource;
     });
-  }, [bookings, carsById, searchTerm, statusFilter]);
+  }, [bookings, carsById, searchTerm, statusFilter, sourceFilter]);
 
   const toggleSelection = (bookingId: string) => {
     setSelectedBookings((prev) => {
@@ -267,21 +371,33 @@ export default function Bookings() {
   // ===== Column definitions =====
   const columns: ColumnDef[] = useMemo(() => [
     {
-      id: 'car', label: 'Carro',
-      render: (booking, car) => (
+      id: 'source', label: 'Origem',
+      render: (booking) => (
         <TableCell>
-          <div className="flex items-center gap-3">
-            <div className="relative w-12 h-12 rounded overflow-hidden bg-muted flex items-center justify-center shrink-0">
-              {car?.image_url ? (
-                <img src={car.image_url} alt={car.name || 'Carro'} className="w-full h-full object-cover" />
-              ) : (
-                <ImageIcon className="h-5 w-5 text-muted-foreground" />
-              )}
-            </div>
-            <span className="font-medium">{car ? (car.name || [car.year, car.make, car.model].filter(Boolean).join(' ')) : '—'}</span>
-          </div>
+          {booking.source === 'turo' ? (
+            <span className="inline-block text-xs font-semibold px-2 py-0.5 rounded-full border" style={{ color: '#593cfb', backgroundColor: '#efecff', borderColor: '#593cfb59' }}>Turo</span>
+          ) : (
+            <span className="inline-block text-xs font-semibold px-2 py-0.5 rounded-full border border-gray-300 text-gray-700 bg-gray-50">Site</span>
+          )}
         </TableCell>
       ),
+    },
+    {
+      id: 'car', label: 'Carro',
+      render: (booking, car) => {
+        const image = car?.image_url || booking.turo?.image || null;
+        const name = car ? (car.name || [car.year, car.make, car.model].filter(Boolean).join(' ')) : (booking.turo?.vehicle ?? '—');
+        return (
+          <TableCell>
+            <div className="flex items-center gap-3">
+              <div className="relative w-12 h-12 rounded overflow-hidden bg-muted flex items-center justify-center shrink-0">
+                {image ? <img src={image} alt={name} className="w-full h-full object-cover" /> : <ImageIcon className="h-5 w-5 text-muted-foreground" />}
+              </div>
+              <span className="font-medium">{name}</span>
+            </div>
+          </TableCell>
+        );
+      },
     },
     {
       id: 'customer', label: 'Cliente',
@@ -289,7 +405,7 @@ export default function Bookings() {
         <TableCell>
           <div className="flex flex-col">
             <span className="font-medium">{booking.customer_name || '—'}</span>
-            <span className="text-xs text-muted-foreground">{booking.customer_email || '—'}</span>
+            <span className="text-xs text-muted-foreground">{booking.source === 'turo' ? 'Hóspede Turo' : booking.customer_email || '—'}</span>
           </div>
         </TableCell>
       ),
@@ -313,7 +429,7 @@ export default function Bookings() {
       id: 'turo_block', label: 'Turo', headerClassName: 'text-center',
       render: (booking) => (
         <TableCell className="text-center">
-          {booking.status === 'cancelled' ? (
+          {booking.status === 'cancelled' || booking.source === 'turo' ? (
             <span className="text-muted-foreground text-xs">—</span>
           ) : booking.turo_blocked_at ? (
             <button
@@ -347,15 +463,19 @@ export default function Bookings() {
     },
     {
       id: 'daily_rate', label: 'Diária', headerClassName: 'text-right',
-      render: (booking) => <TableCell className="text-right">{formatCurrency(Number(booking.daily_rate))}</TableCell>,
+      render: (booking) => <TableCell className="text-right">{booking.daily_rate ? formatCurrency(Number(booking.daily_rate)) : '—'}</TableCell>,
     },
     {
       id: 'total', label: 'Total', headerClassName: 'text-right',
-      render: (booking) => <TableCell className="text-right font-medium text-green-600">{formatCurrency(Number(booking.estimated_total))}</TableCell>,
+      render: (booking) => (
+        <TableCell className="text-right font-medium text-green-600">
+          {booking.source === 'turo' && !booking.estimated_total ? '—' : formatCurrency(Number(booking.estimated_total))}
+        </TableCell>
+      ),
     },
     {
       id: 'created_at', label: 'Criado em',
-      render: (booking) => <TableCell>{booking.created_at ? formatShortDate(new Date(booking.created_at)) : '—'}</TableCell>,
+      render: (booking) => <TableCell>{booking.source === 'turo' ? '—' : booking.created_at ? formatShortDate(new Date(booking.created_at)) : '—'}</TableCell>,
     },
     {
       id: 'agreement', label: 'Contrato', headerClassName: 'text-center',
@@ -411,7 +531,7 @@ export default function Bookings() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Reservas</h1>
           <p className="text-muted-foreground font-bold">
-            Histórico completo de reservas e aluguéis {isAdmin && '(Admin)'}
+            Reservas do site e da Turo, num lugar só {isAdmin && '(Admin)'}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -475,8 +595,18 @@ export default function Bookings() {
                   ))}
                 </SelectContent>
               </Select>
-              {statusFilter !== 'all' && (
-                <Button variant="ghost" onClick={() => setStatusFilter('all')}>
+              <Select value={sourceFilter} onValueChange={(v) => setSourceFilter(v as 'all' | 'site' | 'turo')}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Origem" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Site + Turo</SelectItem>
+                  <SelectItem value="site">Só site</SelectItem>
+                  <SelectItem value="turo">Só Turo</SelectItem>
+                </SelectContent>
+              </Select>
+              {(statusFilter !== 'all' || sourceFilter !== 'all') && (
+                <Button variant="ghost" onClick={() => { setStatusFilter('all'); setSourceFilter('all'); }}>
                   Limpar Filtros
                 </Button>
               )}
@@ -540,14 +670,20 @@ export default function Bookings() {
                       <TableRow
                         key={booking.id}
                         className="cursor-pointer"
-                        onClick={(e) => { if (!isInteractiveClickTarget(e)) setViewBooking(booking); }}
+                        onClick={(e) => {
+                          if (isInteractiveClickTarget(e)) return;
+                          if (booking.source === 'turo') router.push(`/admin/turo?tab=reservations&trip=${booking.turo!.tripId}`);
+                          else setViewBooking(booking);
+                        }}
                       >
                         {selectionMode && isAdmin && (
                           <TableCell>
-                            <Checkbox
-                              checked={selectedBookings.has(booking.id)}
-                              onCheckedChange={() => toggleSelection(booking.id)}
-                            />
+                            {booking.source !== 'turo' && (
+                              <Checkbox
+                                checked={selectedBookings.has(booking.id)}
+                                onCheckedChange={() => toggleSelection(booking.id)}
+                              />
+                            )}
                           </TableCell>
                         )}
                         {orderedColumns.map((col) => (

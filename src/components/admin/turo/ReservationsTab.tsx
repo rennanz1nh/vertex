@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Search, ExternalLink, MapPin, Car as CarIcon, User, Calendar, Clock, DollarSign, Receipt, ChevronDown } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { authedFetch } from "@/lib/admin-fetch";
 import { TuroTrip, TuroExtras, StatusBadge, vehicleLabel, fmtDateTime, fmtDate, durationDays, fmtMoney, buildFinanceIndex } from "./shared";
 
@@ -276,7 +277,9 @@ export function ReservationsTab({ trips, extras }: { trips: TuroTrip[]; extras: 
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [period, setPeriod] = useState("all");
-  const [openId, setOpenId] = useState<string | null>(null);
+  // ?trip=<id> (from the Reservas page) opens that trip's detail right away.
+  const tripParam = useSearchParams().get("trip");
+  const [openId, setOpenId] = useState<string | null>(tripParam);
 
   const now = Date.now();
   const fin = useMemo(() => buildFinanceIndex(extras), [extras]);
