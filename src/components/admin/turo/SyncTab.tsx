@@ -5,6 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { authedFetch } from "@/lib/admin-fetch";
+import { BrandWord } from "@/components/admin-v2/brand";
+import { useAuth } from "@/hooks/useAuth";
+import { isMasterAdminEmail } from "@/lib/master-admin";
 import { Link2, Link2Off, AlertCircle, Copy, Check, Terminal, RefreshCw, Puzzle, Download } from "lucide-react";
 import { TuroConfig, fmtDateTime } from "./shared";
 
@@ -27,6 +30,9 @@ function buildScript(auth: { key?: string; token?: string }, asBookmarklet = fal
 
 export function SyncTab({ config, connected, onChanged }: { config: TuroConfig | null; connected: boolean; onChanged: () => void }) {
   const { toast } = useToast();
+  const { user } = useAuth();
+  // Everyone on the team can sync; disconnecting the Turo account is the owner's call.
+  const isOwner = isMasterAdminEmail(user?.email);
   const [token, setToken] = useState("");
   const [saving, setSaving] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
@@ -127,7 +133,7 @@ export function SyncTab({ config, connected, onChanged }: { config: TuroConfig |
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3 max-md:min-w-0">
-          <div className="p-1 rounded-lg bg-black"><Image src="/turo-logo.png" alt="Turo" width={60} height={22} className="object-contain" /></div>
+          <span className="flex h-10 shrink-0 items-center rounded-lg border bg-white px-3"><BrandWord brand="turo" /></span>
           <div>
             <p className="font-semibold text-green-700">Conectado</p>
             <p className="text-xs text-muted-foreground">
@@ -139,9 +145,11 @@ export function SyncTab({ config, connected, onChanged }: { config: TuroConfig |
           <Button onClick={handleSyncClick} disabled={generating} size="sm" className="max-md:h-10 max-md:w-full">
             <RefreshCw className={`mr-2 h-4 w-4 ${generating ? "animate-spin" : ""}`} /> Sincronizar
           </Button>
-          <Button onClick={handleDisconnect} disabled={disconnecting} size="sm" variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10 max-md:h-10 max-md:w-full">
-            <Link2Off className="mr-2 h-4 w-4" /> Desconectar
-          </Button>
+          {isOwner && (
+            <Button onClick={handleDisconnect} disabled={disconnecting} size="sm" variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10 max-md:h-10 max-md:w-full">
+              <Link2Off className="mr-2 h-4 w-4" /> Desconectar
+            </Button>
+          )}
         </div>
       </div>
 

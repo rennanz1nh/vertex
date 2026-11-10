@@ -36,14 +36,14 @@ const TABS_WITH_OWN_MOBILE_HEADER: TabId[] = ["reservations", "vehicles", "guest
 export default function TuroPage() {
   const { user, profile, loading: authLoading } = useAuth();
   const isMaster = isMasterAdminEmail(user?.email);
-  // The whole team (admin + operador) sees the Turo data; connecting and syncing stay with the owner.
+  // The whole team (admin + operador) sees and syncs the Turo data; only the owner can disconnect.
   const isStaff = isMaster || profile?.role === "admin" || profile?.role === "operador";
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
   const requestedTab: TabId = (TURO_TABS.find((t) => t.id === tabParam)?.id ?? "overview") as TabId;
-  const activeTab: TabId = requestedTab === "sync" && !isMaster ? "overview" : requestedTab;
+  const activeTab: TabId = requestedTab;
 
   const [connected, setConnected] = useState(false);
   const [config, setConfig] = useState<TuroConfig | null>(null);
@@ -113,7 +113,7 @@ export default function TuroPage() {
       {!connected && activeTab !== "sync" ? (
         <div className="text-center py-16 text-muted-foreground">
           <p>Turo não está conectado.</p>
-          {isMaster && <button onClick={() => setTab("sync")} className="text-indigo-600 text-sm mt-1 underline">Ir para Sincronização →</button>}
+          {isStaff && <button onClick={() => setTab("sync")} className="text-indigo-600 text-sm mt-1 underline">Ir para Sincronização →</button>}
         </div>
       ) : (
         <>

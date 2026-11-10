@@ -4,7 +4,7 @@
 // so a console script running on turo.com can POST here cross-origin.
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { requireMasterAdmin } from "@/lib/admin-auth";
+import { requireStaff } from "@/lib/admin-auth";
 import { activeTuroTokenRow } from "@/lib/turo-token-row";
 import { refreshTuroGuests } from "@/lib/turo-guests";
 import { collectTrips, linkTrips, upsertTrips, fillCarInfoFromTuro, type RawTrip } from "@/lib/turo-trips";
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
 
   if (!syncKey && !request.headers.get("X-Sync-Token")) {
     // Fall back to admin JWT auth (for browser-side fetch from our domain)
-    const auth = await requireMasterAdmin(request);
+    const auth = await requireStaff(request);
     if (!auth.ok) {
       return new NextResponse(
         JSON.stringify({ error: "Unauthorized" }),

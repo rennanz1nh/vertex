@@ -33,13 +33,11 @@ export async function GET(request: NextRequest) {
   );
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  // The sync key lets anyone push data into the integration: only the owner sees it.
-  const config = data ? (auth.master ? data : { ...data, sync_key: null }) : null;
-  return NextResponse.json({ connected: !!data, config });
+  return NextResponse.json({ connected: !!data, config: data ?? null });
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireMasterAdmin(request);
+  const auth = await requireStaff(request);
   if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json();

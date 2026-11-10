@@ -32,7 +32,7 @@ export const TURO_PAGES: SubPage[] = [
   { title: "Ganhos", url: "/admin/turo?tab=earnings", basePath: "/admin/turo", tab: "earnings" },
   { title: "Avaliações", url: "/admin/turo?tab=reviews", basePath: "/admin/turo", tab: "reviews" },
   { title: "Métodos", url: "/admin/turo?tab=payout", basePath: "/admin/turo", tab: "payout" },
-  { title: "Sincronização", url: "/admin/turo?tab=sync", basePath: "/admin/turo", tab: "sync", ownerOnly: true },
+  { title: "Sincronização", url: "/admin/turo?tab=sync", basePath: "/admin/turo", tab: "sync" },
 ];
 
 // Sidebar sections mapped from the AppSidebar's existing navigation, now regrouped for V2.

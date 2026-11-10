@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { requireMasterAdmin } from "@/lib/admin-auth";
+import { requireStaff } from "@/lib/admin-auth";
 import { runServerSync } from "@/lib/turo-server-sync";
 
 function adminClient() {
@@ -13,7 +13,7 @@ function adminClient() {
 
 // Manual trigger of the same server-side pull the cron runs (may be blocked by Cloudflare).
 export async function POST(request: NextRequest) {
-  const auth = await requireMasterAdmin(request);
+  const auth = await requireStaff(request);
   if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const result = await runServerSync(adminClient());

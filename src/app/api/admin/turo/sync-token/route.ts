@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { activeTuroTokenRow } from "@/lib/turo-token-row";
 import { createClient } from "@supabase/supabase-js";
-import { requireMasterAdmin } from "@/lib/admin-auth";
+import { requireStaff } from "@/lib/admin-auth";
 import { randomUUID } from "crypto";
 
 function adminClient() {
@@ -13,7 +13,7 @@ function adminClient() {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireMasterAdmin(request);
+  const auth = await requireStaff(request);
   if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const supabase = adminClient();

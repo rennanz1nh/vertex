@@ -3,11 +3,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { activeTuroTokenRow } from "@/lib/turo-token-row";
 import { createClient } from "@supabase/supabase-js";
-import { requireMasterAdmin } from "@/lib/admin-auth";
+import { requireStaff } from "@/lib/admin-auth";
 import { extractAccessToken } from "@/app/api/admin/turo/config/route";
 
 export async function GET(request: NextRequest) {
-  const auth = await requireMasterAdmin(request);
+  const auth = await requireStaff(request);
   if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const supabase = createClient(
