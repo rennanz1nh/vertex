@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Menu, X, ChevronDown, PanelLeft, MessageCircle, Moon, Sun, Store, LogOut, ChevronRight, Settings, Home, Car, ClipboardList } from "lucide-react";
+import { Menu, X, AlertCircle, ChevronDown, PanelLeft, MessageCircle, Moon, Sun, Store, LogOut, ChevronRight, Settings, Home, Car, ClipboardList } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { authedFetch } from "@/lib/admin-fetch";
@@ -14,7 +14,8 @@ import { CURRENT_VERSION } from "@/data/updates";
 import { GoogleAdsLogo, GoogleCloudLogo, GoogleMerchantCenterLogo, GoogleSearchConsoleLogo } from "@/components/brand-logos";
 import { BrandMark, BrandWord } from "./brand";
 import { usePref, writePref, RAIL_KEY, THEME_KEY } from "./prefs";
-import { SECTIONS, ALL_ITEMS, itemActive, pageActive, type NavItem, type NavSection, type TabLogo } from "./nav";
+import { SECTIONS, ALL_ITEMS, itemActive, pageActive, canAccess, type NavItem, type NavSection, type TabLogo } from "./nav";
+import { isMasterAdminEmail } from "@/lib/master-admin";
 
 const TABS = [
   { title: "Dashboard", url: "/admin", exact: true, icon: Home },
@@ -57,11 +58,11 @@ function useUnreadChats() {
 type Tab = { title: string; href: string; active: boolean; logo?: TabLogo };
 
 /** Tab rows for the active section: its sub-pages (plus a second row when the active sub-page has its own). */
-function useSectionTabs(pathname: string, item: NavItem | undefined): Tab[][] {
+function useSectionTabs(pathname: string, item: NavItem | undefined, isOwner: boolean): Tab[][] {
   const params = useSearchParams();
   if (!item) return [];
   if (!item.pages) return [];
-  const rows: Tab[][] = [item.pages.map((p) => ({ title: p.title, href: p.url, active: pageActive(pathname, p, params), logo: p.logo }))];
+  const rows: Tab[][] = [item.pages.filter((p) => isOwner || !p.ownerOnly).map((p) => ({ title: p.title, href: p.url, active: pageActive(pathname, p, params), logo: p.logo }))];
   const sub = item.pages.find((p) => p.pages && pageActive(pathname, p, params));
   if (sub?.pages) rows.push(sub.pages.map((p) => ({ title: p.title, href: p.url, active: pageActive(pathname, p, params) })));
   return rows;
@@ -204,7 +205,17 @@ function SidebarSection({ section, rail, pathname }: { section: NavSection; rail
 
 export function V2Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { signOut, profile, user } = useAuth();
+  const { signOut, profile, user, loading: authLoading } = useAuth();
+  const router = useRouter();
+  const isAdmin = profile?.role === "admin";
+  const isOwner = isMasterAdminEmail(user?.email);
+  const sections = SECTIONS.filter((s) => !s.adminOnly || isAdmin);
+  const settingsHref = isAdmin ? "/admin/settings" : "/admin/settings/banners";
+  const allowed = authLoading || canAccess(pathname, isAdmin);
+  // Non-admins have no Notificações tab: send /admin/settings to their first settings tab.
+  useEffect(() => {
+    if (!authLoading && !isAdmin && pathname === "/admin/settings") router.replace("/admin/settings/banners");
+  }, [authLoading, isAdmin, pathname, router]);
   const unread = useUnreadChats();
   const dark = usePref(THEME_KEY) === "dark";
   const rail = usePref(RAIL_KEY) === "1";
@@ -225,7 +236,7 @@ export function V2Shell({ children }: { children: React.ReactNode }) {
   const toggleRail = () => writePref(RAIL_KEY, rail ? "0" : "1");
 
   const activeItem = ALL_ITEMS.find((i) => itemActive(pathname, i));
-  const sectionRows = useSectionTabs(pathname, activeItem);
+  const sectionRows = useSectionTabs(pathname, activeItem, isOwner);
   const showBand = !!activeItem && (!!activeItem.brand || !!activeItem.pages);
   const name: string = profile?.full_name || profile?.name || user?.email?.split("@")[0] || "Admin";
   const role: string = profile?.role ?? "admin";
@@ -253,7 +264,7 @@ export function V2Shell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="v2-noscrollbar flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-3 py-3.5">
-          {SECTIONS.map((section) => (
+          {sections.map((section) => (
             <SidebarSection key={section.title} section={section} rail={rail} pathname={pathname} />
           ))}
         </nav>
@@ -263,9 +274,9 @@ export function V2Shell({ children }: { children: React.ReactNode }) {
           {!rail && (
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[13px] font-bold">{name}</span>
-              <Link href="/admin/settings/updates" className="v2-mono block truncate text-[10.5px] text-[var(--v2-muted)] hover:underline">
+              <span className="v2-mono block truncate text-[10.5px] text-[var(--v2-muted)]">
                 {role} · v{CURRENT_VERSION}
-              </Link>
+              </span>
             </span>
           )}
           <button
@@ -295,7 +306,7 @@ export function V2Shell({ children }: { children: React.ReactNode }) {
             )}
           </Link>
           <NotificationBell />
-          <Link href="/admin/settings" aria-label="Configurações" title="Configurações" className={cn(iconBtn, "hidden md:flex", pathname.startsWith("/admin/settings") && "bg-[var(--v2-surface-2)] text-[var(--v2-text)]")}>
+          <Link href={settingsHref} aria-label="Configurações" title="Configurações" className={cn(iconBtn, "hidden md:flex", pathname.startsWith("/admin/settings") && "bg-[var(--v2-surface-2)] text-[var(--v2-text)]")}>
             <Settings className="h-[19px] w-[19px]" strokeWidth={1.8} />
           </Link>
           <button type="button" onClick={toggleDark} aria-label={dark ? "Mudar para modo claro" : "Mudar para modo noturno"} title={dark ? "Modo claro" : "Modo noturno"} className={cn(iconBtn, "text-[var(--v2-accent)]")}>
@@ -309,7 +320,18 @@ export function V2Shell({ children }: { children: React.ReactNode }) {
         <main className={cn("flex flex-1 flex-col gap-5 px-4 pb-28 pt-4 md:px-7 md:pb-8 md:pt-5", showBand && "v2-section")}>
           {showBand && activeItem && <SectionBand item={activeItem} rows={sectionRows} />}
           <TuroSyncStaleBanner />
-          <div className="min-w-0 flex-1">{children}</div>
+          <div className="min-w-0 flex-1">
+            {allowed ? (
+              children
+            ) : (
+              <div className="flex flex-col items-center justify-center py-24 text-center">
+                <AlertCircle className="mb-3 h-10 w-10 text-muted-foreground" />
+                <h1 className="text-xl font-bold">Acesso restrito</h1>
+                <p className="mt-1 text-sm text-muted-foreground">Esta página está disponível apenas para administradores.</p>
+                <Link href="/admin" className="mt-3 text-sm font-semibold underline">Voltar ao Dashboard</Link>
+              </div>
+            )}
+          </div>
         </main>
       </div>
 
@@ -323,7 +345,7 @@ export function V2Shell({ children }: { children: React.ReactNode }) {
                 <span className="v2-mono block text-[11px] text-[var(--v2-muted)]">{role} · v{CURRENT_VERSION}</span>
               </span>
             </div>
-            {SECTIONS.map((section) => {
+            {sections.map((section) => {
               const branded = section.items.every((i) => i.brand);
               return (
                 <div key={section.title} className="flex flex-col gap-2.5">
@@ -360,7 +382,7 @@ export function V2Shell({ children }: { children: React.ReactNode }) {
               );
             })}
             <div className="overflow-hidden rounded-[14px] border border-[var(--v2-border)] bg-[var(--v2-surface)]">
-              <Link href="/admin/settings" className="flex h-[50px] items-center gap-3 px-3.5 text-sm font-semibold">
+              <Link href={settingsHref} className="flex h-[50px] items-center gap-3 px-3.5 text-sm font-semibold">
                 <Settings className="h-[19px] w-[19px] text-[var(--v2-muted)]" />
                 <span className="flex-1">Configurações</span>
                 <ChevronRight className="h-4 w-4 text-[var(--v2-muted)]" />

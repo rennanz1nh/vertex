@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { requireMasterAdmin } from "@/lib/admin-auth";
+import { requireStaff } from "@/lib/admin-auth";
 
 export async function GET(request: NextRequest) {
-  const auth = await requireMasterAdmin(request);
+  const auth = await requireStaff(request);
   if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = new URL(request.url);

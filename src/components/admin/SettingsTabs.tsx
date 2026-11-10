@@ -7,6 +7,7 @@ import { Bell, Image as ImageIcon, Search, Mail, Ticket, Users, Link2 } from "lu
 import { GoogleLogo, FacebookLogo } from "@/components/brand-logos";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { OPERADOR_SETTINGS } from "@/components/admin-v2/nav";
 
 type Tab = {
   href: string;
@@ -33,7 +34,8 @@ export function SettingsTabs() {
   const pathname = usePathname();
   const { profile } = useAuth();
   const isAdmin = profile?.role === "admin";
-  const visibleTabs = TABS.filter((t) => !t.adminOnly || isAdmin);
+  // Non-admins (operador) only manage pop-ups, coupons and the link-in-bio.
+  const visibleTabs = isAdmin ? TABS : TABS.filter((t) => OPERADOR_SETTINGS.includes(t.href));
   const barRef = useRef<HTMLDivElement>(null);
   // Phones: the bar scrolls sideways, so bring the active tab into view.
   useEffect(() => {

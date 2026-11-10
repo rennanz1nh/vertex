@@ -4,7 +4,7 @@ import {
 import type { BrandKey } from "./brand";
 
 export type TabLogo = "googleads" | "searchconsole" | "shopping" | "merchant" | "cloud";
-export type SubPage = { title: string; url: string; exact?: boolean; basePath?: string; logo?: TabLogo; pages?: SubPage[]; tab?: string; defaultTab?: boolean };
+export type SubPage = { title: string; url: string; exact?: boolean; basePath?: string; logo?: TabLogo; pages?: SubPage[]; tab?: string; defaultTab?: boolean; /** Only the owner account (master admin) sees this tab. */ ownerOnly?: boolean };
 export type NavItem = {
   title: string;
   url: string;
@@ -21,7 +21,7 @@ export type NavItem = {
   staticTabs?: boolean;
 };
 /** `collapsible` sections get a dropdown header in the sidebar (open/closed is remembered per browser). */
-export type NavSection = { title: string; items: NavItem[]; collapsible?: boolean };
+export type NavSection = { title: string; items: NavItem[]; collapsible?: boolean; /** Hidden from non-admin users (e.g. operador). */ adminOnly?: boolean };
 
 // Turo lives as one sidebar item with its tabs shown in the sticky section band at the top of the page.
 export const TURO_PAGES: SubPage[] = [
@@ -32,7 +32,7 @@ export const TURO_PAGES: SubPage[] = [
   { title: "Ganhos", url: "/admin/turo?tab=earnings", basePath: "/admin/turo", tab: "earnings" },
   { title: "Avaliações", url: "/admin/turo?tab=reviews", basePath: "/admin/turo", tab: "reviews" },
   { title: "Métodos", url: "/admin/turo?tab=payout", basePath: "/admin/turo", tab: "payout" },
-  { title: "Sincronização", url: "/admin/turo?tab=sync", basePath: "/admin/turo", tab: "sync" },
+  { title: "Sincronização", url: "/admin/turo?tab=sync", basePath: "/admin/turo", tab: "sync", ownerOnly: true },
 ];
 
 // Sidebar sections mapped from the AppSidebar's existing navigation, now regrouped for V2.
@@ -51,6 +51,7 @@ export const SECTIONS: NavSection[] = [
   {
     title: "Automações",
     collapsible: true,
+    adminOnly: true,
     items: [
       {
         title: "Google", url: "/admin/automations/search-console/performance", basePath: "/admin/automations/search-console", brand: "google",
@@ -60,7 +61,7 @@ export const SECTIONS: NavSection[] = [
             title: "Search Console", url: "/admin/automations/search-console/performance", basePath: "/admin/automations/search-console", logo: "searchconsole",
             pages: [
               { title: "Performance", url: "/admin/automations/search-console/performance" },
-              { title: "URL Inspection", url: "/admin/automations/search-console/url-inspection" },
+              { title: "Indexação", url: "/admin/automations/search-console/indexing" },
             ],
           },
           {
@@ -92,23 +93,19 @@ export const SECTIONS: NavSection[] = [
           { title: "Visão Geral", url: "/admin/email-marketing/overview", exact: true },
           { title: "Contatos & Listas", url: "/admin/email-marketing/contacts" },
           { title: "Campanhas", url: "/admin/email-marketing/campaigns" },
-          { title: "Emails Enviados", url: "/admin/email-marketing/sent-emails" },
           { title: "Templates", url: "/admin/email-marketing/templates" },
           { title: "Configurações", url: "/admin/email-marketing/settings" },
         ],
       },
       {
         title: "Stripe", url: "/admin/automations/stripe", basePath: "/admin/automations/stripe", brand: "stripe",
-        pages: [
-          { title: "Visão Geral", url: "/admin/automations/stripe", exact: true },
-          { title: "Links de Pagamento", url: "/admin/automations/stripe/payment-links" },
-        ],
       },
     ],
   },
   {
     title: "Conteúdo",
     collapsible: true,
+    adminOnly: true,
     items: [
       { title: "Social Media", url: "/admin/social-media/zernio-hub", basePath: "/admin/social-media", brand: "instagram" },
     ],
@@ -133,4 +130,14 @@ export function pageActive(pathname: string, page: SubPage, params?: URLSearchPa
     return current === page.tab;
   }
   return true;
+}
+
+/** Pages a non-admin team member (operador) may open: the main menu, chat, and these settings tabs. */
+export const OPERADOR_SETTINGS = ["/admin/settings/banners", "/admin/settings/coupons", "/admin/settings/link-bio"];
+const OPERADOR_PATHS = ["/admin/cars", "/admin/calendar", "/admin/bookings", "/admin/clients", "/admin/turo", "/admin/chat", ...OPERADOR_SETTINGS];
+
+export function canAccess(pathname: string, isAdmin: boolean): boolean {
+  if (isAdmin) return true;
+  if (pathname === "/admin" || pathname === "/admin/") return true;
+  return OPERADOR_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
 }

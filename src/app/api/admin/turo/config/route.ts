@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { requireMasterAdmin } from "@/lib/admin-auth";
+import { requireMasterAdmin, requireStaff } from "@/lib/admin-auth";
 import { activeTuroTokenRow } from "@/lib/turo-token-row";
 
 function adminClient() {
@@ -23,7 +23,7 @@ export function extractAccessToken(stored: string): string {
 }
 
 export async function GET(request: NextRequest) {
-  const auth = await requireMasterAdmin(request);
+  const auth = await requireStaff(request);
   if (!auth.ok) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const supabase = adminClient();
@@ -33,7 +33,9 @@ export async function GET(request: NextRequest) {
   );
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ connected: !!data, config: data ?? null });
+  // The sync key lets anyone push data into the integration: only the owner sees it.
+  const config = data ? (auth.master ? data : { ...data, sync_key: null }) : null;
+  return NextResponse.json({ connected: !!data, config });
 }
 
 export async function POST(request: NextRequest) {

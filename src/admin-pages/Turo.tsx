@@ -34,13 +34,16 @@ type TabId = (typeof TURO_TABS)[number]["id"];
 const TABS_WITH_OWN_MOBILE_HEADER: TabId[] = ["reservations", "vehicles", "guests"];
 
 export default function TuroPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const isMaster = isMasterAdminEmail(user?.email);
+  // The whole team (admin + operador) sees the Turo data; connecting and syncing stay with the owner.
+  const isStaff = isMaster || profile?.role === "admin" || profile?.role === "operador";
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
-  const activeTab: TabId = (TURO_TABS.find((t) => t.id === tabParam)?.id ?? "overview") as TabId;
+  const requestedTab: TabId = (TURO_TABS.find((t) => t.id === tabParam)?.id ?? "overview") as TabId;
+  const activeTab: TabId = requestedTab === "sync" && !isMaster ? "overview" : requestedTab;
 
   const [connected, setConnected] = useState(false);
   const [config, setConfig] = useState<TuroConfig | null>(null);
@@ -80,18 +83,18 @@ export default function TuroPage() {
     else { setTrips([]); setStats(null); setExtras(null); }
   }, [loadConfig, loadTrips, loadStats, loadExtras]);
 
-  useEffect(() => { if (isMaster) reloadAll(); }, [isMaster, reloadAll]);
+  useEffect(() => { if (isStaff) reloadAll(); }, [isStaff, reloadAll]);
 
   function setTab(id: TabId) {
     router.replace(`${pathname}?tab=${id}`);
   }
 
-  if (!authLoading && !isMaster) {
+  if (!authLoading && !isStaff) {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center">
         <AlertCircle className="h-10 w-10 text-muted-foreground mb-3" />
         <h1 className="text-xl font-bold">Acesso restrito</h1>
-        <p className="text-sm text-muted-foreground mt-1">Esta página está disponível apenas para o administrador master.</p>
+        <p className="text-sm text-muted-foreground mt-1">Esta página está disponível apenas para a equipe.</p>
       </div>
     );
   }
@@ -110,7 +113,7 @@ export default function TuroPage() {
       {!connected && activeTab !== "sync" ? (
         <div className="text-center py-16 text-muted-foreground">
           <p>Turo não está conectado.</p>
-          <button onClick={() => setTab("sync")} className="text-indigo-600 text-sm mt-1 underline">Ir para Sincronização →</button>
+          {isMaster && <button onClick={() => setTab("sync")} className="text-indigo-600 text-sm mt-1 underline">Ir para Sincronização →</button>}
         </div>
       ) : (
         <>

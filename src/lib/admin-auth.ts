@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isMasterAdminEmail } from "@/lib/master-admin";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 function authClient() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, { db: { schema: (process.env.NEXT_PUBLIC_SUPABASE_SCHEMA || "public") as "public" } });
@@ -38,4 +39,22 @@ export async function requireMasterAdmin(request: NextRequest): Promise<{ ok: bo
   if (error || !data.user) return { ok: false, status: 401 };
   if (!isMasterAdminEmail(data.user.email)) return { ok: false, status: 403 };
   return { ok: true, status: 200, userId: data.user.id };
+}
+
+/**
+ * Team gate: a valid session whose profile is admin or operador. Used for read-only views
+ * the whole team shares (e.g. Turo trips and stats); `master` tells the route whether the
+ * caller is the owner account, for fields only the owner should see (like the sync key).
+ */
+export async function requireStaff(request: NextRequest): Promise<{ ok: boolean; status: number; userId?: string; master?: boolean }> {
+  const token = bearer(request);
+  if (!token) return { ok: false, status: 401 };
+
+  const { data, error } = await authClient().auth.getUser(token);
+  if (error || !data.user) return { ok: false, status: 401 };
+  if (isMasterAdminEmail(data.user.email)) return { ok: true, status: 200, userId: data.user.id, master: true };
+  const { data: profile } = await supabaseAdmin.from("profiles").select("role").eq("user_id", data.user.id).maybeSingle();
+  const role = (profile as { role?: string } | null)?.role;
+  if (role !== "admin" && role !== "operador") return { ok: false, status: 403 };
+  return { ok: true, status: 200, userId: data.user.id, master: false };
 }

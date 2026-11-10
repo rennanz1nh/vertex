@@ -27,7 +27,10 @@ type Extra = { failedBalances: number; turoSyncAgeHours: number | null };
 type Loaded = { rentals: Rental[]; cars: CarRow[]; reviews: ReviewItem[]; extra: Extra };
 
 // Tables outside the generated Database types (Turo, guests).
-const db = supabase as unknown as { from: (t: string) => { select: (c: string) => Promise<{ data: unknown[] | null; error: unknown }> } };
+const db = supabase as unknown as {
+  from: (t: string) => { select: (c: string) => Promise<{ data: unknown[] | null; error: unknown }> };
+  rpc: (fn: string) => Promise<{ data: unknown; error: unknown }>;
+};
 
 export default function Dashboard() {
   const today = useMemo(() => businessToday(), []);
@@ -52,7 +55,7 @@ export default function Dashboard() {
   }, []);
 
   const fetchData = useCallback(async (): Promise<Loaded> => {
-    const [trips, receipts, bookings, orders, carsRes, clients, guests, tokens] = await Promise.all([
+    const [trips, receipts, bookings, orders, carsRes, clients, guests, lastSyncRes] = await Promise.all([
       db.from("turo_trips").select("id, turo_trip_id, status, pickup_date, return_date, location_timezone, product_id, vehicle_year, vehicle_make, vehicle_model, renter_id, guest_name"),
       db.from("turo_receipts").select("reservation_id, trip_total, host_earned, turo_fee"),
       db.from("bookings").select("id, car_id, status, pickup_date, return_date, estimated_total, customer_email, customer_name, balance_status"),
@@ -60,11 +63,11 @@ export default function Dashboard() {
       db.from("products").select("id, name, make, model, year, image_url, store_visible, daily_rate"),
       db.from("clients").select("id, nome_razao"),
       db.from("turo_guests").select("name, reviews"),
-      db.from("turo_tokens").select("last_synced_at"),
+      // Security-definer RPC: the team sees the last sync time without reading the token rows.
+      db.rpc("turo_last_synced_at"),
     ]);
     const carRows = (carsRes.data ?? []) as CarRow[];
-    const syncs = ((tokens.data ?? []) as { last_synced_at: string | null }[]).map((t) => t.last_synced_at).filter(Boolean) as string[];
-    const lastSync = syncs.sort().at(-1);
+    const lastSync = (lastSyncRes.data as string | null) ?? undefined;
     return {
       cars: carRows,
       rentals: buildRentals({
