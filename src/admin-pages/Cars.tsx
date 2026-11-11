@@ -81,6 +81,9 @@ const formatRate = (value: unknown) => {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
 };
 
+/** The store only lists cars whose regular daily rate is above zero. */
+const hasRate = (rate: unknown) => Number(String(rate ?? "").replace(/[^0-9.]/g, "")) > 0;
+
 export default function Cars() {
   const [cars, setCars] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -408,7 +411,7 @@ export default function Cars() {
               badges={
                 car.store_visible || car.ribbon_text || editedCars[car.id] ? (
                   <>
-                    {car.store_visible && <RowBadge tone="green">Na loja</RowBadge>}
+                    {car.store_visible && (hasRate(car.daily_rate) ? <RowBadge tone="green">Na loja</RowBadge> : <RowBadge tone="red">Sem diária · fora da loja</RowBadge>)}
                     {car.ribbon_text && (
                       <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase ${getRibbonClassName(car.ribbon_color)}`}>{car.ribbon_text}</span>
                     )}
@@ -612,9 +615,13 @@ export default function Cars() {
                           )}
                           <TableCell>
                             <div className="flex items-center justify-center">
-                              {car.store_visible && (
+                              {car.store_visible && (hasRate(car.daily_rate) ? (
                                 <Store className="h-6 w-6 text-green-600" aria-label="Na loja" />
-                              )}
+                              ) : (
+                                <span title="Marcado para a loja, mas sem valor da diária: não aparece na loja">
+                                  <Store className="h-6 w-6 text-red-500" aria-label="Sem diária: fora da loja" />
+                                </span>
+                              ))}
                             </div>
                           </TableCell>
                           <TableCell>

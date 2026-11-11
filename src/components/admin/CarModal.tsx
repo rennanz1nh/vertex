@@ -81,6 +81,9 @@ export default function CarModal({ car, open, onClose, onChanged }: Props) {
     setForm((prev) => ({ ...prev, [field]: value }));
   const v = (field: string) => (form[field] ?? "") as string;
   const inStore = !!form.store_visible;
+  // The store only lists cars with a regular daily rate above zero (the promo price alone isn't enough).
+  const hasDailyRate = Number(String(form.daily_rate ?? "").replace(/[^0-9.]/g, "")) > 0;
+  const NO_RATE_MSG = "Preencha o \"Valor da diária\": sem ele o carro não aparece na loja (a diária promocional sozinha não basta).";
   const displayName =
     v("name") || [v("year"), v("make"), v("model")].filter(Boolean).join(" ") || "";
 
@@ -98,6 +101,10 @@ export default function CarModal({ car, open, onClose, onChanged }: Props) {
   }
 
   async function handleSave() {
+    if (inStore && !hasDailyRate) {
+      toast({ title: "Falta a diária", description: NO_RATE_MSG, variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
       const { id: _omit, ...payload } = form;
@@ -157,6 +164,10 @@ export default function CarModal({ car, open, onClose, onChanged }: Props) {
   }
 
   async function setStoreVisibility(visible: boolean) {
+    if (visible && !hasDailyRate) {
+      toast({ title: "Falta a diária", description: NO_RATE_MSG, variant: "destructive" });
+      return;
+    }
     setBusy(true);
     try {
       const payload: Record<string, unknown> = { store_visible: visible };
@@ -620,6 +631,9 @@ export default function CarModal({ car, open, onClose, onChanged }: Props) {
                 />
               </div>
             </div>
+            {!hasDailyRate && (
+              <p className="text-xs font-medium text-red-600">{NO_RATE_MSG}</p>
+            )}
             <p className="text-[11px] text-muted-foreground">
               Diária promocional (opcional): quando preenchida e menor que a diária normal,
               a loja mostra o valor original riscado e esse valor em destaque. Deixe em
