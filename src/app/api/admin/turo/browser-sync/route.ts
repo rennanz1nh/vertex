@@ -125,11 +125,27 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json() as {
+    heartbeat?: { ok?: boolean; message?: string };
     upcomingData?: unknown; historyData?: unknown; probe?: unknown;
     earnings?: unknown; reviews?: unknown; feedback?: unknown; payout?: unknown;
     receipts?: { id?: string; data?: RawTrip }[];
     guestProfiles?: { renterId?: string; data?: unknown }[];
   };
+  const fromExtension = request.headers.get("X-Sync-Client") === "extension";
+  // The extension reports every attempt, including failures (e.g. logged out of Turo), so the
+  // admin can see why the data is stale. A heartbeat-only call carries no Turo data.
+  if (body.heartbeat) {
+    const hbRow = tokenRowId ?? (await activeTuroTokenRow<{ id: string }>(supabase, "id").then((r) => r.data?.id ?? null));
+    if (hbRow) {
+      await supabase.from("turo_tokens").update({
+        extension_seen_at: new Date().toISOString(),
+        extension_ok: !!body.heartbeat.ok,
+        extension_message: String(body.heartbeat.message ?? "").slice(0, 500) || null,
+      }).eq("id", hbRow);
+    }
+    return new NextResponse(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json", ...CORS_HEADERS } });
+  }
+
   const errors: string[] = [];
   const rows = collectTrips(body.upcomingData, body.historyData);
   const { unlinkedVehicleIds } = await linkTrips(supabase, rows);
@@ -154,6 +170,11 @@ export async function POST(request: NextRequest) {
 
   if (rowId) {
     const update: Record<string, unknown> = { last_synced_at: new Date().toISOString() };
+    if (fromExtension && rows.length) {
+      update.extension_seen_at = new Date().toISOString();
+      update.extension_ok = true;
+      update.extension_message = null;
+    }
     if (body.probe) update.probe_data = body.probe;
     if (body.earnings !== undefined) update.earnings_data = body.earnings;
     if (body.reviews !== undefined) update.reviews_data = body.reviews;

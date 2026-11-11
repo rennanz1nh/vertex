@@ -12,6 +12,10 @@ export interface TuroConfig {
   auto_sync_at?: string | null;
   auto_sync_ok?: boolean | null;
   auto_sync_message?: string | null;
+  /** Last attempt reported by the Chrome extension (success or failure). */
+  extension_seen_at?: string | null;
+  extension_ok?: boolean | null;
+  extension_message?: string | null;
 }
 
 export interface TuroTrip {

@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
   const supabase = getSupabase();
   const result = await runServerSync(supabase);
 
-  // Push "Turo sem sincronizar" when the data is older than TURO_STALE_HOURS, once a day at most.
+  // Push "Turo sem sincronizar" when the data is older than TURO_STALE_HOURS, at most every 6h.
   const { data: row } = await activeTuroTokenRow<{ id: string; last_synced_at: string | null; stale_alert_at: string | null }>(
     supabase,
     "id, last_synced_at, stale_alert_at",
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
   if (row) {
     const hours = row.last_synced_at ? (Date.now() - new Date(row.last_synced_at).getTime()) / 3_600_000 : Infinity;
     const lastAlert = row.stale_alert_at ? new Date(row.stale_alert_at).getTime() : 0;
-    if (hours >= TURO_STALE_HOURS && Date.now() - lastAlert > 20 * 3_600_000) {
+    if (hours >= TURO_STALE_HOURS && Date.now() - lastAlert > 6 * 3_600_000) {
       await notifyPush("turo_sync_stale", { hours: Number.isFinite(hours) ? Math.floor(hours) : "muitas" }, { priority: "high" });
       await supabase.from("turo_tokens").update({ stale_alert_at: new Date().toISOString() }).eq("id", row.id);
       staleAlert = true;

@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
   const supabase = adminClient();
   const { data, error } = await activeTuroTokenRow(
     supabase,
-    "id, host_id, host_name, last_synced_at, updated_at, sync_key, host_data_synced_at, auto_sync_at, auto_sync_ok, auto_sync_message",
+    "id, host_id, host_name, last_synced_at, updated_at, sync_key, host_data_synced_at, auto_sync_at, auto_sync_ok, auto_sync_message, extension_seen_at, extension_ok, extension_message",
   );
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

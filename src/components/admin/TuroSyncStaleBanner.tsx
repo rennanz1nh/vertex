@@ -14,10 +14,13 @@ import { TURO_STALE_HOURS } from "@/lib/turo-token-row";
  * is rented on Turo, so the master admin gets a banner on every admin page.
  */
 export function TuroSyncStaleBanner() {
-  const { user } = useAuth();
-  const isMaster = isMasterAdminEmail(user?.email);
+  const { user, profile } = useAuth();
+  // The whole team can sync now, so everyone on it sees the warning.
+  const isMaster = isMasterAdminEmail(user?.email) || profile?.role === "admin" || profile?.role === "operador";
   // Hours since the last sync (Infinity = never), measured when the config arrives.
   const [hours, setHours] = useState<number | null>(null);
+  // Why the extension didn't sync, when it told us (e.g. logged out of Turo).
+  const [reason, setReason] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isMaster) return;
@@ -28,6 +31,13 @@ export function TuroSyncStaleBanner() {
         if (cancelled || !d) return;
         const last: string | null = d.config?.last_synced_at ?? null;
         setHours(last ? (Date.now() - new Date(last).getTime()) / 3_600_000 : Infinity);
+        const c = d.config ?? {};
+        if (c.extension_ok === false && c.extension_message) {
+          const at = c.extension_seen_at ? new Date(c.extension_seen_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
+          setReason(`Extensão${at ? ` (${at})` : ""}: ${c.extension_message}`);
+        } else if (c.extension_seen_at) {
+          setReason(`A extensão não roda desde ${new Date(c.extension_seen_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}: o Chrome com a extensão precisa estar aberto e o computador ligado.`);
+        }
       })
       .catch(() => {});
     return () => { cancelled = true; };
@@ -42,6 +52,7 @@ export function TuroSyncStaleBanner() {
       <p className="min-w-0 flex-1">
         <b>Turo desatualizada ({age}).</b> O site pode mostrar como livre um carro que já está alugado na Turo.{" "}
         <Link href="/admin/turo?tab=sync" className="font-semibold underline">Sincronizar agora</Link>
+        {reason && <span className="mt-0.5 block text-xs">{reason}</span>}
       </p>
     </div>
   );

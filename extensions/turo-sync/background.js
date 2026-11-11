@@ -4,14 +4,20 @@
 
 const DEFAULT_SITE = "https://vertexrentalcar.com";
 const ALARM = "turo-sync";
-const EVERY_MINUTES = 180;
+const EVERY_MINUTES = 60;
+// After sleep / Chrome closed, catch up as soon as the computer is back if the last good sync is older than this.
+const CATCH_UP_MINUTES = 50;
 const RECEIPT_BATCH = 25;
 const TURO_HOST_PAGE = "https://turo.com/us/en/host";
 
 chrome.runtime.onInstalled.addListener(() => schedule());
 chrome.runtime.onStartup.addListener(() => {
   schedule();
-  runSync("startup");
+  runIfDue("startup");
+});
+// Computer woke up / user came back: alarms missed while asleep are not replayed reliably.
+chrome.idle.onStateChanged.addListener((state) => {
+  if (state === "active") runIfDue("wake");
 });
 chrome.alarms.onAlarm.addListener((a) => {
   if (a.name === ALARM) runSync("alarm");
@@ -22,6 +28,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
     return true; // async reply
   }
 });
+
+async function runIfDue(reason) {
+  const { lastOkAt } = await chrome.storage.local.get("lastOkAt");
+  if (!lastOkAt || Date.now() - lastOkAt > CATCH_UP_MINUTES * 60 * 1000) return runSync(reason);
+}
 
 function schedule() {
   chrome.alarms.create(ALARM, { periodInMinutes: EVERY_MINUTES, delayInMinutes: 1 });
@@ -207,7 +218,9 @@ async function doSync(reason) {
 
 async function finish(ok, message, reason) {
   const result = { ok, message, at: new Date().toISOString(), reason };
-  await chrome.storage.local.set({ lastResult: result });
+  await chrome.storage.local.set(ok ? { lastResult: result, lastOkAt: Date.now() } : { lastResult: result });
+  // Tell the admin about failures too, so "Turo desatualizada" shows the reason (best effort).
+  if (!ok) reportFailure(message).catch(() => {});
   chrome.action.setBadgeText({ text: ok ? "" : "!" });
   chrome.action.setBadgeBackgroundColor({ color: "#d97706" });
   // Speak up only when an automatic run fails; a manual run shows its result in the popup.
@@ -215,4 +228,10 @@ async function finish(ok, message, reason) {
     chrome.notifications.create("turo-sync-failed", { type: "basic", iconUrl: "icon.png", title: "Sync Turo falhou", message });
   }
   return result;
+}
+
+async function reportFailure(message) {
+  const { syncKey, siteUrl } = await chrome.storage.local.get(["syncKey", "siteUrl"]);
+  if (!syncKey) return;
+  await post(siteUrl || DEFAULT_SITE, syncKey, { heartbeat: { ok: false, message } });
 }

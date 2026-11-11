@@ -20,4 +20,4 @@ export async function activeTuroTokenRow<T = Record<string, unknown>>(
 }
 
 /** Hours after which the Turo data is too old to trust for site availability. */
-export const TURO_STALE_HOURS = 12;
+export const TURO_STALE_HOURS = 6;

@@ -139,6 +139,12 @@ export function SyncTab({ config, connected, onChanged }: { config: TuroConfig |
             <p className="text-xs text-muted-foreground">
               {config?.last_synced_at ? `Último sync: ${fmtDateTime(config.last_synced_at)}` : "Nunca sincronizado"}
             </p>
+            {config?.extension_seen_at && (
+              <p className={`text-xs ${config.extension_ok === false ? "text-amber-700" : "text-muted-foreground"}`}>
+                Extensão: {config.extension_ok === false ? "falhou" : "ok"} em {fmtDateTime(config.extension_seen_at)}
+                {config.extension_ok === false && config.extension_message ? ` · ${config.extension_message}` : ""}
+              </p>
+            )}
           </div>
         </div>
         <div className="flex gap-2 max-md:w-full max-md:flex-col">
@@ -158,7 +164,7 @@ export function SyncTab({ config, connected, onChanged }: { config: TuroConfig |
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-emerald-900 text-base"><Puzzle className="h-5 w-5" /> Sync automático pela extensão do Chrome (recomendado)</CardTitle>
             <CardDescription className="text-emerald-800">
-              Instale uma vez e pronto: ela envia as viagens, ganhos e recibos a cada 3 horas, sozinha, usando o login da Turo deste Chrome. Nada de colar código.
+              Instale uma vez e pronto: ela envia as viagens, ganhos e recibos a cada hora, sozinha, usando o login da Turo deste Chrome. Nada de colar código.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-emerald-900">
