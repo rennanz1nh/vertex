@@ -130,7 +130,7 @@ export const PUSH_CATALOG: PushCatalogEntry[] = [
     group: "turo",
     label: "Turo sem sincronizar",
     description: "Quando a Turo fica mais de 6h sem sincronizar (o site pode mostrar livre um carro alugado). No máximo um aviso a cada 6h.",
-    defaultEnabled: true,
+    defaultEnabled: false,
     title: "Turo sem sincronizar há {hours}h",
     message: "Abra a extensão do Chrome ou rode o sync no admin.",
     tags: ["warning"],
