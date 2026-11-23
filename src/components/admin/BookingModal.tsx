@@ -10,7 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Save, Trash2, Check, Image as ImageIcon, Download, Undo2 } from "lucide-react";
+import { Loader2, Save, Trash2, Check, Image as ImageIcon, Download, Undo2, Ban } from "lucide-react";
+import BookingMoneyDialog from "@/components/admin/BookingMoneyDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { US_STATES } from "@/lib/us-states";
 import { BOOKING_STATUS_LABEL, type BookingStatus } from "@/lib/booking-status";
@@ -69,19 +70,15 @@ export default function BookingModal({ booking, cars, open, onClose, onChanged }
   const [downloadingAgreement, setDownloadingAgreement] = useState(false);
   const { profile } = useAuth();
   const isAdmin = profile?.role === "admin";
-  // ---- Stripe refund (website bookings only) ----
-  const [refundOpen, setRefundOpen] = useState(false);
-  const [refundable, setRefundable] = useState<number | null>(null);
-  const [refundAmount, setRefundAmount] = useState("");
-  const [refundNote, setRefundNote] = useState("");
-  const [refunding, setRefunding] = useState(false);
+  // ---- Stripe refund / cancellation (website bookings only) ----
+  const [moneyMode, setMoneyMode] = useState<"refund" | "cancel" | null>(null);
   const hasStripePayment = !!booking?.deposit_payment_intent_id && !!booking?.deposit_paid_at;
   const refundedSoFar = Number(booking?.refunded_amount ?? 0);
 
   useEffect(() => {
     setForm(booking ? { ...EMPTY_FORM, ...booking } : {});
     setConfirmDelete(false);
-    setRefundOpen(false);
+    setMoneyMode(null);
   }, [booking]);
 
   useEffect(() => {
@@ -247,57 +244,6 @@ export default function BookingModal({ booking, cars, open, onClose, onChanged }
     }
   }
 
-  async function openRefund() {
-    setRefundOpen(true);
-    setRefundable(null);
-    setRefundAmount("");
-    setRefundNote("");
-    const res = await authedFetch(`/api/admin/bookings/${id}/refund`);
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      toast({ title: "Não foi possível ler o pagamento", description: data.error || "Erro", variant: "destructive" });
-      setRefundOpen(false);
-      return;
-    }
-    setRefundable(Number(data.refundable ?? 0));
-    setRefundAmount(Number(data.refundable ?? 0).toFixed(2));
-  }
-
-  async function handleRefund() {
-    const amount = Number(refundAmount);
-    if (!refundable || !(amount > 0) || amount > refundable + 0.001) {
-      toast({ title: "Valor inválido", description: `Entre $0.01 e $${(refundable ?? 0).toFixed(2)}.`, variant: "destructive" });
-      return;
-    }
-    const full = Math.abs(amount - refundable) < 0.005;
-    const msg = full
-      ? `Reembolsar $${amount.toFixed(2)} (total) no cartão do cliente? A reserva será cancelada.`
-      : `Reembolsar $${amount.toFixed(2)} (parcial) no cartão do cliente?`;
-    if (!confirm(msg)) return;
-    setRefunding(true);
-    try {
-      const res = await authedFetch(`/api/admin/bookings/${id}/refund`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: full ? undefined : amount, note: refundNote || undefined }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (data.ok) {
-        toast({
-          title: "Reembolso feito no Stripe",
-          description: `$${(data.refundedCents / 100).toFixed(2)}${data.fullyRefunded ? " · reserva cancelada" : ""}. O cliente vê em 5–10 dias úteis.`,
-        });
-        setRefundOpen(false);
-        onChanged();
-        onClose();
-      } else {
-        toast({ title: "Reembolso não realizado", description: data.reason || data.error || "Erro", variant: "destructive" });
-      }
-    } finally {
-      setRefunding(false);
-    }
-  }
-
   async function handleDelete() {
     setBusy(true);
     try {
@@ -317,6 +263,7 @@ export default function BookingModal({ booking, cars, open, onClose, onChanged }
   if (!booking) return null;
 
   return (
+    <>
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
@@ -460,60 +407,35 @@ export default function BookingModal({ booking, cars, open, onClose, onChanged }
             </div>
           </div>
 
-          {/* Stripe payment / refund — website bookings paid online */}
-          {hasStripePayment && (
+          {/* Payment, refund and cancellation — website bookings */}
+          {!isNew && (
             <div className="rounded-lg border p-4 space-y-3">
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h3 className="text-sm font-semibold">Pagamento (Stripe)</h3>
+                  <h3 className="text-sm font-semibold">{hasStripePayment ? "Pagamento (Stripe)" : "Pagamento"}</h3>
                   <p className="text-xs text-muted-foreground">
-                    {refundedSoFar > 0 ? `Já reembolsado: $${refundedSoFar.toFixed(2)}` : "Pago online pelo site"}
+                    {hasStripePayment ? "Pago online pelo site" : "Sem pagamento online"}
+                    {refundedSoFar > 0 ? ` · Já reembolsado: $${refundedSoFar.toFixed(2)}` : ""}
                     {typeof booking?.refund_note === "string" && booking.refund_note ? ` · ${booking.refund_note}` : ""}
                   </p>
                 </div>
-                {isAdmin && !refundOpen && (
-                  <Button type="button" variant="outline" size="sm" className="shrink-0 gap-1.5" onClick={openRefund}>
-                    <Undo2 className="h-3.5 w-3.5" /> Reembolsar
-                  </Button>
-                )}
-              </div>
-              {refundOpen && (
-                <div className="space-y-3 rounded-md bg-muted/50 p-3">
-                  {refundable === null ? (
-                    <p className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Consultando o Stripe…</p>
-                  ) : refundable <= 0 ? (
-                    <p className="text-xs text-muted-foreground">Nada a reembolsar: o pagamento já foi todo reembolsado.</p>
-                  ) : (
-                    <>
-                      <p className="text-xs text-muted-foreground">
-                        Disponível para reembolso: <span className="font-semibold text-foreground">${refundable.toFixed(2)}</span>. O caução de $99 é separado e não entra aqui.
-                      </p>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <div>
-                          <Label className="text-xs">Valor (USD)</Label>
-                          <Input type="number" inputMode="decimal" step="0.01" min="0.01" max={refundable} value={refundAmount} onChange={(e) => setRefundAmount(e.target.value)} />
-                        </div>
-                        <div>
-                          <Label className="text-xs">Motivo (opcional)</Label>
-                          <Input value={refundNote} onChange={(e) => setRefundNote(e.target.value)} placeholder="Ex.: cliente cancelou" />
-                        </div>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground">Valor total cancela a reserva e o saldo agendado. Valor parcial mantém a reserva.</p>
-                    </>
-                  )}
-                  <div className="flex justify-end gap-2">
-                    <Button type="button" variant="ghost" size="sm" onClick={() => setRefundOpen(false)} disabled={refunding}>Fechar</Button>
-                    {!!refundable && refundable > 0 && (
-                      <Button type="button" variant="destructive" size="sm" onClick={handleRefund} disabled={refunding} className="gap-1.5">
-                        {refunding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Undo2 className="h-3.5 w-3.5" />} Confirmar reembolso
+                {isAdmin && (
+                  <div className="flex shrink-0 gap-2">
+                    {hasStripePayment && (
+                      <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => setMoneyMode("refund")}>
+                        <Undo2 className="h-3.5 w-3.5" /> Reembolsar
+                      </Button>
+                    )}
+                    {booking?.status !== "cancelled" && (
+                      <Button type="button" variant="outline" size="sm" className="gap-1.5 text-destructive" onClick={() => setMoneyMode("cancel")}>
+                        <Ban className="h-3.5 w-3.5" /> Cancelar reserva
                       </Button>
                     )}
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           )}
-
           {/* Rental agreement */}
           <div className="rounded-lg border p-4 space-y-3">
             <h3 className="text-sm font-semibold">Rental Agreement</h3>
@@ -636,5 +558,18 @@ export default function BookingModal({ booking, cars, open, onClose, onChanged }
         </div>
       </DialogContent>
     </Dialog>
+    <BookingMoneyDialog
+      booking={moneyMode && booking?.id ? {
+        id: String(booking.id),
+        label: [v("customer_name") || v("driver_full_name"), selectedCar ? [selectedCar.year, selectedCar.make, selectedCar.model].filter(Boolean).join(" ") : ""].filter(Boolean).join(" · "),
+        paidOnline: hasStripePayment,
+        damageHoldStatus: (booking.damage_hold_status as string | null) ?? null,
+        turoBlocked: !!booking.turo_blocked_at,
+      } : null}
+      mode={moneyMode ?? "refund"}
+      onClose={() => setMoneyMode(null)}
+      onDone={() => { onChanged(); onClose(); }}
+    />
+    </>
   );
 }

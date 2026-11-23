@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Search, Trash2, CheckSquare, Columns3, GripVertical, Image as ImageIcon, Download, Loader2 } from 'lucide-react';
 import BookingModal from '@/components/admin/BookingModal';
+import BookingMoneyDialog from '@/components/admin/BookingMoneyDialog';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -67,6 +68,7 @@ type BookingRow = {
   balance_status: 'none' | 'scheduled' | 'processing' | 'paid' | 'failed';
   balance_last_error: string | null;
   refunded_amount?: number | string | null;
+  deposit_payment_intent_id?: string | null;
   damage_hold_amount: number | null;
   damage_hold_status: 'none' | 'scheduled' | 'processing' | 'held' | 'failed' | 'released' | 'captured';
   damage_hold_expires_at: string | null;
@@ -268,7 +270,7 @@ export default function Bookings() {
     }
   }, [toast]);
 
-  const paymentCell = useCallback((b: BookingRow) => {
+  const paymentInfo = useCallback((b: BookingRow) => {
     if (b.source === 'turo') {
       return (
         <div className="flex flex-col gap-0.5 text-xs">
@@ -313,6 +315,30 @@ export default function Bookings() {
       </div>
     );
   }, [chargingId, chargeBalanceNow]);
+
+  // ===== Refund / cancel (website bookings, admin only) =====
+  const [moneyFor, setMoneyFor] = useState<{ b: BookingRow; mode: 'refund' | 'cancel' } | null>(null);
+  const paymentCell = useCallback((b: BookingRow) => {
+    const info = paymentInfo(b);
+    if (!isAdmin || b.source === 'turo') return info;
+    const paidOnline = !!b.deposit_paid_at && !!b.deposit_payment_intent_id;
+    const canCancel = b.status !== 'cancelled';
+    if (!paidOnline && !canCancel) return info;
+    const link = 'whitespace-nowrap text-[11px] font-medium underline';
+    return (
+      <div className="flex flex-col gap-1">
+        {info}
+        <div className="flex flex-wrap gap-x-3 gap-y-1" onClick={(e) => e.stopPropagation()}>
+          {paidOnline && (
+            <button type="button" className={link} onClick={() => setMoneyFor({ b, mode: 'refund' })}>Reembolsar</button>
+          )}
+          {canCancel && (
+            <button type="button" className={`${link} text-red-700`} onClick={() => setMoneyFor({ b, mode: 'cancel' })}>Cancelar reserva</button>
+          )}
+        </div>
+      </div>
+    );
+  }, [paymentInfo, isAdmin]);
 
   // ===== $99 damage deposit (hold placed on pick-up day, released 3 days after return) =====
   const [holdBusyId, setHoldBusyId] = useState<string | null>(null);
@@ -942,6 +968,18 @@ export default function Bookings() {
         </DialogContent>
       </Dialog>
 
+      <BookingMoneyDialog
+        booking={moneyFor ? {
+          id: moneyFor.b.id,
+          label: [moneyFor.b.customer_name || moneyFor.b.driver_full_name, carsById.get(moneyFor.b.car_id)?.name].filter(Boolean).join(' · '),
+          paidOnline: !!moneyFor.b.deposit_paid_at && !!moneyFor.b.deposit_payment_intent_id,
+          damageHoldStatus: moneyFor.b.damage_hold_status,
+          turoBlocked: !!moneyFor.b.turo_blocked_at,
+        } : null}
+        mode={moneyFor?.mode ?? 'refund'}
+        onClose={() => setMoneyFor(null)}
+        onDone={fetchData}
+      />
       <BookingModal
         booking={viewBooking}
         cars={cars}

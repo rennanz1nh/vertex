@@ -94,16 +94,36 @@ async function createHoldIntent(params: Stripe.PaymentIntentCreateParams, idempo
     payment_method_options: { card: { request_extended_authorization: "if_available" } },
     expand: ["latest_charge"],
   };
+  const plain: Stripe.PaymentIntentCreateParams = { ...withExtended };
+  delete plain.payment_method_options;
+  if (extendedAuthUnsupported) return stripe.paymentIntents.create(plain, { idempotencyKey });
   try {
     return await stripe.paymentIntents.create(withExtended, { idempotencyKey: `${idempotencyKey}-ext` });
   } catch (err) {
-    const e = err as { type?: string; param?: string; message?: string };
-    const aboutExtended = e?.type === "StripeInvalidRequestError" && /extended_authorization/.test(`${e.param ?? ""} ${e.message ?? ""}`);
-    if (!aboutExtended) throw err;
-    const plain: Stripe.PaymentIntentCreateParams = { ...withExtended };
-    delete plain.payment_method_options;
+    if (!isExtendedAuthRejection(err)) throw err;
+    extendedAuthUnsupported = true;
     return stripe.paymentIntents.create(plain, { idempotencyKey });
   }
+}
+
+/** Set once Stripe says the account can't do extended authorization (kept for this server instance). */
+let extendedAuthUnsupported = false;
+
+/**
+ * Stripe refuses extended authorization in more than one way: an invalid-param error naming
+ * `request_extended_authorization`, or (seen in production, raised while confirming) "This
+ * account is not eligible for the requested card features. See .../flexible-payments".
+ * Either means: retry the same hold as a plain 7-day authorization.
+ */
+export function isExtendedAuthRejection(err: unknown): boolean {
+  const e = err as { param?: string; message?: string; raw?: { message?: string; param?: string } } | null;
+  const text = `${e?.param ?? ""} ${e?.message ?? ""} ${e?.raw?.param ?? ""} ${e?.raw?.message ?? ""}`;
+  return /extended_authorization|not eligible for the requested card features|flexible-payments/i.test(text);
+}
+
+/** Test hook: forget what was learned about the account's card features. */
+export function __resetExtendedAuthSupport(): void {
+  extendedAuthUnsupported = false;
 }
 
 /** Records an authorized hold (from the cron, the customer's link or the webhook). Idempotent. */

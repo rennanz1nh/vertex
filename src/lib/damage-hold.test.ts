@@ -73,6 +73,8 @@ const stripeState = {
   idem: new Map<string, PI>(),
   declining: new Set<string>(),
   extendedAuth: false,
+  /** How Stripe refuses extended auth: by naming the param, or the "not eligible" wording seen in production. */
+  extendedRejection: "param" as "param" | "eligibility",
   n: 0,
   calls: [] as { op: string; id?: string; params?: Record<string, unknown> }[],
 };
@@ -100,6 +102,12 @@ const fakeStripe = {
       stripeState.calls.push({ op: "create", params });
       if (opts?.idempotencyKey && stripeState.idem.has(opts.idempotencyKey)) return { ...stripeState.idem.get(opts.idempotencyKey)! };
       const pmo = params.payment_method_options as { card?: { request_extended_authorization?: string } } | undefined;
+      if (pmo?.card?.request_extended_authorization && !stripeState.extendedAuth && stripeState.extendedRejection === "eligibility") {
+        throw Object.assign(
+          new Error("This account is not eligible for the requested card features. See https://stripe.com/docs/payments/flexible-payments for more details."),
+          { type: "StripeInvalidRequestError", payment_intent: { id: "pi_refused" } },
+        );
+      }
       if (pmo?.card?.request_extended_authorization && !stripeState.extendedAuth) {
         throw Object.assign(new Error("Extended authorization is not available for your account."), {
           type: "StripeInvalidRequestError", param: "payment_method_options[card][request_extended_authorization]",
@@ -172,6 +180,7 @@ import { GET as runCron } from "@/app/api/cron/booking-payments/route";
 import { POST as adminHold } from "@/app/api/admin/bookings/[id]/damage-hold/route";
 import { GET as holdLinkGet, POST as holdLinkPost } from "@/app/api/bookings/[id]/hold/route";
 import { tripPriceBreakdown } from "@/lib/trip-pricing";
+import { __resetExtendedAuthSupport } from "@/lib/damage-hold";
 import { businessDateTime, damageHoldReleaseAt, paymentSummary } from "@/lib/booking-payment-plan";
 
 // ---- Helpers ---------------------------------------------------------------------------
@@ -237,6 +246,8 @@ beforeEach(() => {
   stripeState.idem.clear();
   stripeState.declining.clear();
   stripeState.extendedAuth = false;
+  stripeState.extendedRejection = "param";
+  __resetExtendedAuthSupport();
   stripeState.calls.length = 0;
   emails.length = 0;
   pushes.length = 0;
@@ -427,6 +438,16 @@ describe("damage deposit: a booking from scratch", () => {
     expect(booking().damage_hold_expires_at).toBe("2026-12-20T05:17:00.000Z");
     await cron("2026-11-26T18:17:00Z");
     expect(booking().damage_hold_payment_intent_id).toBe(hold.id);
+  });
+
+  it("places a plain hold when Stripe says the account is not eligible for extended authorization", async () => {
+    stripeState.extendedRejection = "eligibility";
+    at("2026-11-10T15:00:00Z");
+    await bookFromScratch({ pickupDate: "2026-11-20", returnDate: "2026-11-23" });
+    await cron("2026-11-20T05:17:00Z");
+    expect(booking().damage_hold_status).toBe("held");
+    expect(booking().damage_hold_last_error).toBeNull();
+    expect(pi(booking().damage_hold_payment_intent_id).payment_method_options).toBeUndefined();
   });
 
   it("a cancelled booking gets its hold released on the next run", async () => {
