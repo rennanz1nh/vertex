@@ -46,15 +46,15 @@ export async function requireMasterAdmin(request: NextRequest): Promise<{ ok: bo
  * the whole team shares (e.g. Turo trips and stats); `master` tells the route whether the
  * caller is the owner account, for fields only the owner should see (like the sync key).
  */
-export async function requireStaff(request: NextRequest): Promise<{ ok: boolean; status: number; userId?: string; master?: boolean }> {
+export async function requireStaff(request: NextRequest): Promise<{ ok: boolean; status: number; userId?: string; master?: boolean; role?: string }> {
   const token = bearer(request);
   if (!token) return { ok: false, status: 401 };
 
   const { data, error } = await authClient().auth.getUser(token);
   if (error || !data.user) return { ok: false, status: 401 };
-  if (isMasterAdminEmail(data.user.email)) return { ok: true, status: 200, userId: data.user.id, master: true };
+  if (isMasterAdminEmail(data.user.email)) return { ok: true, status: 200, userId: data.user.id, master: true, role: "admin" };
   const { data: profile } = await supabaseAdmin.from("profiles").select("role").eq("user_id", data.user.id).maybeSingle();
   const role = (profile as { role?: string } | null)?.role;
   if (role !== "admin" && role !== "operador") return { ok: false, status: 403 };
-  return { ok: true, status: 200, userId: data.user.id, master: false };
+  return { ok: true, status: 200, userId: data.user.id, master: false, role };
 }

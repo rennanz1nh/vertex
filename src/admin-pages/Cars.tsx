@@ -52,6 +52,7 @@ const EMPTY_CAR: Record<string, unknown> = {
 };
 
 const CATEGORY_OPTIONS = [
+  { value: 'in-all', label: 'Todos os Veículos' },
   { value: 'compact', label: 'Compact' },
   { value: 'big-van', label: 'Big Van' },
   { value: 'luxe', label: 'Luxe' },
@@ -139,7 +140,8 @@ export default function Cars() {
     const matchesMake = !makeFilter || makeFilter === 'all' || car.make === makeFilter;
     const matchesCategory =
       !categoryFilter || categoryFilter === 'all' ||
-      (Array.isArray(car.store_categories) && car.store_categories.includes(categoryFilter));
+      (Array.isArray(car.store_categories) &&
+        car.store_categories.includes(categoryFilter === 'in-all' ? 'all' : categoryFilter));
 
     return matchesSearch && matchesMake && matchesCategory;
   });
@@ -511,6 +513,7 @@ export default function Cars() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas as categorias</SelectItem>
+                  <SelectItem value="in-all">Todos os Veículos (home)</SelectItem>
                   <SelectItem value="compact">Compact</SelectItem>
                   <SelectItem value="big-van">Big Van</SelectItem>
                   <SelectItem value="luxe">Luxe</SelectItem>

@@ -1,5 +1,5 @@
 import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
+import { renderToCanvas } from "@/lib/html2canvas-safe";
 import { RENTAL_AGREEMENT_SECTIONS, RENTAL_AGREEMENT_ACKNOWLEDGMENTS } from "@/lib/rental-agreement";
 
 const logoUrl = "/images/admin-logo.png";
@@ -151,7 +151,7 @@ export async function downloadRentalAgreementPdf(data: RentalAgreementPdfData): 
       )
     );
 
-    const canvas = await html2canvas(node, {
+    const canvas = await renderToCanvas(node, {
       scale: 2,
       backgroundColor: "#ffffff",
       useCORS: true,

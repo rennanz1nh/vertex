@@ -36,3 +36,12 @@ export const STORE_CATEGORY_OPTIONS = [
   { value: "sport", label: "Sport" },
   { value: "clearance", label: "Special Offers" },
 ];
+
+/** "All Vehicles" — not a vehicle class but a store placement: only cars checked with it
+ *  appear on the homepage grid and on /products with no category. Kept out of
+ *  STORE_CATEGORY_OPTIONS so it never becomes a homepage category tile. */
+export const ALL_VEHICLES_CATEGORY = { value: "all", label: "Todos os Veículos (All Vehicles)" };
+
+export function inAllVehicles(storeCategories: unknown): boolean {
+  return Array.isArray(storeCategories) && storeCategories.includes(ALL_VEHICLES_CATEGORY.value);
+}

@@ -6,7 +6,7 @@ import ProductBrowser from "@/components/store/ProductBrowser";
 import CategoryTiles from "@/components/store/CategoryTiles";
 import AvailabilitySearchBar from "@/components/store/AvailabilitySearchBar";
 import { buildPageMetadata } from "@/lib/site-settings";
-import { STORE_CATEGORY_OPTIONS } from "@/lib/categories";
+import { STORE_CATEGORY_OPTIONS, inAllVehicles } from "@/lib/categories";
 import { getUnavailableCarIds, isValidDateRange } from "@/lib/car-availability";
 import { formatUsDate } from "@/lib/date-utils";
 
@@ -23,7 +23,7 @@ const CATEGORIES = [
 
 async function getProducts(pickupDate?: string, returnDate?: string) {
   const { data } = await supabase.from(STORE_PRODUCTS).select("*").limit(300);
-  let rows = (data || []).filter((p) => parsePrice(p.daily_rate) > 0);
+  let rows = (data || []).filter((p) => parsePrice(p.daily_rate) > 0 && inAllVehicles(p.store_categories));
   if (isValidDateRange(pickupDate, returnDate)) {
     const unavailable = await getUnavailableCarIds(pickupDate!, returnDate!);
     rows = rows.filter((p) => !unavailable.has(p.id));

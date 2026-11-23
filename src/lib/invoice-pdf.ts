@@ -1,5 +1,5 @@
 ﻿import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
+import { renderToCanvas } from "@/lib/html2canvas-safe";
 const logoUrl = "/images/admin-logo.png";
 
 export interface InvoiceItem {
@@ -201,7 +201,7 @@ export async function generateInvoice(
       )
     );
 
-    const canvas = await html2canvas(node, {
+    const canvas = await renderToCanvas(node, {
       scale: 2,
       backgroundColor: "#ffffff",
       useCORS: true,

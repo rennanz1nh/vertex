@@ -5,7 +5,7 @@ import ProductBrowser from "@/components/store/ProductBrowser";
 import AvailabilitySearchBar from "@/components/store/AvailabilitySearchBar";
 import TrackSearch from "./TrackSearch";
 import { buildPageMetadata } from "@/lib/site-settings";
-import { STORE_CATEGORY_OPTIONS } from "@/lib/categories";
+import { STORE_CATEGORY_OPTIONS, inAllVehicles } from "@/lib/categories";
 import { getUnavailableCarIds, isValidDateRange } from "@/lib/car-availability";
 import { formatUsDate } from "@/lib/date-utils";
 
@@ -27,6 +27,9 @@ async function getProducts(search?: string, category?: string, pickupDate?: stri
   let rows = (data || []).filter((p) => parsePrice(p.daily_rate) > 0);
   if (category) {
     rows = rows.filter((p) => (Array.isArray(p.store_categories) ? p.store_categories : []).includes(category));
+  } else if (!search) {
+    // "All Vehicles": only cars the admin checked "Todos os Veículos" on.
+    rows = rows.filter((p) => inAllVehicles(p.store_categories));
   }
   if (isValidDateRange(pickupDate, returnDate)) {
     const unavailable = await getUnavailableCarIds(pickupDate!, returnDate!);

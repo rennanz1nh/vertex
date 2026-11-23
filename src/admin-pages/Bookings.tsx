@@ -66,6 +66,7 @@ type BookingRow = {
   balance_due_date: string | null;
   balance_status: 'none' | 'scheduled' | 'processing' | 'paid' | 'failed';
   balance_last_error: string | null;
+  refunded_amount?: number | string | null;
   damage_hold_amount: number | null;
   damage_hold_status: 'none' | 'scheduled' | 'processing' | 'held' | 'failed' | 'released' | 'captured';
   damage_hold_expires_at: string | null;
@@ -278,13 +279,21 @@ export default function Bookings() {
     }
     if (!b.payment_plan) return <span className="text-muted-foreground text-xs">Manual</span>;
     if (!b.deposit_paid_at) return <span className="text-xs text-amber-700">Aguardando cartão</span>;
-    if (b.payment_plan === 'full') return <span className="text-xs text-green-700">Pago 100%</span>;
+    if (b.payment_plan === 'full') {
+      return (
+        <div className="flex flex-col gap-0.5 text-xs">
+          <span className="text-green-700">Pago 100%</span>
+          {Number(b.refunded_amount) > 0 && <span className="font-medium text-red-700">Reembolsado {formatCurrency(Number(b.refunded_amount))}</span>}
+        </div>
+      );
+    }
     const due = b.balance_due_date ? formatShortDate(parseLocalDate(b.balance_due_date)) : '—';
     const bal = formatCurrency(Number(b.balance_amount));
     const canCharge = b.status === 'confirmed' && (b.balance_status === 'scheduled' || b.balance_status === 'failed');
     return (
       <div className="flex flex-col gap-0.5 text-xs">
         <span className="text-green-700">Sinal {formatCurrency(Number(b.deposit_amount))} pago</span>
+        {Number(b.refunded_amount) > 0 && <span className="font-medium text-red-700">Reembolsado {formatCurrency(Number(b.refunded_amount))}</span>}
         {b.balance_status === 'paid' && <span className="text-green-700">Saldo {bal} pago</span>}
         {b.balance_status === 'scheduled' && <span className="text-muted-foreground">Saldo {bal} em {due}</span>}
         {b.balance_status === 'processing' && <span className="text-blue-700">Cobrando saldo {bal}…</span>}

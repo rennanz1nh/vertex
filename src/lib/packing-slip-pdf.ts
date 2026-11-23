@@ -1,4 +1,4 @@
-import html2canvas from "html2canvas";
+import { renderToCanvas } from "@/lib/html2canvas-safe";
 import { COMPANY } from "@/lib/invoice-pdf";
 import { getCarrierLogo } from "@/lib/carrier-utils";
 
@@ -264,7 +264,7 @@ export async function generatePackingSlipPDF(data: PackingSlipData): Promise<str
   const node = buildHtml(data, number);
   try {
     await waitForImages(node);
-    const canvas = await html2canvas(node, { scale: 2, backgroundColor: "#ffffff", useCORS: true, logging: false });
+    const canvas = await renderToCanvas(node, { scale: 2, backgroundColor: "#ffffff", useCORS: true, logging: false });
     const imgData = canvas.toDataURL("image/jpeg", 0.92);
     const pdf = new jsPDF({ unit: "pt", format: "letter" });
     const pageWidth = pdf.internal.pageSize.getWidth();

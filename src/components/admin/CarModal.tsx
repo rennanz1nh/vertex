@@ -34,7 +34,7 @@ import {
   X as XIcon,
   Copy,
 } from "lucide-react";
-import { STORE_CATEGORY_OPTIONS } from "@/lib/categories";
+import { STORE_CATEGORY_OPTIONS, ALL_VEHICLES_CATEGORY } from "@/lib/categories";
 import { RIBBON_COLOR_OPTIONS, getRibbonClassName } from "@/lib/ribbon";
 import { compressImage } from "@/lib/image-compress";
 import { isVideoUrl } from "@/lib/media-url";
@@ -171,7 +171,7 @@ export default function CarModal({ car, open, onClose, onChanged }: Props) {
     setBusy(true);
     try {
       const payload: Record<string, unknown> = { store_visible: visible };
-      if (visible) payload.store_categories = categories;
+      if (visible) payload.store_categories = categories.length ? categories : [ALL_VEHICLES_CATEGORY.value];
       const { error } = await supabase
         .from("products")
         .update(payload as unknown as TablesUpdate<"products">)
@@ -551,6 +551,16 @@ export default function CarModal({ car, open, onClose, onChanged }: Props) {
                   <DropdownMenuContent align="start" className="w-64 bg-popover">
                     <DropdownMenuLabel>Categorias da loja</DropdownMenuLabel>
                     <DropdownMenuSeparator />
+                    <DropdownMenuCheckboxItem
+                      checked={categories.includes(ALL_VEHICLES_CATEGORY.value)}
+                      onCheckedChange={() => toggleCategory(ALL_VEHICLES_CATEGORY.value)}
+                      onSelect={(e) => e.preventDefault()}
+                      className="font-semibold"
+                    >
+                      {ALL_VEHICLES_CATEGORY.label}
+                    </DropdownMenuCheckboxItem>
+                    <p className="px-2 pb-1 text-[11px] text-muted-foreground">Aparece na home e em All Vehicles</p>
+                    <DropdownMenuSeparator />
                     {STORE_CATEGORY_OPTIONS.map((o) => (
                       <DropdownMenuCheckboxItem
                         key={o.value}
@@ -566,7 +576,7 @@ export default function CarModal({ car, open, onClose, onChanged }: Props) {
                 {categories.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mt-2">
                     {categories.map((c) => {
-                      const opt = STORE_CATEGORY_OPTIONS.find((o) => o.value === c);
+                      const opt = [ALL_VEHICLES_CATEGORY, ...STORE_CATEGORY_OPTIONS].find((o) => o.value === c);
                       return (
                         <span
                           key={c}
