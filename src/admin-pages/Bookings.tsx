@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Plus, Search, Trash2, CheckSquare, Columns3, GripVertical, Image as ImageIcon, Download, Loader2 } from 'lucide-react';
 import BookingModal from '@/components/admin/BookingModal';
 import BookingMoneyDialog from '@/components/admin/BookingMoneyDialog';
+import { useConfirm } from '@/components/admin/confirm-dialog';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -221,6 +222,7 @@ export default function Bookings() {
 
   const { profile } = useAuth();
   const { toast } = useToast();
+  const askConfirm = useConfirm();
   const isAdmin = profile?.role === 'admin';
 
   const handleDownloadAgreement = useCallback(async (booking: BookingRow, car: CarOption | undefined) => {
@@ -257,7 +259,11 @@ export default function Bookings() {
 
   const [chargingId, setChargingId] = useState<string | null>(null);
   const chargeBalanceNow = useCallback(async (booking: BookingRow) => {
-    if (!confirm(`Cobrar agora o saldo de ${formatCurrency(Number(booking.balance_amount))} no cartão salvo do cliente?`)) return;
+    if (!(await askConfirm({
+      title: 'Cobrar o saldo agora?',
+      description: `Vamos cobrar ${formatCurrency(Number(booking.balance_amount))} no cartão salvo do cliente, antes da data agendada.`,
+      confirmText: 'Cobrar agora',
+    }))) return;
     setChargingId(booking.id);
     try {
       const res = await authedFetch(`/api/admin/bookings/${booking.id}/charge-balance`, { method: 'POST' });
@@ -268,9 +274,9 @@ export default function Bookings() {
     } finally {
       setChargingId(null);
     }
-  }, [toast]);
+  }, [toast, askConfirm]);
 
-  const paymentInfo = useCallback((b: BookingRow) => {
+  const paymentInfo = useCallback((b: BookingRow, big = false) => {
     if (b.source === 'turo') {
       return (
         <div className="flex flex-col gap-0.5 text-xs">
@@ -305,7 +311,7 @@ export default function Bookings() {
         {canCharge && (
           <button
             type="button"
-            className="self-start text-[11px] font-medium underline disabled:opacity-50"
+            className={big ? 'mt-1 self-start inline-flex h-8 items-center rounded-md border bg-background px-3 text-xs font-medium shadow-sm hover:bg-muted disabled:opacity-50' : 'self-start text-[11px] font-medium underline disabled:opacity-50'}
             disabled={chargingId === b.id}
             onClick={() => chargeBalanceNow(b)}
           >
@@ -318,17 +324,17 @@ export default function Bookings() {
 
   // ===== Refund / cancel (website bookings, admin only) =====
   const [moneyFor, setMoneyFor] = useState<{ b: BookingRow; mode: 'refund' | 'cancel' } | null>(null);
-  const paymentCell = useCallback((b: BookingRow) => {
-    const info = paymentInfo(b);
+  const paymentCell = useCallback((b: BookingRow, big = false) => {
+    const info = paymentInfo(b, big);
     if (!isAdmin || b.source === 'turo') return info;
     const paidOnline = !!b.deposit_paid_at && !!b.deposit_payment_intent_id;
     const canCancel = b.status !== 'cancelled';
     if (!paidOnline && !canCancel) return info;
-    const link = 'whitespace-nowrap text-[11px] font-medium underline';
+    const link = big ? 'whitespace-nowrap inline-flex h-8 items-center rounded-md border bg-background px-3 text-xs font-medium shadow-sm hover:bg-muted disabled:opacity-50' : 'whitespace-nowrap text-[11px] font-medium underline';
     return (
       <div className="flex flex-col gap-1">
         {info}
-        <div className="flex flex-wrap gap-x-3 gap-y-1" onClick={(e) => e.stopPropagation()}>
+        <div className={big ? 'mt-1 flex flex-wrap gap-2' : 'flex flex-wrap gap-x-3 gap-y-1'} onClick={(e) => e.stopPropagation()}>
           {paidOnline && (
             <button type="button" className={link} onClick={() => setMoneyFor({ b, mode: 'refund' })}>Reembolsar</button>
           )}
@@ -364,13 +370,24 @@ export default function Bookings() {
     }
   }, [toast]);
 
-  const markReturned = useCallback((b: BookingRow) => {
+  const markReturned = useCallback(async (b: BookingRow) => {
     const release = damageHoldReleaseAt({ returned_at: new Date().toISOString(), return_date: b.return_date });
-    if (!confirm(`Marcar o carro como devolvido agora?\n\nA caução será liberada automaticamente em ${release.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}, a menos que você clique em "Cobrar dano" antes.`)) return;
+    const hasHold = Number(b.damage_hold_amount) > 0 && b.damage_hold_status !== 'none';
+    const ok = await askConfirm({
+      title: 'Marcar o carro como devolvido?',
+      description: hasHold ? (
+        <>
+          <p>A caução de {formatCurrency(Number(b.damage_hold_amount))} será liberada automaticamente em <span className="font-semibold text-foreground">{release.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</span>.</p>
+          <p>Se o carro voltou com dano, use &quot;Cobrar dano&quot; antes dessa data.</p>
+        </>
+      ) : 'A reserva passa para Concluída.',
+      confirmText: 'Carro devolvido',
+    });
+    if (!ok) return;
     holdAction(b, { action: 'returned' }, 'Carro marcado como devolvido');
-  }, [holdAction]);
+  }, [holdAction, askConfirm]);
 
-  const holdCell = useCallback((b: BookingRow) => {
+  const holdCell = useCallback((b: BookingRow, big = false) => {
     if (b.source === 'turo' || !Number(b.damage_hold_amount) || b.damage_hold_status === 'none') {
       return <span className="text-muted-foreground text-xs">—</span>;
     }
@@ -380,7 +397,7 @@ export default function Bookings() {
     const busy = holdBusyId === b.id;
     const s = b.damage_hold_status;
     const active = b.status !== 'cancelled' && ['scheduled', 'held', 'failed'].includes(s);
-    const linkBtn = 'self-start text-[11px] font-medium underline disabled:opacity-50';
+    const linkBtn = big ? 'self-start inline-flex h-8 items-center rounded-md border bg-background px-3 text-xs font-medium shadow-sm hover:bg-muted disabled:opacity-50' : 'self-start text-[11px] font-medium underline disabled:opacity-50';
     return (
       <div className="flex flex-col gap-0.5 text-xs min-w-[170px]">
         {s === 'scheduled' && <span className="text-muted-foreground">{amount} bloqueia na retirada ({formatShortDate(parseLocalDate(b.pickup_date))})</span>}
@@ -402,7 +419,7 @@ export default function Bookings() {
           </Button>
         )}
         {active && (
-          <div className="flex flex-wrap gap-x-3">
+          <div className={big ? 'mt-1 flex flex-wrap gap-2' : 'flex flex-wrap gap-x-3'}>
             {(s === 'held' || s === 'failed') && (
               <button type="button" className={`${linkBtn} text-red-700`} disabled={busy} onClick={() => { setDamageFor(b); setDamageAmount(String(Number(b.damage_hold_amount))); setDamageNote(''); }}>
                 Cobrar dano
@@ -410,7 +427,15 @@ export default function Bookings() {
             )}
             {s === 'held' && (
               <button type="button" className={linkBtn} disabled={busy}
-                onClick={() => confirm(`Liberar agora os ${amount} bloqueados no cartão do cliente? Depois disso não dá mais para cobrar dano pela caução.`) && holdAction(b, { action: 'release' }, 'Caução liberada')}>
+                onClick={async () => {
+                  const ok = await askConfirm({
+                    title: 'Liberar a caução agora?',
+                    description: `Os ${amount} bloqueados voltam para o cartão do cliente. Depois disso não dá mais para cobrar dano pela caução.`,
+                    confirmText: 'Liberar caução',
+                    destructive: true,
+                  });
+                  if (ok) holdAction(b, { action: 'release' }, 'Caução liberada');
+                }}>
                 Liberar agora
               </button>
             )}
@@ -423,7 +448,7 @@ export default function Bookings() {
         )}
       </div>
     );
-  }, [holdBusyId, holdAction, markReturned]);
+  }, [holdBusyId, holdAction, markReturned, askConfirm]);
 
   const [turoSavingId, setTuroSavingId] = useState<string | null>(null);
   const toggleTuroBlocked = useCallback(async (booking: BookingRow) => {
@@ -682,6 +707,34 @@ export default function Bookings() {
   }
 
   const totalCols = orderedColumns.length + (selectionMode && isAdmin ? 1 : 0);
+
+  // Same payment / $99 hold / contract controls as the columns, at the top of the booking window.
+  const viewRow = viewBooking ? bookings.find((x) => x.id === viewBooking.id) ?? null : null;
+  const sectionLabel = 'mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground';
+  const modalActions = viewRow && viewRow.source !== 'turo' ? (
+    <div className="grid gap-4 sm:grid-cols-3">
+      <div>
+        <p className={sectionLabel}>Pagamento</p>
+        {paymentCell(viewRow, true)}
+      </div>
+      <div>
+        <p className={sectionLabel}>Caução de dano</p>
+        {holdCell(viewRow, true)}
+      </div>
+      <div>
+        <p className={sectionLabel}>Contrato</p>
+        {viewRow.rental_agreement_signature_path ? (
+          <Button size="sm" variant="outline" className="gap-1.5" disabled={downloadingAgreementId === viewRow.id}
+            onClick={() => handleDownloadAgreement(viewRow, carsById.get(viewRow.car_id))}>
+            {downloadingAgreementId === viewRow.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+            Baixar PDF
+          </Button>
+        ) : (
+          <span className="text-xs text-muted-foreground">Sem contrato assinado</span>
+        )}
+      </div>
+    </div>
+  ) : null;
 
   const openBooking = (booking: BookingRow) => {
     if (booking.source === 'turo') router.push(`/admin/turo?tab=reservations&trip=${booking.turo!.tripId}`);
@@ -986,6 +1039,7 @@ export default function Bookings() {
         open={!!viewBooking}
         onClose={() => setViewBooking(null)}
         onChanged={fetchData}
+        actions={modalActions}
       />
     </div>
   );

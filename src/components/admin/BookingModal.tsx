@@ -10,9 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Save, Trash2, Check, Image as ImageIcon, Download, Undo2, Ban } from "lucide-react";
-import BookingMoneyDialog from "@/components/admin/BookingMoneyDialog";
-import { useAuth } from "@/hooks/useAuth";
+import { Loader2, Save, Trash2, Check, Image as ImageIcon, Download } from "lucide-react";
 import { US_STATES } from "@/lib/us-states";
 import { BOOKING_STATUS_LABEL, type BookingStatus } from "@/lib/booking-status";
 import { authedFetch } from "@/lib/admin-fetch";
@@ -43,6 +41,8 @@ type Props = {
   open: boolean;
   onClose: () => void;
   onChanged: () => void;
+  /** Payment, $99 hold and contract controls for this booking, shown at the top. */
+  actions?: React.ReactNode;
 };
 
 const EMPTY_FORM = {
@@ -57,7 +57,7 @@ const EMPTY_FORM = {
   notes: "",
 };
 
-export default function BookingModal({ booking, cars, open, onClose, onChanged }: Props) {
+export default function BookingModal({ booking, cars, open, onClose, onChanged, actions }: Props) {
   const { toast } = useToast();
   const [form, setForm] = useState<Record<string, unknown>>({});
   const [saving, setSaving] = useState(false);
@@ -68,17 +68,10 @@ export default function BookingModal({ booking, cars, open, onClose, onChanged }
   const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
   const [loadingSignature, setLoadingSignature] = useState(false);
   const [downloadingAgreement, setDownloadingAgreement] = useState(false);
-  const { profile } = useAuth();
-  const isAdmin = profile?.role === "admin";
-  // ---- Stripe refund / cancellation (website bookings only) ----
-  const [moneyMode, setMoneyMode] = useState<"refund" | "cancel" | null>(null);
-  const hasStripePayment = !!booking?.deposit_payment_intent_id && !!booking?.deposit_paid_at;
-  const refundedSoFar = Number(booking?.refunded_amount ?? 0);
 
   useEffect(() => {
     setForm(booking ? { ...EMPTY_FORM, ...booking } : {});
     setConfirmDelete(false);
-    setMoneyMode(null);
   }, [booking]);
 
   useEffect(() => {
@@ -271,6 +264,12 @@ export default function BookingModal({ booking, cars, open, onClose, onChanged }
         </DialogHeader>
 
         <div className="space-y-6">
+          {actions && !isNew && (
+            <div className="rounded-lg border-2 border-foreground/10 bg-muted/40 p-4">
+              <h3 className="mb-3 text-sm font-semibold">Ações da reserva</h3>
+              {actions}
+            </div>
+          )}
           {/* Trip */}
           <div className="rounded-lg border p-4 space-y-3">
             <h3 className="text-sm font-semibold">Viagem</h3>
@@ -407,35 +406,6 @@ export default function BookingModal({ booking, cars, open, onClose, onChanged }
             </div>
           </div>
 
-          {/* Payment, refund and cancellation — website bookings */}
-          {!isNew && (
-            <div className="rounded-lg border p-4 space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-sm font-semibold">{hasStripePayment ? "Pagamento (Stripe)" : "Pagamento"}</h3>
-                  <p className="text-xs text-muted-foreground">
-                    {hasStripePayment ? "Pago online pelo site" : "Sem pagamento online"}
-                    {refundedSoFar > 0 ? ` · Já reembolsado: $${refundedSoFar.toFixed(2)}` : ""}
-                    {typeof booking?.refund_note === "string" && booking.refund_note ? ` · ${booking.refund_note}` : ""}
-                  </p>
-                </div>
-                {isAdmin && (
-                  <div className="flex shrink-0 gap-2">
-                    {hasStripePayment && (
-                      <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => setMoneyMode("refund")}>
-                        <Undo2 className="h-3.5 w-3.5" /> Reembolsar
-                      </Button>
-                    )}
-                    {booking?.status !== "cancelled" && (
-                      <Button type="button" variant="outline" size="sm" className="gap-1.5 text-destructive" onClick={() => setMoneyMode("cancel")}>
-                        <Ban className="h-3.5 w-3.5" /> Cancelar reserva
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
           {/* Rental agreement */}
           <div className="rounded-lg border p-4 space-y-3">
             <h3 className="text-sm font-semibold">Rental Agreement</h3>
@@ -558,18 +528,6 @@ export default function BookingModal({ booking, cars, open, onClose, onChanged }
         </div>
       </DialogContent>
     </Dialog>
-    <BookingMoneyDialog
-      booking={moneyMode && booking?.id ? {
-        id: String(booking.id),
-        label: [v("customer_name") || v("driver_full_name"), selectedCar ? [selectedCar.year, selectedCar.make, selectedCar.model].filter(Boolean).join(" ") : ""].filter(Boolean).join(" · "),
-        paidOnline: hasStripePayment,
-        damageHoldStatus: (booking.damage_hold_status as string | null) ?? null,
-        turoBlocked: !!booking.turo_blocked_at,
-      } : null}
-      mode={moneyMode ?? "refund"}
-      onClose={() => setMoneyMode(null)}
-      onDone={() => { onChanged(); onClose(); }}
-    />
     </>
   );
 }

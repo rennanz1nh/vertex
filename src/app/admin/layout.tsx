@@ -8,6 +8,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/useAuth";
 import { AuthWrapper } from "@/components/AuthWrapper";
 import { AdminLayout } from "@/components/AdminLayout";
+import { ConfirmProvider } from "@/components/admin/confirm-dialog";
 
 export default function AdminRootLayout({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
@@ -18,9 +19,11 @@ export default function AdminRootLayout({ children }: { children: React.ReactNod
         <TooltipProvider>
           <Toaster />
           <Sonner />
-          <AuthWrapper>
-            <AdminLayout>{children}</AdminLayout>
-          </AuthWrapper>
+          <ConfirmProvider>
+            <AuthWrapper>
+              <AdminLayout>{children}</AdminLayout>
+            </AuthWrapper>
+          </ConfirmProvider>
         </TooltipProvider>
       </AuthProvider>
     </QueryClientProvider>

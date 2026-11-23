@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { authedFetch } from "@/lib/admin-fetch";
+import { useConfirm } from "@/components/admin/confirm-dialog";
 import { BrandWord } from "@/components/admin-v2/brand";
 import { useAuth } from "@/hooks/useAuth";
 import { isMasterAdminEmail } from "@/lib/master-admin";
@@ -30,6 +31,7 @@ function buildScript(auth: { key?: string; token?: string }, asBookmarklet = fal
 
 export function SyncTab({ config, connected, onChanged }: { config: TuroConfig | null; connected: boolean; onChanged: () => void }) {
   const { toast } = useToast();
+  const askConfirm = useConfirm();
   const { user } = useAuth();
   // Everyone on the team can sync; disconnecting the Turo account is the owner's call.
   const isOwner = isMasterAdminEmail(user?.email);
@@ -84,7 +86,7 @@ export function SyncTab({ config, connected, onChanged }: { config: TuroConfig |
   }
 
   async function handleDisconnect() {
-    if (!confirm("Desconectar o Turo? Os dados de viagens salvos serão mantidos.")) return;
+    if (!(await askConfirm({ title: "Desconectar o Turo?", description: "Os dados de viagens salvos serão mantidos.", confirmText: "Desconectar", destructive: true }))) return;
     setDisconnecting(true);
     try {
       await authedFetch("/api/admin/turo/config", { method: "DELETE" });

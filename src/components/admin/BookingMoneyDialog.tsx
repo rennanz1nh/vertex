@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { authedFetch } from "@/lib/admin-fetch";
+import { useConfirm } from "@/components/admin/confirm-dialog";
 
 export type MoneyDialogBooking = {
   id: string;
@@ -38,6 +39,7 @@ export default function BookingMoneyDialog({
   onDone: () => void;
 }) {
   const { toast } = useToast();
+  const askConfirm = useConfirm();
   const [refundable, setRefundable] = useState<number | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [choice, setChoice] = useState<RefundChoice>("full");
@@ -91,14 +93,14 @@ export default function BookingMoneyDialog({
         toast({ title: "Valor inválido", description: `Entre $0.01 e ${usd(refundable ?? 0)}.`, variant: "destructive" });
         return;
       }
-      if (!confirm(`Reembolsar ${usd(partialValue)} no cartão do cliente? Isso não pode ser desfeito.`)) return;
+      if (!(await askConfirm({ title: `Reembolsar ${usd(partialValue)}?`, description: "O valor volta para o cartão do cliente pelo Stripe. Isso não pode ser desfeito.", confirmText: "Reembolsar", destructive: true }))) return;
     } else {
       if (choice === "partial" && !partialValid) {
         toast({ title: "Valor inválido", description: `Entre $0.01 e ${usd(refundable ?? 0)}.`, variant: "destructive" });
         return;
       }
       const money = choice === "none" ? "sem reembolso" : `com reembolso de ${usd(refundAmountShown)}`;
-      if (!confirm(`Cancelar a reserva de ${booking.label} ${money}? Isso não pode ser desfeito.`)) return;
+      if (!(await askConfirm({ title: "Cancelar esta reserva?", description: `${booking.label}, ${money}. Isso não pode ser desfeito.`, confirmText: "Cancelar reserva", cancelText: "Voltar", destructive: true }))) return;
     }
     setBusy(true);
     try {
