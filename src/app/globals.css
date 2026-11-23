@@ -381,3 +381,23 @@ html[data-admin-v2="dark"] .bg-teal-50, html[data-admin-v2="dark"] .bg-teal-100,
 html[data-admin-v2="dark"] .border-teal-100, html[data-admin-v2="dark"] .border-teal-200, html[data-admin-v2="dark"] .border-teal-300 { border-color: rgba(20,184,166, 0.35); }
 html[data-admin-v2="dark"] .text-teal-600, html[data-admin-v2="dark"] .text-teal-700, html[data-admin-v2="dark"] .text-teal-800, html[data-admin-v2="dark"] .text-teal-900 { color: #5eead4; }
 
+
+/* Admin loading mark (LoadingSpinner): the Vertex V wipes in left→right, holds, fades. */
+.vx-loader {
+  -webkit-mask-image: linear-gradient(100deg, #000 40%, transparent 60%);
+  mask-image: linear-gradient(100deg, #000 40%, transparent 60%);
+  -webkit-mask-size: 300% 100%;
+  mask-size: 300% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  animation: vx-loader-reveal 1.6s cubic-bezier(0.45, 0, 0.25, 1) infinite;
+}
+@keyframes vx-loader-reveal {
+  0%   { -webkit-mask-position: 100% 0; mask-position: 100% 0; opacity: 1; transform: scale(0.96); }
+  45%  { -webkit-mask-position: 0% 0;   mask-position: 0% 0;   opacity: 1; transform: scale(1); }
+  80%  { -webkit-mask-position: 0% 0;   mask-position: 0% 0;   opacity: 1; transform: scale(1); }
+  100% { -webkit-mask-position: 0% 0;   mask-position: 0% 0;   opacity: 0; transform: scale(1.02); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vx-loader { animation: none; -webkit-mask-image: none; mask-image: none; }
+}
